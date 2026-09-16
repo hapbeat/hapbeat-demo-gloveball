@@ -4,6 +4,7 @@
     "references": [
         "GloveBallDemo.Core",
         "Unity.InputSystem",
+        "Unity.XR.Hands",
         "Hapbeat.Runtime",
         "Hapbeat.DemoSwitch"
     ],

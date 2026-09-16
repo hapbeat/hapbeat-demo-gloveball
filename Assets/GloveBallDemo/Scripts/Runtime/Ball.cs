@@ -157,6 +157,16 @@ namespace GloveBallDemo.Runtime
             SetState(BallState.Thrown);
         }
 
+        /// <summary>A physical volley scores like a throw, without entering the Held state.</summary>
+        public bool Deflect(Vector3 velocity)
+        {
+            if (State != BallState.Incoming && State != BallState.Thrown) return false;
+            EnsureBody();
+            _rigidbody.linearVelocity = velocity;
+            SetState(BallState.Thrown);
+            return true;
+        }
+
         /// <summary>Ends the ball's life and hands it back to the pool.</summary>
         public void Kill(string reason)
         {
