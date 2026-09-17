@@ -40,6 +40,9 @@ public static class VolleyPresentationUpgrade
         }
         var court=objects.Single(t=>t.name=="court").GetComponent<MeshRenderer>();
         court.sharedMaterial=MakeMaterial("ReceiveCourtBlue",new Color(.035f,.13f,.65f));
+        // Old obstacle silhouettes also exist in baked lighting. Unlit keeps this requested plain floor uniform.
+        court.sharedMaterial.shader=Shader.Find("Universal Render Pipeline/Unlit");
+        EditorUtility.SetDirty(court.sharedMaterial);
         AssetDatabase.SaveAssets(); EditorSceneManager.MarkSceneDirty(scene);
         if(!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException("Save failed.");
         Debug.Log("[VolleyPresentation] Visual-only feeder skins and plain blue court applied; muzzle transforms and court lines preserved.");
