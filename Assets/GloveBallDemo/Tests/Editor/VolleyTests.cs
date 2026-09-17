@@ -229,6 +229,18 @@ namespace GloveBallDemo.Tests
                 {
                     Assert.That(drill.FeedLaunchers.Length,Is.EqualTo(3));
                     Assert.That(drill.FeedLaunchers.All(l=>l.gameObject.activeInHierarchy && !l.enabled),Is.True);
+                    foreach(var launcher in drill.FeedLaunchers)
+                    {
+                        Assert.That(launcher.transform.Find("Ball Feeder Skin"),Is.Not.Null);
+                        Assert.That(launcher.GetComponentsInChildren<MeshRenderer>().Where(r=>r.name=="Body"||r.name=="Barrel").All(r=>!r.enabled),Is.True);
+                        var muzzle=launcher.transform.InverseTransformPoint(launcher.MuzzlePosition);
+                        Assert.That(muzzle.z,Is.EqualTo(-.6f).Within(.001f));
+                        var visualDirection=launcher.transform.Find("Ball Feeder Skin").TransformDirection(Vector3.down);
+                        Assert.That(Vector3.Dot(visualDirection.normalized,(launcher.MuzzlePosition-launcher.transform.position).normalized),Is.GreaterThan(.99f));
+                    }
+                    var court=scene.GetRootGameObjects().SelectMany(o=>o.GetComponentsInChildren<MeshRenderer>()).Single(r=>r.name=="court");
+                    Assert.That(court.sharedMaterial.name,Is.EqualTo("ReceiveCourtBlue"));
+                    Assert.That(court.sharedMaterial.GetTexture("_BaseMap"),Is.Null);
                     drill.Targets.BeginWave(0,1,1);
                     Assert.That(drill.Targets.ActiveTargetCount,Is.EqualTo(1));
                     var target=drill.Panels.Single(p=>p.gameObject.activeSelf);
