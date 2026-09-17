@@ -25,10 +25,10 @@ namespace GloveBallDemo.Tests
                 foreach(float headHeight in new[]{.9f,1.6f,3.2f})
                 {
                     d.Head.position=new Vector3(1,headHeight,-5f);
-                    for(int i=0;i<8;i++)Assert.That(d.GetServeDestination().y,Is.InRange(.45f,.85f));
+                    for(int i=0;i<8;i++)Assert.That(d.GetServeDestination().y,Is.InRange(.8f,1f));
                 }
                 foreach(var launcher in d.FeedLaunchers)
-                foreach(float height in new[]{.45f,.65f,.85f})
+                foreach(float height in new[]{.8f,.9f,1f})
                 {
                     var dest=new Vector3(1,height,-4.35f);var aim=launcher.GetComponent<VolleyFeederAim>();var velocity=Vector3.zero;float seconds=0;
                     for(int i=0;i<8;i++){seconds=d.GetFlightSeconds(launcher.MuzzlePosition,dest);velocity=aim.AimForShot(dest,seconds);}

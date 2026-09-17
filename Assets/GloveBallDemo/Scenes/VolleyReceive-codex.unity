@@ -295,6 +295,8 @@ MonoBehaviour:
   ContactVolume: {fileID: 69585301}
   MaximumTrackedSpeed: 8
   ReacquireDelay: 0.15
+  EnableWideMotion: 1
+  AllowEstimatedContacts: 0
 --- !u!4 &69585300
 Transform:
   m_ObjectHideFlags: 0
@@ -2111,7 +2113,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 364246320}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.035566084, y: 0.9578647, z: 0.25045657, w: -0.1360216}
+  m_LocalRotation: {x: 0.034120474, y: 0.9604688, z: 0.24027655, w: -0.13639139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -2597,7 +2599,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 436388405}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.035566084, y: 0.9578647, z: 0.25045657, w: 0.1360216}
+  m_LocalRotation: {x: -0.034120474, y: 0.9604688, z: 0.24027655, w: 0.13639139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -5191,11 +5193,12 @@ MonoBehaviour:
   - {fileID: 1413603371}
   - {fileID: 102079978}
   JoinedHands: {fileID: 2059489942}
+  Aerial: {fileID: 0}
   FeedDistance: 5
   FeedHeightAboveHead: 0.4
   ContactHeightFromHead: -0.15
-  ReceiveContactHeight: 0.65
-  ReceiveHeightSpread: 0.2
+  ReceiveContactHeight: 0.9
+  ReceiveHeightSpread: 0.1
   ReceiveNet: {fileID: 1572485602}
   ReceiveMinimumFlightSeconds: 0.95
   ReceiveNetClearance: 0.22
@@ -5314,6 +5317,7 @@ MonoBehaviour:
   _minHeight: 2.95
   _maxHeight: 3.65
   _minimumSpacing: 1.3
+  _faceUp: 0
 --- !u!4 &1154938703
 Transform:
   m_ObjectHideFlags: 0
@@ -6424,7 +6428,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1495781713}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.96542186, z: 0.2606927, w: 0}
+  m_LocalRotation: {x: -0, y: 0.96818596, z: 0.2502319, w: 0}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -7102,6 +7106,8 @@ MonoBehaviour:
   ContactVolume: {fileID: 1638254372}
   MaximumTrackedSpeed: 8
   ReacquireDelay: 0.15
+  EnableWideMotion: 1
+  AllowEstimatedContacts: 0
 --- !u!4 &1638254371
 Transform:
   m_ObjectHideFlags: 0

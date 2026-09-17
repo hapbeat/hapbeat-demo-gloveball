@@ -61,12 +61,20 @@ namespace GloveBallDemo.Runtime
             controller.TryGetFeatureValue(CommonUsages.menuButton,out bool controllerMenu);
             bool pressed=(flags&MetaAimFlags.MenuPressed)!=0 || controllerMenu;
             bool fallback=LeftPalmPinch(flags);
-            if(fallback){if(_gestureStart<0)_gestureStart=Time.unscaledTime;}
+            ProcessMenuGesture(Time.unscaledTime,pressed,fallback);
+            UpdatePointers();
+        }
+        public void ProcessMenuGesture(float now,bool pressed,bool fallback)
+        {
+            if(fallback){if(_gestureStart<0)_gestureStart=now;}
             else{_gestureStart=-1;_gestureUsed=false;}
-            bool held=fallback && !_gestureUsed && Time.unscaledTime-_gestureStart>.5f;
-            if(((pressed&&!_menuPressed)||held) && Time.unscaledTime-_lastToggle>.5f)
-            {SetOpen(!IsOpen);_lastToggle=Time.unscaledTime;_gestureUsed=true;}
+            bool held=fallback && !_gestureUsed && now-_gestureStart>.5f;
+            if(((pressed&&!_menuPressed)||held) && now-_lastToggle>.5f)
+            {SetOpen(!IsOpen);_lastToggle=now;_gestureUsed=true;}
             _menuPressed=pressed;
+        }
+        void UpdatePointers()
+        {
             if(!IsOpen)return;
             foreach(var row in _rows)row.GetComponent<Image>().color=new Color(.1f,.18f,.24f);
             for(int side=0;side<2;side++)
@@ -89,12 +97,14 @@ namespace GloveBallDemo.Runtime
         }
         bool LeftPalmPinch(MetaAimFlags flags)
         {
-            if((flags&MetaAimFlags.SystemGesture)!=0 && MetaAimHand.left!=null)return MetaAimHand.left.indexPressed.isPressed;
+            if((flags&MetaAimFlags.SystemGesture)!=0 && MetaAimHand.left!=null && MetaAimHand.left.indexPressed.isPressed)return true;
             if(!TryJoints(0,out var wrist,out var index,out var thumb))return false;
             var space=Floor.Origin.CameraFloorOffsetObject.transform;
-            var normal=space.rotation*wrist.rotation*Vector3.up;
-            return Vector3.Distance(index.position,thumb.position)<.025f && Vector3.Dot(normal,(Drill.Head.position-space.TransformPoint(wrist.position)).normalized)>.6f;
+            return IsPalmPinch(wrist,index,thumb,space.InverseTransformPoint(Drill.Head.position));
         }
+        public static bool IsPalmPinch(Pose wrist,Pose index,Pose thumb,Vector3 headInTrackingSpace)
+            // Same palm axis as XR Hands' XRHandOrientationUtility: local -Y, not the back-of-hand +Y.
+            => Vector3.Distance(index.position,thumb.position)<.025f && Vector3.Dot(wrist.rotation*Vector3.down,(headInTrackingSpace-wrist.position).normalized)>.6f;
         bool TryJoints(int side,out Pose wrist,out Pose index,out Pose thumb)
         {
             wrist=index=thumb=default;SubsystemManager.GetSubsystems(_hands);

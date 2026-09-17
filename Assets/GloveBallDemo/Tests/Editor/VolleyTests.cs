@@ -63,7 +63,7 @@ namespace GloveBallDemo.Tests
                 var move=new Vector3(1,.3f,.5f); head.transform.position+=move; Random.InitState(23); var b=drill.GetServeDestination();
                 Assert.That(Vector3.Distance(b-a,new Vector3(move.x,0,move.z)),Is.LessThan(.001f));
                 Assert.That(Mathf.Abs((b-head.transform.position).x),Is.LessThanOrEqualTo(drill.LateralSpread));
-                Assert.That(b.y,Is.InRange(.45f,.85f));
+                Assert.That(b.y,Is.InRange(.8f,1f));
                 drill.Drill=VolleyDrill.Spike;
                 var c=drill.GetServeDestination();
                 Assert.That(Mathf.Abs((c-head.transform.position).y-drill.ContactHeightFromHead),Is.LessThanOrEqualTo(drill.VerticalSpread));
@@ -243,8 +243,10 @@ namespace GloveBallDemo.Tests
                         foreach(var targetPoint in new[]{new Vector3(-2,1.5f,-4),new Vector3(2,2.2f,-6)})
                         {
                             var velocity=aim.AimForShot(targetPoint,drill.FlightSeconds);
-                            Assert.That(Vector3.Angle(aim.Muzzle.forward,velocity),Is.LessThan(.02f));
-                            Assert.That(Vector3.Angle(headPart.TransformDirection(Vector3.down),velocity),Is.LessThan(.02f));
+                            // At near-parallel angles acos(float dot) quantizes to about 0.028 degrees.
+                            // Compare unit-vector distance instead; 0.00035 rad is still about 0.02 degrees.
+                            Assert.That(Vector3.Distance(aim.Muzzle.forward.normalized,velocity.normalized),Is.LessThan(.00035f));
+                            Assert.That(Vector3.Distance(headPart.TransformDirection(Vector3.down).normalized,velocity.normalized),Is.LessThan(.00035f));
                             var landing=launcher.MuzzlePosition+velocity*drill.FlightSeconds+Physics.gravity*(.5f*drill.FlightSeconds*drill.FlightSeconds);
                             Assert.That(Vector3.Distance(landing,targetPoint),Is.LessThan(.001f));
                             Assert.That(basePart.position,Is.EqualTo(basePosition));

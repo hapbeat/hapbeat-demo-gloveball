@@ -8,6 +8,31 @@ namespace GloveBallDemo.Tests
     public class VolleyHandMenuTests
     {
         [Test]
+        public void PalmTowardHeadPinchOpensWithoutMetaAimAndDoesNotRepeatWhileHeld()
+        {
+            EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");
+            var menu=Object.FindFirstObjectByType<VolleyHandMenu>();
+            // Unity XR Hands PalmDirection is rotation * Vector3.down. +90 X points palm toward -Z/head.
+            var wrist=new Pose(new Vector3(0,0,.4f),Quaternion.Euler(90,0,0));
+            var index=new Pose(new Vector3(0,.1f,.4f),Quaternion.identity);
+            var thumb=new Pose(index.position+Vector3.right*.01f,Quaternion.identity);
+            bool held=VolleyHandMenu.IsPalmPinch(wrist,index,thumb,Vector3.zero);
+            try
+            {
+                menu.ProcessMenuGesture(1,false,held);menu.ProcessMenuGesture(1.6f,false,held);
+                Assert.That(menu.IsOpen,Is.True,"Left palm-facing pinch must open menu without MetaAimHand");
+                menu.ProcessMenuGesture(3,false,held);Assert.That(menu.IsOpen,Is.True);
+            }
+            finally{menu.SetOpen(false);Object.DestroyImmediate(menu);}
+        }
+        [Test]
+        public void BackOfHandFacingHeadIsNotAMenuGesture()
+        {
+            var wrist=new Pose(new Vector3(0,0,.4f),Quaternion.Euler(-90,0,0));
+            var index=new Pose(Vector3.zero,Quaternion.identity);var thumb=new Pose(Vector3.right*.01f,Quaternion.identity);
+            Assert.That(VolleyHandMenu.IsPalmPinch(wrist,index,thumb,Vector3.zero),Is.False);
+        }
+        [Test]
         public void CalibrationOffsetsHeadAndHandsTogetherAndPreservesCrouching()
         {
             EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");

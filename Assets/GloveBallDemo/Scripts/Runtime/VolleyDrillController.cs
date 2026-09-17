@@ -30,8 +30,8 @@ namespace GloveBallDemo.Runtime
         public float FeedHeightAboveHead = .4f;
         public float ContactHeightFromHead = -.4f;
         [Header("Receive only: floor-relative contact and net clearance")]
-        public float ReceiveContactHeight = .65f;
-        [Min(0f)] public float ReceiveHeightSpread = .2f;
+        public float ReceiveContactHeight = .9f;
+        [Min(0f)] public float ReceiveHeightSpread = .1f;
         public BoxCollider ReceiveNet;
         [Min(.25f)] public float ReceiveMinimumFlightSeconds = .95f;
         [Min(.15f)] public float ReceiveNetClearance = .22f;
