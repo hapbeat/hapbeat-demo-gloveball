@@ -10,3 +10,9 @@ Original low-poly model created in Blender 5.2.1 LTS for this demo. No third-par
 - One mesh / three materials. Simplified solid box collider for the net (not individual cord physics). No cloth simulation or downloaded asset license dependency.
 
 The Receive scene hides the old BallSpawner marker and places the net at its centre. The three actual volley feed launchers remain visible and active as emission references.
+
+## Cosmetic impact response
+
+`volleyball_net_deformable.blend` / `VolleyballNetDeformable.fbx` are a separate, subdivided variant (`create_net.py --deformable`), preserving the original asset. Receive uses this mesh with Read/Write enabled. `VolleyNetResponse` clones the mesh per instance; only the net rectangle dents along its normal. Posts, cables, collision box and the shared source mesh remain fixed. Up to four impact ripples decay and restore the original vertices; no cloth solver is used.
+
+Inspector on `Volley Net`: Normal Retention 0.08, Tangential Retention 0.25, Maximum Dent 0.18 m, Dent Radius 0.7 m, Decay 5, Oscillation 16 rad/s. The fixed collider uses NetLowBounce; the collision callback reduces outgoing ball velocity independently of each ball's floor-bounce material. No new haptic events or audio are emitted by the net. Retained gravity makes the slowed ball fall naturally. ReceiveCourtBlue is now light cyan; original stadium materials remain unchanged.

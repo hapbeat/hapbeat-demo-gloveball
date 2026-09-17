@@ -3348,7 +3348,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 703189992}
-  m_Mesh: {fileID: -5585461847377161068, guid: edd32de54391e824fbfcb902cbe7bf50, type: 3}
+  m_Mesh: {fileID: -5585461847377161068, guid: ef823318b34c16445bea43c1faf58bbd, type: 3}
 --- !u!4 &703189996
 Transform:
   m_ObjectHideFlags: 0
@@ -6845,6 +6845,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1572485603}
   - component: {fileID: 1572485602}
+  - component: {fileID: 1572485604}
   m_Layer: 0
   m_Name: Volley Net
   m_TagString: Untagged
@@ -6859,7 +6860,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1572485601}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 302bf71603953b044a58e5e04b1278ad, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -6889,6 +6890,25 @@ Transform:
   - {fileID: 703189996}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1572485604
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1572485601}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f86c4365cf3047439e26adea0cfd160, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Visual: {fileID: 703189995}
+  NormalRetention: 0.08
+  TangentialRetention: 0.25
+  MaximumDent: 0.18
+  DentRadius: 0.7
+  Decay: 5
+  Oscillation: 16
 --- !u!1 &1580629576
 GameObject:
   m_ObjectHideFlags: 0

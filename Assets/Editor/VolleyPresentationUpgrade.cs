@@ -9,6 +9,42 @@ using UnityEngine.SceneManagement;
 public static class VolleyPresentationUpgrade
 {
     const string Art="Assets/GloveBallDemo/Art/BallFeeder/";
+    public static void ApplySoftNet()
+    {
+        if(EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play first.");
+        for(int i=0;i<SceneManager.sceneCount;i++)
+            if(SceneManager.GetSceneAt(i).isDirty) throw new InvalidOperationException("Save manual changes first.");
+        var scene=EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");
+        const string netArt="Assets/GloveBallDemo/Art/VolleyballNet/";
+        var importer=(ModelImporter)AssetImporter.GetAtPath(netArt+"VolleyballNetDeformable.fbx");
+        if(!importer.isReadable) { importer.isReadable=true; importer.SaveAndReimport(); }
+        var model=AssetDatabase.LoadAssetAtPath<GameObject>(netArt+"VolleyballNetDeformable.fbx");
+        var net=scene.GetRootGameObjects().SelectMany(o=>o.GetComponentsInChildren<Transform>(true)).Single(t=>t.name=="Volley Net");
+        var visual=net.GetComponentInChildren<MeshFilter>();
+        Undo.RecordObject(visual,"Use deformable net mesh");
+        visual.sharedMesh=model.GetComponentInChildren<MeshFilter>().sharedMesh;
+        var sourceMaterials=model.GetComponentInChildren<MeshRenderer>().sharedMaterials;
+        visual.GetComponent<MeshRenderer>().sharedMaterials=sourceMaterials.Select(m=>AssetDatabase.LoadAssetAtPath<Material>(netArt+m.name+".mat")).ToArray();
+        if(visual.GetComponent<MeshRenderer>().sharedMaterials.Any(m=>m==null)) throw new InvalidOperationException("Missing net material.");
+        var response=net.GetComponent<VolleyNetResponse>();
+        if(response==null) response=Undo.AddComponent<VolleyNetResponse>(net.gameObject);
+        response.Visual=visual;
+        const string physicsPath=netArt+"NetLowBounce.physicMaterial";
+        var material=AssetDatabase.LoadAssetAtPath<PhysicsMaterial>(physicsPath);
+        if(material==null)
+        {
+            material=new PhysicsMaterial("NetLowBounce") { bounciness=0f, bounceCombine=PhysicsMaterialCombine.Minimum,
+                staticFriction=.4f,dynamicFriction=.4f };
+            AssetDatabase.CreateAsset(material,physicsPath);
+        }
+        net.GetComponent<BoxCollider>().sharedMaterial=material;
+        var floor=AssetDatabase.LoadAssetAtPath<Material>(Art+"ReceiveCourtBlue.mat");
+        Undo.RecordObject(floor,"Light cyan court"); floor.SetColor("_BaseColor",new Color(.22f,.62f,.76f,1f));
+        EditorUtility.SetDirty(floor); EditorUtility.SetDirty(response);
+        AssetDatabase.SaveAssets(); EditorSceneManager.MarkSceneDirty(scene);
+        if(!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException("Save failed.");
+        Debug.Log("[VolleyPresentation] Soft net and light cyan floor applied in place.");
+    }
     public static void ApplyArticulation()
     {
         if(EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play first.");
