@@ -149,6 +149,24 @@ namespace GloveBallDemo.Tests
                 Assert.That(drill.Left.Side,Is.EqualTo(GloveSide.Left));
                 Assert.That(drill.Right.Side,Is.EqualTo(GloveSide.Right));
                 Assert.That(drill.Left.TrackingSpace,Is.EqualTo(drill.Head.parent));
+                foreach (var hand in new[] { drill.Left, drill.Right })
+                {
+                    Assert.That(hand.ContactVolume,Is.Not.Null);
+                    Assert.That(hand.ContactVolume.isTrigger,Is.True);
+                    Assert.That(hand.ContactVolume.size.y,Is.GreaterThanOrEqualTo(.08f));
+                    var ghost=hand.Visual.GetComponent<VolleyGhostHand>();
+                    Assert.That(ghost,Is.Not.Null);
+                    Assert.That(ghost.Hand,Is.EqualTo(hand));
+                    Assert.That(ghost.Skeleton.jointTransformReferences.Count,Is.EqualTo(26));
+                    Assert.That(ghost.Skeleton.handTrackingEvents.handedness,Is.EqualTo(
+                        hand.Side==GloveSide.Left ? UnityEngine.XR.Hands.Handedness.Left : UnityEngine.XR.Hands.Handedness.Right));
+                    Assert.That(ghost.Mesh.sharedMaterials.Length,Is.EqualTo(2));
+                    Assert.That(ghost.Mesh.sharedMaterials.All(x=>x!=null),Is.True);
+                }
+                var poolData=new UnityEditor.SerializedObject(drill.Pool);
+                var kinds=poolData.FindProperty("_launchBallKinds");
+                Assert.That(Enumerable.Range(0,kinds.arraySize).Select(i=>kinds.GetArrayElementAtIndex(i).intValue),Is.EqualTo(new[]{0,1,2,4}));
+                if(drill.Drill==VolleyDrill.Receive) Assert.That(drill.ContactHeightFromHead,Is.EqualTo(-.15f).Within(.001f));
                 Assert.That(drill.Panels.Length,Is.GreaterThanOrEqualTo(3));
                 Assert.That(components.OfType<VolleyBodySurface>().Single().Drill,Is.EqualTo(drill));
             }
