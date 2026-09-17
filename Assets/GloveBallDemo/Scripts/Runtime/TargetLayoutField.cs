@@ -28,6 +28,8 @@ namespace GloveBallDemo.Runtime
         [SerializeField] private float _maxHeight = 3.2f;
         [Tooltip("Minimum world-space distance between target centres.")]
         [Min(0f)] [SerializeField] private float _minimumSpacing = 2f;
+        [Tooltip("Lay the target face upward for floor-level spike targets.")]
+        [SerializeField] private bool _faceUp;
 
         private int _activeTargetCount;
         private int _waveIndex;
@@ -105,7 +107,7 @@ namespace GloveBallDemo.Runtime
                 var active = i < targetCount;
                 if (active)
                 {
-                    _targets[i].transform.SetPositionAndRotation(slots[i].Position, slots[i].Rotation);
+                    _targets[i].transform.SetPositionAndRotation(slots[i].Position, _faceUp ? Quaternion.LookRotation(Vector3.up,Vector3.forward) : slots[i].Rotation);
                     _targets[i].ResetForGeneration();
                 }
                 _targets[i].gameObject.SetActive(active);

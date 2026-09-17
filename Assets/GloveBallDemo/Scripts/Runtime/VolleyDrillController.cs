@@ -6,7 +6,7 @@ using UnityEngine.XR;
 
 namespace GloveBallDemo.Runtime
 {
-    public enum VolleyDrill { Receive, Spike }
+    public enum VolleyDrill { Receive, Spike, Block }
 
     /// <summary>One-ball, automatic, button-free drill. Only this component serves balls in volley scenes.</summary>
     public sealed class VolleyDrillController : MonoBehaviour
@@ -24,6 +24,7 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Visible emitters. The drill owns timing; their BallLauncher components stay disabled.")]
         public BallLauncher[] FeedLaunchers;
         public VolleyJoinedHands JoinedHands;
+        public VolleyAerialSequence Aerial;
         [Header("Feed, relative to current head height; metres / seconds")]
         [Min(.3f)] public float FeedDistance = 5f;
         public float FeedHeightAboveHead = .4f;
@@ -62,7 +63,7 @@ namespace GloveBallDemo.Runtime
 
         private void Start()
         {
-            Targets.BeginWave(0, Drill == VolleyDrill.Receive ? 1 : 3, Drill == VolleyDrill.Receive ? 1 : 3);
+            if(Drill!=VolleyDrill.Block) Targets.BeginWave(0, Aerial!=null || Drill==VolleyDrill.Receive ? 1 : 3, Aerial!=null || Drill==VolleyDrill.Receive ? 1 : 3);
             foreach (var panel in Panels) panel.HitFlashCompleted += OnTarget;
             _subscribed = true;
             _nextServe = ServeInterval;
@@ -81,7 +82,7 @@ namespace GloveBallDemo.Runtime
         private void Update()
         {
             if(GameInputGate.IsBlocked) return;
-            if (FeedLaunchers != null && Head != null && CourtFrame != null)
+            if (Aerial==null && FeedLaunchers != null && Head != null && CourtFrame != null)
             {
                 var target = GetContactCentre();
                 foreach (var launcher in FeedLaunchers)
@@ -98,6 +99,7 @@ namespace GloveBallDemo.Runtime
             }
             if (!TrackingReady)
             {
+                if(Aerial!=null)Aerial.CancelFeed();
                 _trackingStable = 0f;
                 _nextServe = 0f;
             }
@@ -110,21 +112,26 @@ namespace GloveBallDemo.Runtime
             if (StatusText != null)
             {
                 string action = Drill == VolleyDrill.Receive ? "RECEIVE: angle your hands toward a target" : "SPIKE: strike the dropping ball toward a target";
+                if(Aerial!=null)action=Aerial.Cue;
                 string state = !TrackingReady ? "Show hands / pick up controllers" : _trackingStable < ReadySeconds ? "READY " + Mathf.CeilToInt(ReadySeconds - _trackingStable) : action;
                 StatusText.text = state + "\nL: " + Left.Source + "   R: " + Right.Source + "   (no buttons)";
             }
-            if (ScoreText != null) ScoreText.text = $"{Drill.ToString().ToUpperInvariant()}   TARGET {TargetHits}   RETURNS {Returns}   BODY {BodyHits}";
+            if (ScoreText != null) ScoreText.text = Drill==VolleyDrill.Block ? $"BLOCKS {Returns}   BODY {BodyHits}"
+                : $"{Drill.ToString().ToUpperInvariant()}   TARGET {TargetHits}   RETURNS {Returns}   BODY {BodyHits}";
         }
 
         private void Serve()
         {
-            _ball = Pool.Take();
-            if (_ball == null) return;
             Vector3 forward = Vector3.ProjectOnPlane(CourtFrame.forward, Vector3.up).normalized;
             Vector3 start = Head.position + forward * FeedDistance + Vector3.up * FeedHeightAboveHead;
             Vector3 destination = GetServeDestination();
             Vector3 velocity = VolleyMath.ServeVelocity(start, destination, FlightSeconds, Physics.gravity);
-            if (FeedLaunchers != null && FeedLaunchers.Length > 0)
+            if(Aerial!=null)
+            {
+                if(!Aerial.TickFeed(Time.deltaTime,out start,out destination,out float seconds))return;
+                velocity=VolleyMath.ServeVelocity(start,destination,seconds,Physics.gravity);
+            }
+            else if (FeedLaunchers != null && FeedLaunchers.Length > 0)
             {
                 var launcher = FeedLaunchers[Random.Range(0, FeedLaunchers.Length)];
                 if (launcher.TryGetComponent<VolleyFeederAim>(out var aim))
@@ -135,6 +142,8 @@ namespace GloveBallDemo.Runtime
                 else velocity = VolleyMath.ServeVelocity(launcher.MuzzlePosition, destination, GetFlightSeconds(launcher.MuzzlePosition,destination), Physics.gravity);
                 start = launcher.MuzzlePosition;
             }
+            _ball=Pool.Take();
+            if(_ball==null)return;
             // Fixed flight time gives a readable feed independent of the former high-speed launcher rules.
             _ball.Body.linearDamping = 0f;
             _ball.LaunchIncoming(start, velocity);
@@ -162,7 +171,7 @@ namespace GloveBallDemo.Runtime
 
         public float GetFlightSeconds(Vector3 start,Vector3 destination)
         {
-            if(Drill!=VolleyDrill.Receive || ReceiveNet==null) return FlightSeconds;
+            if((Drill!=VolleyDrill.Receive && Drill!=VolleyDrill.Block) || ReceiveNet==null) return FlightSeconds;
             var normal=ReceiveNet.transform.forward;
             var distance=Vector3.Dot(destination-start,normal);
             if(Mathf.Abs(distance)<.001f) return ReceiveMinimumFlightSeconds;
@@ -188,6 +197,7 @@ namespace GloveBallDemo.Runtime
                     float radius = sphere != null ? sphere.radius * Mathf.Max(_ball.transform.lossyScale.x, _ball.transform.lossyScale.y, _ball.transform.lossyScale.z) : .12f;
                     bool l = Contact(Left, previous, current, radius, out float lt, out var ln);
                     bool r = Contact(Right, previous, current, radius, out float rt, out var rn);
+                    if(Aerial!=null && Drill==VolleyDrill.Spike)l=false;
                     bool joined=JoinedHands!=null && JoinedHands.Joined;
                     if(joined)
                     {

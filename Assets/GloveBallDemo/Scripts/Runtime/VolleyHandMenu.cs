@@ -123,7 +123,7 @@ namespace GloveBallDemo.Runtime
         public void SetOpen(bool open)
         {
             if(_canvas==null)Build();if(IsOpen==open)return;IsOpen=open;
-            if(open){_savedTimeScale=Time.timeScale;Time.timeScale=0f;var forward=Vector3.ProjectOnPlane(Drill.Head.forward,Vector3.up).normalized;
+            if(open){Floor.GetComponent<VolleyArmJump>()?.ResetJump();_savedTimeScale=Time.timeScale;Time.timeScale=0f;var forward=Vector3.ProjectOnPlane(Drill.Head.forward,Vector3.up).normalized;
                 _canvas.transform.position=Drill.Head.position+forward*1.25f;_canvas.transform.rotation=Quaternion.LookRotation(forward);_pinched[0]=_pinched[1]=true;}
             else Time.timeScale=_savedTimeScale;
             _canvas.gameObject.SetActive(open);GameInputGate.SetBlocked(open);foreach(var ray in _rays)ray.enabled=false;

@@ -12,6 +12,7 @@ namespace GloveBallDemo.Runtime
         public XROrigin Origin;
         [Tooltip("App-only vertical correction for a miscalibrated runtime floor. Set through the standing-height menu.")]
         public float HeightCorrection;
+        public float VirtualLift { get; private set; }
         [Min(1f)] public float StandingEyeHeight=1.60f;
         public float EyeHeight=>Origin.Camera.transform.position.y-Origin.transform.position.y;
         readonly List<XRInputSubsystem> _inputs=new List<XRInputSubsystem>();
@@ -30,13 +31,19 @@ namespace GloveBallDemo.Runtime
                 if(mode!=TrackingOriginModeFlags.Floor && mode!=TrackingOriginModeFlags.Device) continue;
                 var offset=Origin.CameraFloorOffsetObject.transform;
                 var p=offset.localPosition;
-                p.y=OffsetForMode(mode,Origin.CameraYOffset)+HeightCorrection;
+                p.y=OffsetForMode(mode,Origin.CameraYOffset)+HeightCorrection+VirtualLift;
                 offset.localPosition=p;
                 break;
             }
         }
         public static float OffsetForMode(TrackingOriginModeFlags mode,float deviceHeight)
             => mode==TrackingOriginModeFlags.Floor ? 0f : deviceHeight;
+        public void SetVirtualLift(float value)
+        {
+            var offset=Origin.CameraFloorOffsetObject.transform;
+            var p=offset.localPosition;p.y+=value-VirtualLift;offset.localPosition=p;
+            VirtualLift=value;
+        }
         public void CalibrateStandingHeight()
         {
             // Apply equally to camera and both tracked hands, not to the court or target floor frame.
