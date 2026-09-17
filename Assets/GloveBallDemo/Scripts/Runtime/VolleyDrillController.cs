@@ -80,6 +80,7 @@ namespace GloveBallDemo.Runtime
 
         private void Update()
         {
+            if(GameInputGate.IsBlocked) return;
             if (FeedLaunchers != null && Head != null && CourtFrame != null)
             {
                 var target = GetContactCentre();

@@ -10,6 +10,10 @@ namespace GloveBallDemo.Runtime
     public sealed class VolleyFloorTracking : MonoBehaviour
     {
         public XROrigin Origin;
+        [Tooltip("App-only vertical correction for a miscalibrated runtime floor. Set through the standing-height menu.")]
+        public float HeightCorrection;
+        [Min(1f)] public float StandingEyeHeight=1.60f;
+        public float EyeHeight=>Origin.Camera.transform.position.y-Origin.transform.position.y;
         readonly List<XRInputSubsystem> _inputs=new List<XRInputSubsystem>();
         XRInputSubsystem _requested;
         void LateUpdate()
@@ -26,12 +30,24 @@ namespace GloveBallDemo.Runtime
                 if(mode!=TrackingOriginModeFlags.Floor && mode!=TrackingOriginModeFlags.Device) continue;
                 var offset=Origin.CameraFloorOffsetObject.transform;
                 var p=offset.localPosition;
-                p.y=OffsetForMode(mode,Origin.CameraYOffset);
+                p.y=OffsetForMode(mode,Origin.CameraYOffset)+HeightCorrection;
                 offset.localPosition=p;
                 break;
             }
         }
         public static float OffsetForMode(TrackingOriginModeFlags mode,float deviceHeight)
             => mode==TrackingOriginModeFlags.Floor ? 0f : deviceHeight;
+        public void CalibrateStandingHeight()
+        {
+            // Apply equally to camera and both tracked hands, not to the court or target floor frame.
+            HeightCorrection+=StandingEyeHeight-EyeHeight;
+            var offset=Origin.CameraFloorOffsetObject.transform;
+            var p=offset.localPosition;p.y+=StandingEyeHeight-EyeHeight;offset.localPosition=p;
+        }
+        public void ClearCalibration()
+        {
+            var offset=Origin.CameraFloorOffsetObject.transform;
+            var p=offset.localPosition;p.y-=HeightCorrection;offset.localPosition=p;HeightCorrection=0f;
+        }
     }
 }

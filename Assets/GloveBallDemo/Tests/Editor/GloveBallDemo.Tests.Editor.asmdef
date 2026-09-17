@@ -8,6 +8,7 @@
         "Unity.InputSystem.TestFramework",
         "Unity.XR.Interaction.Toolkit",
         "Unity.XR.Hands",
+        "Unity.XR.CoreUtils",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

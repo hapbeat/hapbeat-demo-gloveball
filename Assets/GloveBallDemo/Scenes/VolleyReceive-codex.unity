@@ -3179,6 +3179,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Origin: {fileID: 631991372}
+  HeightCorrection: 0
+  StandingEyeHeight: 1.6
 --- !u!1 &651308258
 GameObject:
   m_ObjectHideFlags: 0
@@ -5150,6 +5152,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1137378106}
   - component: {fileID: 1137378105}
+  - component: {fileID: 1137378107}
   m_Layer: 0
   m_Name: Volley Drill - Receive
   m_TagString: Untagged
@@ -5222,6 +5225,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1137378107
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1137378104}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9da368f1379df9a4295f4ee35e412f20, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Drill: {fileID: 1137378105}
+  Floor: {fileID: 631991373}
 --- !u!1 &1145247898
 GameObject:
   m_ObjectHideFlags: 0
