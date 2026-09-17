@@ -231,12 +231,22 @@ namespace GloveBallDemo.Tests
                     Assert.That(drill.FeedLaunchers.All(l=>l.gameObject.activeInHierarchy && !l.enabled),Is.True);
                     foreach(var launcher in drill.FeedLaunchers)
                     {
-                        Assert.That(launcher.transform.Find("Ball Feeder Skin"),Is.Not.Null);
+                        var aim=launcher.GetComponent<VolleyFeederAim>();
+                        Assert.That(aim,Is.Not.Null);
                         Assert.That(launcher.GetComponentsInChildren<MeshRenderer>().Where(r=>r.name=="Body"||r.name=="Barrel").All(r=>!r.enabled),Is.True);
-                        var muzzle=launcher.transform.InverseTransformPoint(launcher.MuzzlePosition);
-                        Assert.That(muzzle.z,Is.EqualTo(-.6f).Within(.001f));
-                        var visualDirection=launcher.transform.Find("Ball Feeder Skin").TransformDirection(Vector3.down);
-                        Assert.That(Vector3.Dot(visualDirection.normalized,(launcher.MuzzlePosition-launcher.transform.position).normalized),Is.GreaterThan(.99f));
+                        var basePart=launcher.GetComponentsInChildren<Transform>().Single(t=>t.name=="FeederBase");
+                        var basePosition=basePart.position; var baseRotation=basePart.rotation;
+                        var headPart=aim.Pivot.GetComponentsInChildren<Transform>().Single(t=>t.name=="FeederHead");
+                        foreach(var targetPoint in new[]{new Vector3(-2,1.5f,-4),new Vector3(2,2.2f,-6)})
+                        {
+                            var velocity=aim.AimForShot(targetPoint,drill.FlightSeconds);
+                            Assert.That(Vector3.Angle(aim.Muzzle.forward,velocity),Is.LessThan(.02f));
+                            Assert.That(Vector3.Angle(headPart.TransformDirection(Vector3.down),velocity),Is.LessThan(.02f));
+                            var landing=launcher.MuzzlePosition+velocity*drill.FlightSeconds+Physics.gravity*(.5f*drill.FlightSeconds*drill.FlightSeconds);
+                            Assert.That(Vector3.Distance(landing,targetPoint),Is.LessThan(.001f));
+                            Assert.That(basePart.position,Is.EqualTo(basePosition));
+                            Assert.That(basePart.rotation,Is.EqualTo(baseRotation));
+                        }
                     }
                     var court=scene.GetRootGameObjects().SelectMany(o=>o.GetComponentsInChildren<MeshRenderer>()).Single(r=>r.name=="court");
                     Assert.That(court.sharedMaterial.name,Is.EqualTo("ReceiveCourtBlue"));

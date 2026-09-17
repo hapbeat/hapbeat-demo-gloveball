@@ -4,12 +4,14 @@ Protects existing authored outputs; no third-party assets.
 """
 from pathlib import Path
 import math
+import sys
 import bpy
 from mathutils import Vector
 
 here=Path(__file__).resolve().parent
-blend=here/'ball_feeder.blend'
-fbx=here.parents[2]/'unity/gloveball/Assets/GloveBallDemo/Art/BallFeeder/BallFeeder.fbx'
+articulated='--articulated' in sys.argv
+blend=here/('ball_feeder_articulated.blend' if articulated else 'ball_feeder.blend')
+fbx=here.parents[2]/('unity/gloveball/Assets/GloveBallDemo/Art/BallFeeder/'+('BallFeederArticulated.fbx' if articulated else 'BallFeeder.fbx'))
 if blend.exists() or fbx.exists(): raise RuntimeError('Existing authored output; choose a new output rather than overwrite.')
 fbx.parent.mkdir(parents=True,exist_ok=True)
 bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete(use_global=False)
@@ -49,9 +51,18 @@ for z in [.28,.48,.67]:
 for p in [(-.12,.16,.32),(.12,.34,.34),(0,.25,.53)]:
     bpy.ops.mesh.primitive_uv_sphere_add(segments=12,ring_count=8,radius=.11,location=p)
     finish(bpy.context.object,'Stored ball',metal)
-bpy.ops.object.select_all(action='SELECT'); bpy.context.view_layer.objects.active=bpy.context.selected_objects[0]
-bpy.ops.object.join(); bpy.context.object.name='BallFeeder'
-bpy.context.scene.cursor.location=(0,0,0); bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+bpy.context.scene.cursor.location=(0,0,0)
+parts=list(bpy.context.scene.objects)
+groups={'FeederBase':[o for o in parts if o.name.startswith(('Stand','Foot','Transport wheel'))]}
+groups['FeederHead']=[o for o in parts if o not in groups['FeederBase']]
+if not articulated: groups={'BallFeeder':parts}
+for name,objects in groups.items():
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in objects: o.select_set(True)
+    bpy.context.view_layer.objects.active=objects[0]
+    bpy.ops.object.join(); bpy.context.object.name=name
+    bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+bpy.ops.object.select_all(action='SELECT')
 bpy.ops.wm.save_as_mainfile(filepath=str(blend))
 bpy.ops.export_scene.fbx(filepath=str(fbx),use_selection=True,object_types={'MESH'},axis_forward='-Z',axis_up='Y',add_leaf_bones=False)
 print('FEEDER_CREATED',fbx)

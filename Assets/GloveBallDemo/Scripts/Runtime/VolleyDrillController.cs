@@ -74,6 +74,14 @@ namespace GloveBallDemo.Runtime
 
         private void Update()
         {
+            if (FeedLaunchers != null && Head != null && CourtFrame != null)
+            {
+                var target = Head.position + Vector3.ProjectOnPlane(CourtFrame.forward, Vector3.up).normalized
+                    * ContactForwardDistance + Vector3.up * ContactHeightFromHead;
+                foreach (var launcher in FeedLaunchers)
+                    if (launcher != null && launcher.TryGetComponent<VolleyFeederAim>(out var aim))
+                        aim.Track(target, FlightSeconds, Time.deltaTime);
+            }
             // Temporary hand occlusion must not erase a ball already in flight.
             // Lifetime still advances, even while waiting for tracking to recover.
             if (_ball != null)
@@ -108,12 +116,19 @@ namespace GloveBallDemo.Runtime
             if (_ball == null) return;
             Vector3 forward = Vector3.ProjectOnPlane(CourtFrame.forward, Vector3.up).normalized;
             Vector3 start = Head.position + forward * FeedDistance + Vector3.up * FeedHeightAboveHead;
-            if (FeedLaunchers != null && FeedLaunchers.Length > 0)
-                start = FeedLaunchers[Random.Range(0, FeedLaunchers.Length)].MuzzlePosition;
             Vector3 destination = GetServeDestination();
+            Vector3 velocity = VolleyMath.ServeVelocity(start, destination, FlightSeconds, Physics.gravity);
+            if (FeedLaunchers != null && FeedLaunchers.Length > 0)
+            {
+                var launcher = FeedLaunchers[Random.Range(0, FeedLaunchers.Length)];
+                if (launcher.TryGetComponent<VolleyFeederAim>(out var aim))
+                    velocity = aim.AimForShot(destination, FlightSeconds);
+                else velocity = VolleyMath.ServeVelocity(launcher.MuzzlePosition, destination, FlightSeconds, Physics.gravity);
+                start = launcher.MuzzlePosition;
+            }
             // Fixed flight time gives a readable feed independent of the former high-speed launcher rules.
             _ball.Body.linearDamping = 0f;
-            _ball.LaunchIncoming(start, VolleyMath.ServeVelocity(start, destination, FlightSeconds, Physics.gravity));
+            _ball.LaunchIncoming(start, velocity);
             _previousBallPosition = start; _haveBallSample = true;
             _lastContact = -100f; _ballAge = 0f; _nextServe = ServeInterval;
             Serves++;
