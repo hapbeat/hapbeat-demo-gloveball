@@ -4,6 +4,8 @@
     "references": [
         "GloveBallDemo.Core",
         "GloveBallDemo.Runtime",
+        "GloveBallDemo.WideMotion.Editor",
+        "Unity.XR.OpenXR",
         "Unity.InputSystem",
         "Unity.InputSystem.TestFramework",
         "Unity.XR.Interaction.Toolkit",

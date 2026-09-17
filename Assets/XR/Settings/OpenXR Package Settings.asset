@@ -153,6 +153,7 @@ MonoBehaviour:
   - {fileID: -8399441195388527953}
   - {fileID: -4686320946896122058}
   - {fileID: 8806767470069635540}
+  - {fileID: -2624929364417745550}
   - {fileID: -37177986852354129}
   - {fileID: -3941955444392521759}
   - {fileID: 9070484500597094494}
@@ -318,6 +319,26 @@ MonoBehaviour:
   featureIdInternal: com.unity.openxr.feature.input.metaquestplus
   openxrExtensionStrings: XR_META_touch_controller_plus
   company: Unity
+  priority: 0
+  required: 0
+--- !u!114 &-2624929364417745550
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65f0badf816c40744b51f3ff8779c195, type: 3}
+  m_Name: GloveBallWideMotionFeature Android
+  m_EditorClassIdentifier: 
+  m_enabled: 1
+  nameUi: GloveBall Wide Motion (supplemental poses)
+  version: 1.0.0
+  featureIdInternal: com.hapbeat.gloveball.wide-motion
+  openxrExtensionStrings: XR_META_hand_tracking_wide_motion_mode XR_EXT_hand_tracking
+  company: Hapbeat
   priority: 0
   required: 0
 --- !u!114 &-943903459369018388

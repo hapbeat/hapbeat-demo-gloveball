@@ -1,0 +1,6 @@
+{
+    "name": "GloveBallDemo.WideMotion.Editor",
+    "references": ["GloveBallDemo.Runtime", "Unity.XR.OpenXR", "Unity.XR.OpenXR.Editor"],
+    "includePlatforms": ["Editor"],
+    "autoReferenced": true
+}

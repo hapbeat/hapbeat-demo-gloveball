@@ -10,7 +10,8 @@ namespace GloveBallDemo.Runtime
         public VolleyTrackedHand Hand;
         public XRHandSkeletonDriver Skeleton;
         public SkinnedMeshRenderer Mesh;
-        private void LateUpdate()
+        private void LateUpdate()=>UpdateVisual();
+        public void UpdateVisual()
         {
             if (Hand == null || Skeleton == null || Mesh == null) return;
             bool joints = Hand.Source == "hands";
@@ -18,6 +19,8 @@ namespace GloveBallDemo.Runtime
             Mesh.enabled = Hand.Source != "lost";
             if (Hand.Source == "controller")
                 Skeleton.rootTransform.SetPositionAndRotation(Hand.transform.position - Hand.transform.forward * .06f, Hand.transform.rotation);
+            else if(Hand.IsEstimated)
+                Skeleton.rootTransform.SetPositionAndRotation(Hand.transform.position,Hand.transform.rotation);
         }
     }
 }

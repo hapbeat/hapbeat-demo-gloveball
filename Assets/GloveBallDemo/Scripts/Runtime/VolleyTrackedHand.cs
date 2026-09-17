@@ -23,6 +23,11 @@ namespace GloveBallDemo.Runtime
         public BoxCollider ContactVolume;
         [Min(.1f)] public float MaximumTrackedSpeed = 8f;
         [Min(.05f)] public float ReacquireDelay = .15f;
+        [Header("Quest standalone Wide Motion Mode")]
+        public bool EnableWideMotion = true;
+        [Tooltip("EXPERIMENTAL: allow an estimated wrist to receive/block a ball. No inferred swing velocity or jump. Off until tested on your headset.")]
+        public bool AllowEstimatedContacts;
+        public bool IsEstimated { get; private set; }
         public bool Ready { get; private set; }
         public string Source { get; private set; } = "lost";
         public Vector3 Velocity { get; private set; }
@@ -36,11 +41,21 @@ namespace GloveBallDemo.Runtime
         private string _lastSource = "lost";
         private bool _haveSample;
         private bool _havePhysicsPose;
+        private float _estimatedStableSince;
+        private Vector3 _lastEstimatedPosition;
 
         private void Update()
         {
             bool valid = TryPose(out var pose, out var source);
             float now = Time.unscaledTime;
+            var wide=GloveBallWideMotionFeature.Active;
+            if(EnableWideMotion && InputMode!=VolleyInputMode.ControllersOnly && source!="controller" && wide!=null)
+            {
+                wide.Prepare();
+                if(!valid && TrackingSpace!=null && wide.TryGetVisual(Side==GloveSide.Left,out var estimated))
+                {ApplyWidePose(estimated,now);return;}
+            }
+            IsEstimated=false;
             if (!valid || TrackingSpace == null)
             {
                 Ready = false; Velocity = Vector3.zero; Source = "lost";
@@ -63,6 +78,19 @@ namespace GloveBallDemo.Runtime
             _haveSample = true;
             Ready = now - _stableSince >= ReacquireDelay;
             if (Visual != null) Visual.gameObject.SetActive(true);
+        }
+
+        public void ApplyWidePose(Pose pose,float now)
+        {
+            var position=TrackingSpace.TransformPoint(pose.position);
+            if(!IsEstimated || Vector3.Distance(position,_lastEstimatedPosition)>.1f)_estimatedStableSince=now;
+            IsEstimated=true;Source="wmm-estimated";_lastSource=Source;
+            transform.SetPositionAndRotation(position,TrackingSpace.rotation*pose.rotation);
+            _lastEstimatedPosition=position;Velocity=Vector3.zero;
+            Ready=AllowEstimatedContacts && now-_estimatedStableSince>=ReacquireDelay;
+            // Never sweep the moving estimate through a ball or derive force from an inferred jump.
+            _haveSample=false;_havePhysicsPose=false;
+            if(Visual!=null)Visual.gameObject.SetActive(true);
         }
 
         private bool TryPose(out Pose pose, out string source)
@@ -106,7 +134,7 @@ namespace GloveBallDemo.Runtime
         }
         private void OnDisable()
         {
-            Ready = false; _haveSample = false; _havePhysicsPose = false; Velocity = Vector3.zero;
+            Ready = false; IsEstimated=false; _haveSample = false; _havePhysicsPose = false; Velocity = Vector3.zero;
         }
         private void OnDrawGizmosSelected()
         {

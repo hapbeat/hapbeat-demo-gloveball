@@ -27,7 +27,7 @@ namespace GloveBallDemo.Runtime
             // Use tracking-space coordinates, never the elevated world-space eye/hand positions.
             var space=Floor.Origin.CameraFloorOffsetObject.transform;
             float head=space.InverseTransformPoint(Floor.Origin.Camera.transform.position).y;
-            Tick(Time.deltaTime,Left.Ready&&Right.Ready,
+            Tick(Time.deltaTime,Left.Ready&&Right.Ready&&!Left.IsEstimated&&!Right.IsEstimated,
                 space.InverseTransformPoint(Left.transform.position).y-head,
                 space.InverseTransformPoint(Right.transform.position).y-head,GameInputGate.IsBlocked,head);
             Floor.SetVirtualLift(Lift);

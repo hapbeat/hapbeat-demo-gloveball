@@ -150,7 +150,7 @@ namespace GloveBallDemo.Runtime
         }
         void Refresh()
         {
-            if(_heightText==null)return;_heightText.text=$"Eye {Floor.EyeHeight:F2} m  /  correction {Floor.HeightCorrection:+0.00;-0.00;0.00} m";
+            if(_heightText==null)return;_heightText.text=$"Eye {Floor.EyeHeight:F2} m  /  correction {Floor.HeightCorrection:+0.00;-0.00;0.00} m\n"+(GloveBallWideMotionFeature.Active?.Status??"WMM: unavailable (Quest APK required)");
             var names=new[]{"RESUME",$"HANDS ONLY: {(Drill.Left.InputMode==VolleyInputMode.HandsOnly?"ON":"OFF")}",$"STAND UPRIGHT: SET EYE {Floor.StandingEyeHeight:F2} m","USE RUNTIME FLOOR","RESTART"};
             for(int i=0;i<names.Length;i++)_labels[i].text=names[i];
         }

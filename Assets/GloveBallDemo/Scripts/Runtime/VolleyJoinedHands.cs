@@ -24,7 +24,7 @@ namespace GloveBallDemo.Runtime
             var l=Left.ContactVolume.transform.TransformPoint(Left.ContactVolume.center);
             var r=Right.ContactVolume.transform.TransformPoint(Right.ContactVolume.center);
             bool wasJoined=Joined;
-            Joined=ShouldJoin(Joined,Left.Ready,Right.Ready,Vector3.Distance(l,r),JoinDistance,SeparateDistance);
+            Joined=ShouldJoin(Joined,Left.Ready&&!Left.IsEstimated,Right.Ready&&!Right.IsEstimated,Vector3.Distance(l,r),JoinDistance,SeparateDistance);
             Volume.enabled=Joined;
             if(!Joined) { Velocity=Vector3.zero; return; }
             var position=(l+r)*.5f;
