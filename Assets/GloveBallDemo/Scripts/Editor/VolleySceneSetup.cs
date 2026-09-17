@@ -136,6 +136,9 @@ namespace GloveBallDemo.Editor
         {
             var hand = new GameObject("Volley " + side + " Palm").AddComponent<VolleyTrackedHand>();
             hand.Side = side; hand.TrackingSpace = trackingSpace;
+            hand.ContactVolume = hand.gameObject.AddComponent<BoxCollider>();
+            hand.ContactVolume.isTrigger = true;
+            hand.ContactVolume.size = new Vector3(.15f,.09f,.20f);
             var visual = new GameObject("Contact Face").transform;
             visual.SetParent(hand.transform, false); hand.Visual = visual;
             // Simple open-hand proxy makes the contact plane visible for both input sources.

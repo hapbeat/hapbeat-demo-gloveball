@@ -19,13 +19,15 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Controller grip pose to paddle rotation; local Y is the receive face normal.")]
         public Vector3 ControllerRotationOffset;
         public Vector3 ControllerPositionOffset = new Vector3(0f, 0f, .07f);
-        [Min(.05f)] public float ContactRadius = .17f;
+        [Tooltip("Editable thick receive volume. Local Y is palm normal; X includes thumb side.")]
+        public BoxCollider ContactVolume;
         [Min(.1f)] public float MaximumTrackedSpeed = 8f;
         [Min(.05f)] public float ReacquireDelay = .15f;
         public bool Ready { get; private set; }
         public string Source { get; private set; } = "lost";
         public Vector3 Velocity { get; private set; }
         public Vector3 PreviousPhysicsPosition { get; private set; }
+        public Quaternion PreviousPhysicsRotation { get; private set; }
         public Vector3 Normal => transform.up;
         private readonly List<XRHandSubsystem> _subsystems = new List<XRHandSubsystem>();
         private Vector3 _lastPosition;
@@ -99,11 +101,12 @@ namespace GloveBallDemo.Runtime
 
         public void BeginPhysicsSample()
         {
-            if (!_havePhysicsPose) PreviousPhysicsPosition = transform.position;
+            if (!_havePhysicsPose) { PreviousPhysicsPosition = transform.position; PreviousPhysicsRotation = transform.rotation; }
         }
         public void EndPhysicsSample()
         {
             PreviousPhysicsPosition = transform.position;
+            PreviousPhysicsRotation = transform.rotation;
             _havePhysicsPose = Ready;
         }
         private void OnDisable()
@@ -113,7 +116,12 @@ namespace GloveBallDemo.Runtime
         private void OnDrawGizmosSelected()
         {
             Gizmos.color = Color.cyan;
-            Gizmos.DrawWireSphere(transform.position, ContactRadius);
+            if (ContactVolume != null)
+            {
+                Gizmos.matrix = ContactVolume.transform.localToWorldMatrix;
+                Gizmos.DrawWireCube(ContactVolume.center, ContactVolume.size);
+                Gizmos.matrix = Matrix4x4.identity;
+            }
             Gizmos.DrawRay(transform.position, Normal * .3f);
         }
     }

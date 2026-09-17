@@ -70,22 +70,23 @@ namespace GloveBallDemo.Runtime
 
         private void Update()
         {
+            // Temporary hand occlusion must not erase a ball already in flight.
+            // Lifetime still advances, even while waiting for tracking to recover.
+            if (_ball != null)
+            {
+                _ballAge += Time.deltaTime;
+                if (_ball.State == BallState.Idle || _ball.State == BallState.Dead) _ball = null;
+                else if (_ballAge > MaximumBallAge) { _ball.Kill("volley timeout"); _ball = null; }
+            }
             if (!TrackingReady)
             {
                 _trackingStable = 0f;
-                if (_ball != null) { _ball.Kill("tracking lost"); _ball = null; }
                 _nextServe = 0f;
             }
             else
             {
                 _trackingStable += Time.deltaTime;
                 _nextServe -= Time.deltaTime;
-                if (_ball != null)
-                {
-                    _ballAge += Time.deltaTime;
-                    if (_ball.State == BallState.Idle || _ball.State == BallState.Dead) _ball = null;
-                    else if (_ballAge > MaximumBallAge) { _ball.Kill("volley timeout"); _ball = null; }
-                }
                 if (_trackingStable >= ReadySeconds && _ball == null && _nextServe <= 0f) Serve();
             }
             if (StatusText != null)
@@ -125,18 +126,25 @@ namespace GloveBallDemo.Runtime
                 {
                     var sphere = _ball.GetComponent<SphereCollider>();
                     float radius = sphere != null ? sphere.radius * Mathf.Max(_ball.transform.lossyScale.x, _ball.transform.lossyScale.y, _ball.transform.lossyScale.z) : .12f;
-                    bool l = Contact(Left, previous, current, radius, out float lt);
-                    bool r = Contact(Right, previous, current, radius, out float rt);
+                    bool l = Contact(Left, previous, current, radius, out float lt, out var ln);
+                    bool r = Contact(Right, previous, current, radius, out float rt, out var rn);
                     if (l || r)
                     {
                         var hand = l && (!r || lt <= rt) ? Left : Right;
+                        var normal = hand == Left ? ln : rn;
                         var incoming = _ball.Body.linearVelocity;
-                        var velocity = VolleyMath.ReturnVelocity(incoming, hand.Velocity, hand.Normal, Restitution, SwingGain, MaximumReturnSpeed);
+                        var velocity = VolleyMath.ReturnVelocity(incoming, hand.Velocity, normal, Restitution, SwingGain, MaximumReturnSpeed);
                         if (_ball.Deflect(velocity))
                         {
                             // Place just clear of the contact volume on the outgoing side, not at an anchor.
-                            Vector3 exit = velocity.sqrMagnitude > .01f ? velocity.normalized : hand.Normal;
-                            _ball.Body.position = hand.transform.position + exit * (radius + hand.ContactRadius + .01f);
+                            var volume = hand.ContactVolume;
+                            var localHit = volume.transform.InverseTransformPoint(Vector3.Lerp(previous, current, hand == Left ? lt : rt)) - volume.center;
+                            var half = volume.size * .5f;
+                            for (int axis = 0; axis < 3; axis++) localHit[axis] = Mathf.Clamp(localHit[axis], -half[axis], half[axis]);
+                            var localNormal = volume.transform.InverseTransformDirection(normal);
+                            for (int axis = 0; axis < 3; axis++)
+                                if (Mathf.Abs(localNormal[axis]) > .5f) localHit[axis] = Mathf.Sign(localNormal[axis]) * half[axis];
+                            _ball.Body.position = volume.transform.TransformPoint(volume.center + localHit) + normal * (radius + .01f);
                             HapticEventRelay.ReportBallImpact(_ball, hand.Side == GloveSide.Left ? DemoHapticEvent.LeftArmCollide : DemoHapticEvent.RightArmCollide, hand.transform.position);
                             _lastContact = Time.time; Returns++;
                         }
@@ -144,14 +152,20 @@ namespace GloveBallDemo.Runtime
                 }
                 _previousBallPosition = _ball.Body.position; _haveBallSample = true;
             }
+            else _haveBallSample = false; // Never sweep across an unobserved tracking gap.
             Left.EndPhysicsSample(); Right.EndPhysicsSample();
         }
 
-        private static bool Contact(VolleyTrackedHand hand, Vector3 previous, Vector3 current, float radius, out float fraction)
+        private static bool Contact(VolleyTrackedHand hand, Vector3 previous, Vector3 current, float radius, out float fraction, out Vector3 normal)
         {
-            fraction = 0f;
-            return hand.Ready && VolleyMath.SweptContact(previous, current, hand.PreviousPhysicsPosition,
-                hand.transform.position, radius + hand.ContactRadius, out fraction);
+            fraction = 0f; normal = Vector3.up;
+            var box = hand.ContactVolume;
+            if (!hand.Ready || box == null || !box.enabled) return false;
+            var start = Quaternion.Inverse(hand.PreviousPhysicsRotation) * (previous - hand.PreviousPhysicsPosition) - box.center;
+            var end = hand.transform.InverseTransformPoint(current) - box.center;
+            if (!VolleyMath.SweptBoxContact(start, end, box.size * .5f, radius, out fraction, out var localNormal)) return false;
+            normal = hand.transform.TransformDirection(localNormal);
+            return true;
         }
 
         public void RegisterBodyHit(Ball ball, Vector3 point)

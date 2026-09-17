@@ -10,6 +10,71 @@ namespace GloveBallDemo.Tests
 {
     public class VolleyTests
     {
+        [TestCase("LeftHand")]
+        [TestCase("RightHand")]
+        public void GhostModelHasCompleteJointMappingAndMaterials(string name)
+        {
+            const string art="Assets/GloveBallDemo/Art/UnityGhostHands/";
+            var scene=EditorSceneManager.NewPreviewScene();
+            try
+            {
+                var model=UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(art+"Models/"+name+".fbx");
+                Assert.That(model,Is.Not.Null);
+                var instance=Object.Instantiate(model); SceneManager.MoveGameObjectToScene(instance,scene);
+                var mesh=instance.GetComponentInChildren<SkinnedMeshRenderer>();
+                Assert.That(mesh,Is.Not.Null);
+                Assert.That(mesh.bones.Length,Is.GreaterThanOrEqualTo(26));
+                instance.AddComponent<UnityEngine.XR.Hands.XRHandTrackingEvents>();
+                var skeleton=instance.AddComponent<UnityEngine.XR.Hands.XRHandSkeletonDriver>();
+                skeleton.jointTransformReferences=new System.Collections.Generic.List<UnityEngine.XR.Hands.JointToTransformReference>();
+                skeleton.rootTransform=instance.GetComponentsInChildren<Transform>().First(x=>x.name.ToLowerInvariant().Contains("wrist"));
+                var missing=new System.Collections.Generic.List<string>();
+                skeleton.FindJointsFromRoot(missing);
+                Assert.That(missing,Is.Empty);
+                foreach(var materialName in new[]{"Unity_Hand_Medium","DepthOnly"})
+                {
+                    var material=UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(art+"Materials/"+materialName+".mat");
+                    Assert.That(material,Is.Not.Null);
+                    Assert.That(material.shader,Is.Not.Null);
+                    Assert.That(material.shader.name,Does.Not.Contain("InternalErrorShader"));
+                    Assert.That(UnityEditor.ShaderUtil.ShaderHasError(material.shader),Is.False);
+                }
+            }
+            finally {EditorSceneManager.ClosePreviewScene(scene);}
+        }
+
+        [Test]
+        public void ThickBoxHasPalmAndThumbSideFaces()
+        {
+            Assert.That(VolleyMath.SweptBoxContact(Vector3.up, Vector3.down, new Vector3(.075f,.045f,.10f),.05f,out _,out var top),Is.True);
+            Assert.That(top,Is.EqualTo(Vector3.up));
+            Assert.That(VolleyMath.SweptBoxContact(Vector3.right, Vector3.left, new Vector3(.075f,.045f,.10f),.05f,out _,out var thumb),Is.True);
+            Assert.That(thumb,Is.EqualTo(Vector3.right));
+            Assert.That(VolleyMath.SweptBoxContact(new Vector3(1,1,0),new Vector3(-1,1,0),new Vector3(.075f,.045f,.10f),.05f,out _,out _),Is.False);
+        }
+
+        [Test]
+        public void TemporaryTrackingLossDoesNotDeleteAnAirborneBall()
+        {
+            var scene=EditorSceneManager.NewPreviewScene();
+            try
+            {
+                var go=new GameObject("tracking-loss-repro"); SceneManager.MoveGameObjectToScene(go,scene);
+                var drill=go.AddComponent<VolleyDrillController>();
+                drill.Left=go.AddComponent<VolleyTrackedHand>();
+                var right=new GameObject("right"); SceneManager.MoveGameObjectToScene(right,scene);
+                drill.Right=right.AddComponent<VolleyTrackedHand>();
+                var b=new GameObject("airborne"); SceneManager.MoveGameObjectToScene(b,scene);
+                var ball=b.AddComponent<Ball>(); ball.BindPool(null); ball.LaunchIncoming(Vector3.up*2,Vector3.forward);
+                var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+                typeof(VolleyDrillController).GetField("_ball",flags).SetValue(drill,ball);
+                typeof(VolleyDrillController).GetMethod("Update",flags).Invoke(drill,null);
+                Assert.That(ball.gameObject.activeSelf,Is.True,"Losing hand tracking must stop serves, not erase a live ball.");
+                Assert.That(ball.State,Is.EqualTo(BallState.Incoming));
+            }
+            finally {EditorSceneManager.ClosePreviewScene(scene);}
+        }
+
         [Test]
         public void HighSpeedHandBallCrossingIsNotMissed()
         {
