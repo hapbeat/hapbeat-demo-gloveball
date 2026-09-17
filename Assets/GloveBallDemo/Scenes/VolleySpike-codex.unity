@@ -1507,8 +1507,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.15, y: 0.09, z: 0.2}
-  m_Center: {x: -0.015, y: 0, z: -0.015}
+  m_Size: {x: 0.12, y: 0.07, z: 0.2}
+  m_Center: {x: 0, y: 0, z: 0.08}
 --- !u!1 &360728298
 GameObject:
   m_ObjectHideFlags: 0
@@ -2970,8 +2970,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.15, y: 0.09, z: 0.2}
-  m_Center: {x: 0.015, y: 0, z: -0.015}
+  m_Size: {x: 0.12, y: 0.07, z: 0.2}
+  m_Center: {x: 0, y: 0, z: 0.08}
 --- !u!1 &841285524
 GameObject:
   m_ObjectHideFlags: 0
@@ -4864,6 +4864,7 @@ MonoBehaviour:
   - {fileID: 212332495}
   - {fileID: 1004354411}
   - {fileID: 1884672605}
+  FeedLaunchers: []
   FeedDistance: 2.8
   FeedHeightAboveHead: 0.9
   ContactHeightFromHead: 0.2

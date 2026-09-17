@@ -12,6 +12,53 @@ public static class VolleyHandUpgrade
 {
     const string Art = "Assets/GloveBallDemo/Art/UnityGhostHands/";
 
+    [MenuItem("GloveBall Demo/Volley/Apply Wrist Frame and Receive Layout")]
+    public static void ApplyWristAndFeed()
+    {
+        if (EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play Mode first.");
+        for (int i=0;i<SceneManager.sceneCount;i++)
+            if (SceneManager.GetSceneAt(i).isDirty) throw new InvalidOperationException("Save manual scene edits first.");
+        foreach (var name in new[] { "VolleyReceive-codex", "VolleySpike-codex" })
+        {
+            var scene=EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/"+name+".unity");
+            foreach(var hand in All<VolleyTrackedHand>(scene))
+            {
+                // Wrist is now the origin. The volume covers the extended hand and stays rigid when making a fist.
+                hand.ContactVolume.size=new Vector3(.12f,.07f,.20f);
+                hand.ContactVolume.center=new Vector3(0,0,.08f);
+            }
+            var drill=All<VolleyDrillController>(scene).Single();
+            if(drill.Drill==VolleyDrill.Receive)
+            {
+                drill.FeedLaunchers=All<BallLauncher>(scene).OrderBy(x=>x.name).ToArray();
+                if(drill.FeedLaunchers.Length!=3) throw new InvalidOperationException("Expected three existing launchers.");
+                foreach(var launcher in drill.FeedLaunchers)
+                {
+                    launcher.enabled=false; // One owner for serving; do not revive the old game's launch loop.
+                    launcher.gameObject.SetActive(true);
+                }
+                drill.FlightSeconds=1.5f; // Existing launchers are farther away than the former floating feed point.
+                var layout=new SerializedObject(drill.Targets);
+                layout.FindProperty("_player").objectReferenceValue=drill.Head;
+                foreach(var field in new[]{"_minX","_maxX"}) layout.FindProperty(field).floatValue=0;
+                foreach(var field in new[]{"_minZ","_maxZ"}) layout.FindProperty(field).floatValue=1;
+                foreach(var field in new[]{"_minHeight","_maxHeight"}) layout.FindProperty(field).floatValue=3.5f;
+                layout.ApplyModifiedPropertiesWithoutUndo();
+                // Show the same single target in edit mode; runtime generations reuse this fixed position.
+                for(int i=0;i<drill.Panels.Length;i++)
+                {
+                    drill.Panels[i].gameObject.SetActive(i==0);
+                    if(i==0) drill.Panels[i].transform.SetPositionAndRotation(new Vector3(0,3.5f,1),
+                        Quaternion.LookRotation(drill.Head.position-new Vector3(0,3.5f,1),Vector3.up));
+                }
+            }
+            EditorSceneManager.MarkSceneDirty(scene);
+            if(!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException("Scene save failed.");
+        }
+        EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");
+        Debug.Log("[VolleyUpgrade] Wrist-fixed boxes and receive launcher/target layout applied.");
+    }
+
     [MenuItem("GloveBall Demo/Volley/Apply Ghost Hands and Thick Contact")]
     public static void Apply()
     {

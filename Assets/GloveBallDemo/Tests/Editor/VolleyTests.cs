@@ -153,7 +153,8 @@ namespace GloveBallDemo.Tests
                 {
                     Assert.That(hand.ContactVolume,Is.Not.Null);
                     Assert.That(hand.ContactVolume.isTrigger,Is.True);
-                    Assert.That(hand.ContactVolume.size.y,Is.GreaterThanOrEqualTo(.08f));
+                    Assert.That(hand.ContactVolume.size,Is.EqualTo(new Vector3(.12f,.07f,.20f)));
+                    Assert.That(hand.ContactVolume.center,Is.EqualTo(new Vector3(0,0,.08f)));
                     var ghost=hand.Visual.GetComponent<VolleyGhostHand>();
                     Assert.That(ghost,Is.Not.Null);
                     Assert.That(ghost.Hand,Is.EqualTo(hand));
@@ -167,6 +168,19 @@ namespace GloveBallDemo.Tests
                 var kinds=poolData.FindProperty("_launchBallKinds");
                 Assert.That(Enumerable.Range(0,kinds.arraySize).Select(i=>kinds.GetArrayElementAtIndex(i).intValue),Is.EqualTo(new[]{0,1,2,4}));
                 if(drill.Drill==VolleyDrill.Receive) Assert.That(drill.ContactHeightFromHead,Is.EqualTo(-.15f).Within(.001f));
+                if(drill.Drill==VolleyDrill.Receive)
+                {
+                    Assert.That(drill.FeedLaunchers.Length,Is.EqualTo(3));
+                    Assert.That(drill.FeedLaunchers.All(l=>l.gameObject.activeInHierarchy && !l.enabled),Is.True);
+                    drill.Targets.BeginWave(0,1,1);
+                    Assert.That(drill.Targets.ActiveTargetCount,Is.EqualTo(1));
+                    var target=drill.Panels.Single(p=>p.gameObject.activeSelf);
+                    Assert.That(target.transform.position,Is.EqualTo(new Vector3(0,3.5f,1)));
+                    var position=target.transform.position;
+                    Assert.That(drill.Targets.RegisterHit(target),Is.True);
+                    Assert.That(drill.Targets.ActiveTargetCount,Is.EqualTo(1));
+                    Assert.That(drill.Panels.Single(p=>p.gameObject.activeSelf).transform.position,Is.EqualTo(position));
+                }
                 Assert.That(drill.Panels.Length,Is.GreaterThanOrEqualTo(3));
                 Assert.That(components.OfType<VolleyBodySurface>().Single().Drill,Is.EqualTo(drill));
             }

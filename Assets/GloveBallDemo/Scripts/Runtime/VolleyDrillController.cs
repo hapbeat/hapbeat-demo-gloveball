@@ -21,6 +21,8 @@ namespace GloveBallDemo.Runtime
         public Text StatusText;
         public Text ScoreText;
         public TargetPanel[] Panels;
+        [Tooltip("Visible emitters. The drill owns timing; their BallLauncher components stay disabled.")]
+        public BallLauncher[] FeedLaunchers;
         [Header("Feed, relative to current head height; metres / seconds")]
         [Min(.3f)] public float FeedDistance = 5f;
         public float FeedHeightAboveHead = .4f;
@@ -52,7 +54,7 @@ namespace GloveBallDemo.Runtime
 
         private void Start()
         {
-            Targets.BeginWave(0, 3, 3);
+            Targets.BeginWave(0, Drill == VolleyDrill.Receive ? 1 : 3, Drill == VolleyDrill.Receive ? 1 : 3);
             foreach (var panel in Panels) panel.HitFlashCompleted += OnTarget;
             _subscribed = true;
             _nextServe = ServeInterval;
@@ -105,6 +107,8 @@ namespace GloveBallDemo.Runtime
             Vector3 forward = Vector3.ProjectOnPlane(CourtFrame.forward, Vector3.up).normalized;
             Vector3 right = Vector3.Cross(Vector3.up, forward);
             Vector3 start = Head.position + forward * FeedDistance + Vector3.up * FeedHeightAboveHead;
+            if (FeedLaunchers != null && FeedLaunchers.Length > 0)
+                start = FeedLaunchers[Random.Range(0, FeedLaunchers.Length)].MuzzlePosition;
             Vector3 destination = Head.position + forward * ContactForwardDistance
                 + Vector3.up * ContactHeightFromHead + right * Random.Range(-LateralSpread, LateralSpread);
             // Fixed flight time gives a readable feed independent of the former high-speed launcher rules.

@@ -75,15 +75,10 @@ namespace GloveBallDemo.Runtime
                 {
                     if (!subsystem.running) continue;
                     var hand = Side == GloveSide.Left ? subsystem.leftHand : subsystem.rightHand;
-                    if (hand.isTracked && hand.GetJoint(XRHandJointID.Palm).TryGetPose(out pose))
+                    if (hand.isTracked && hand.GetJoint(XRHandJointID.Wrist).TryGetPose(out pose))
                     {
-                        if (hand.GetJoint(XRHandJointID.Wrist).TryGetPose(out var wrist)
-                            && hand.GetJoint(XRHandJointID.MiddleProximal).TryGetPose(out var middle))
-                        {
-                            var fingers = middle.position - wrist.position;
-                            if (fingers.sqrMagnitude > .00001f)
-                                pose.rotation = Quaternion.LookRotation(fingers, pose.rotation * Vector3.up);
-                        }
+                        // The fixed box and ghost skeleton share the wrist's rigid frame.
+                        // Finger articulation must never rotate, resize or translate this volume.
                         source = "hands"; return true;
                     }
                 }
