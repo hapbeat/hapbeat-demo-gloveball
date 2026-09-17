@@ -5,6 +5,7 @@
         "GloveBallDemo.Core",
         "Unity.InputSystem",
         "Unity.XR.Hands",
+        "Unity.XR.CoreUtils",
         "Hapbeat.Runtime",
         "Hapbeat.DemoSwitch"
     ],

@@ -2111,7 +2111,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 364246320}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.05530131, y: 0.91026145, z: 0.38943207, w: -0.1292617}
+  m_LocalRotation: {x: 0.035566084, y: 0.9578647, z: 0.25045657, w: -0.1360216}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -2597,7 +2597,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 436388405}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.05530131, y: 0.91026145, z: 0.38943207, w: 0.1292617}
+  m_LocalRotation: {x: -0.035566084, y: 0.9578647, z: 0.25045657, w: 0.1360216}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -3111,6 +3111,7 @@ GameObject:
   - component: {fileID: 631991369}
   - component: {fileID: 631991372}
   - component: {fileID: 631991371}
+  - component: {fileID: 631991373}
   m_Layer: 0
   m_Name: XR Origin
   m_TagString: Untagged
@@ -3165,6 +3166,19 @@ MonoBehaviour:
   m_CameraFloorOffsetObject: {fileID: 1021538001}
   m_RequestedTrackingOriginMode: 2
   m_CameraYOffset: 1.6
+--- !u!114 &631991373
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 631991368}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21a31b81555c7f947940d1019a62fb06, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Origin: {fileID: 631991372}
 --- !u!1 &651308258
 GameObject:
   m_ObjectHideFlags: 0
@@ -4820,7 +4834,7 @@ Transform:
   m_GameObject: {fileID: 1021538001}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.6, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -5177,6 +5191,11 @@ MonoBehaviour:
   FeedDistance: 5
   FeedHeightAboveHead: 0.4
   ContactHeightFromHead: -0.15
+  ReceiveContactHeight: 0.65
+  ReceiveHeightSpread: 0.2
+  ReceiveNet: {fileID: 1572485602}
+  ReceiveMinimumFlightSeconds: 0.95
+  ReceiveNetClearance: 0.22
   FlightSeconds: 1.5
   ContactForwardDistance: 0.65
   LateralSpread: 0.3
@@ -6388,7 +6407,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1495781713}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.9153896, z: 0.40256912, w: 0}
+  m_LocalRotation: {x: -0, y: 0.96542186, z: 0.2606927, w: 0}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0

@@ -28,6 +28,12 @@ namespace GloveBallDemo.Runtime
         [Min(.3f)] public float FeedDistance = 5f;
         public float FeedHeightAboveHead = .4f;
         public float ContactHeightFromHead = -.4f;
+        [Header("Receive only: floor-relative contact and net clearance")]
+        public float ReceiveContactHeight = .65f;
+        [Min(0f)] public float ReceiveHeightSpread = .2f;
+        public BoxCollider ReceiveNet;
+        [Min(.25f)] public float ReceiveMinimumFlightSeconds = .95f;
+        [Min(.15f)] public float ReceiveNetClearance = .22f;
         [Min(.25f)] public float FlightSeconds = .85f;
         [Min(.15f)] public float ContactForwardDistance = .65f;
         [Min(0f)] public float LateralSpread = .3f;
@@ -76,11 +82,10 @@ namespace GloveBallDemo.Runtime
         {
             if (FeedLaunchers != null && Head != null && CourtFrame != null)
             {
-                var target = Head.position + Vector3.ProjectOnPlane(CourtFrame.forward, Vector3.up).normalized
-                    * ContactForwardDistance + Vector3.up * ContactHeightFromHead;
+                var target = GetContactCentre();
                 foreach (var launcher in FeedLaunchers)
                     if (launcher != null && launcher.TryGetComponent<VolleyFeederAim>(out var aim))
-                        aim.Track(target, FlightSeconds, Time.deltaTime);
+                        aim.Track(target, GetFlightSeconds(launcher.MuzzlePosition,target), Time.deltaTime);
             }
             // Temporary hand occlusion must not erase a ball already in flight.
             // Lifetime still advances, even while waiting for tracking to recover.
@@ -122,8 +127,11 @@ namespace GloveBallDemo.Runtime
             {
                 var launcher = FeedLaunchers[Random.Range(0, FeedLaunchers.Length)];
                 if (launcher.TryGetComponent<VolleyFeederAim>(out var aim))
-                    velocity = aim.AimForShot(destination, FlightSeconds);
-                else velocity = VolleyMath.ServeVelocity(launcher.MuzzlePosition, destination, FlightSeconds, Physics.gravity);
+                {
+                    // Pitch changes the outlet height, which changes the minimum net-clearance flight time.
+                    for(int i=0;i<8;i++) velocity=aim.AimForShot(destination,GetFlightSeconds(launcher.MuzzlePosition,destination));
+                }
+                else velocity = VolleyMath.ServeVelocity(launcher.MuzzlePosition, destination, GetFlightSeconds(launcher.MuzzlePosition,destination), Physics.gravity);
                 start = launcher.MuzzlePosition;
             }
             // Fixed flight time gives a readable feed independent of the former high-speed launcher rules.
@@ -138,9 +146,31 @@ namespace GloveBallDemo.Runtime
         {
             var forward=Vector3.ProjectOnPlane(CourtFrame.forward,Vector3.up).normalized;
             var right=Vector3.Cross(Vector3.up,forward);
-            return Head.position + forward*ContactForwardDistance
-                + Vector3.up*(ContactHeightFromHead+Random.Range(-VerticalSpread,VerticalSpread))
+            var spread=Drill==VolleyDrill.Receive ? ReceiveHeightSpread : VerticalSpread;
+            return GetContactCentre()
+                + Vector3.up*Random.Range(-spread,spread)
                 + right*Random.Range(-LateralSpread,LateralSpread);
+        }
+
+        public Vector3 GetContactCentre()
+        {
+            var result=Head.position+Vector3.ProjectOnPlane(CourtFrame.forward,Vector3.up).normalized*ContactForwardDistance;
+            result.y=Drill==VolleyDrill.Receive ? CourtFrame.position.y+ReceiveContactHeight : Head.position.y+ContactHeightFromHead;
+            return result;
+        }
+
+        public float GetFlightSeconds(Vector3 start,Vector3 destination)
+        {
+            if(Drill!=VolleyDrill.Receive || ReceiveNet==null) return FlightSeconds;
+            var normal=ReceiveNet.transform.forward;
+            var distance=Vector3.Dot(destination-start,normal);
+            if(Mathf.Abs(distance)<.001f) return ReceiveMinimumFlightSeconds;
+            var fraction=Vector3.Dot(ReceiveNet.bounds.center-start,normal)/distance;
+            if(fraction<=0f || fraction>=1f) return ReceiveMinimumFlightSeconds;
+            var linearHeight=Mathf.Lerp(start.y,destination.y,fraction);
+            var lift=ReceiveNet.bounds.max.y+ReceiveNetClearance-linearHeight;
+            var required=Mathf.Sqrt(Mathf.Max(0f,2f*lift/(Mathf.Abs(Physics.gravity.y)*fraction*(1f-fraction))));
+            return Mathf.Max(ReceiveMinimumFlightSeconds,required);
         }
 
         private void FixedUpdate()

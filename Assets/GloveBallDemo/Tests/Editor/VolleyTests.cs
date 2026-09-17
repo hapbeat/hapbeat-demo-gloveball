@@ -61,9 +61,12 @@ namespace GloveBallDemo.Tests
                 var head=new GameObject("head"); SceneManager.MoveGameObjectToScene(head,scene); drill.Head=head.transform;
                 head.transform.position=new Vector3(0,1.6f,-5); Random.InitState(23); var a=drill.GetServeDestination();
                 var move=new Vector3(1,.3f,.5f); head.transform.position+=move; Random.InitState(23); var b=drill.GetServeDestination();
-                Assert.That(Vector3.Distance(b-a,move),Is.LessThan(.001f));
+                Assert.That(Vector3.Distance(b-a,new Vector3(move.x,0,move.z)),Is.LessThan(.001f));
                 Assert.That(Mathf.Abs((b-head.transform.position).x),Is.LessThanOrEqualTo(drill.LateralSpread));
-                Assert.That(Mathf.Abs((b-head.transform.position).y-drill.ContactHeightFromHead),Is.LessThanOrEqualTo(drill.VerticalSpread));
+                Assert.That(b.y,Is.InRange(.45f,.85f));
+                drill.Drill=VolleyDrill.Spike;
+                var c=drill.GetServeDestination();
+                Assert.That(Mathf.Abs((c-head.transform.position).y-drill.ContactHeightFromHead),Is.LessThanOrEqualTo(drill.VerticalSpread));
             }
             finally {Random.state=randomState; EditorSceneManager.ClosePreviewScene(scene);}
         }
