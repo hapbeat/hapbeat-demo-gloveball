@@ -10,6 +10,63 @@ namespace GloveBallDemo.Tests
 {
     public class VolleyTests
     {
+        [Test]
+        public void JoinedSurfaceHasHysteresisAndDropsOutWhenEitherHandIsLost()
+        {
+            Assert.That(VolleyJoinedHands.ShouldJoin(false,true,true,.17f,.18f,.24f),Is.True);
+            Assert.That(VolleyJoinedHands.ShouldJoin(false,true,true,.21f,.18f,.24f),Is.False);
+            Assert.That(VolleyJoinedHands.ShouldJoin(true,true,true,.21f,.18f,.24f),Is.True);
+            Assert.That(VolleyJoinedHands.ShouldJoin(true,true,true,.25f,.18f,.24f),Is.False);
+            Assert.That(VolleyJoinedHands.ShouldJoin(true,false,true,.1f,.18f,.24f),Is.False);
+        }
+
+        [Test]
+        public void JoinedSurfaceAveragesWristPosesWithoutChangingDimensions()
+        {
+            var scene=EditorSceneManager.NewPreviewScene();
+            try
+            {
+                var go=new GameObject("join test"); SceneManager.MoveGameObjectToScene(go,scene);
+                var joined=go.AddComponent<VolleyJoinedHands>(); joined.Volume=go.AddComponent<BoxCollider>();
+                joined.Volume.size=new Vector3(.32f,.1f,.24f);
+                var ready=typeof(VolleyTrackedHand).GetField("<Ready>k__BackingField",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+                var hands=new VolleyTrackedHand[2];
+                for(int i=0;i<2;i++)
+                {
+                    var h=new GameObject("hand"); SceneManager.MoveGameObjectToScene(h,scene);
+                    hands[i]=h.AddComponent<VolleyTrackedHand>(); hands[i].ContactVolume=h.AddComponent<BoxCollider>();
+                    h.transform.position=new Vector3(i==0 ? -.05f : .05f,1,0);
+                    h.transform.rotation=Quaternion.Euler(30,0,i==0 ? -10 : 10);
+                    ready.SetValue(hands[i],true);
+                }
+                joined.Left=hands[0]; joined.Right=hands[1]; joined.Sample(.02f);
+                Assert.That(joined.Joined,Is.True);
+                Assert.That(Vector3.Distance(joined.transform.position,new Vector3(0,1,0)),Is.LessThan(.001f));
+                Assert.That(Quaternion.Angle(joined.transform.rotation,Quaternion.Euler(30,0,0)),Is.LessThan(.01f));
+                Assert.That(joined.Volume.size,Is.EqualTo(new Vector3(.32f,.1f,.24f)));
+                ready.SetValue(hands[0],false); joined.Sample(.02f);
+                Assert.That(joined.Joined,Is.False); Assert.That(joined.Volume.enabled,Is.False);
+            }
+            finally {EditorSceneManager.ClosePreviewScene(scene);}
+        }
+
+        [Test]
+        public void ServeDestinationUsesCurrentHeadPositionWithVerticalAndLateralSpread()
+        {
+            var scene=EditorSceneManager.NewPreviewScene(); var randomState=Random.state;
+            try
+            {
+                var go=new GameObject("feed test"); SceneManager.MoveGameObjectToScene(go,scene);
+                var drill=go.AddComponent<VolleyDrillController>(); drill.CourtFrame=go.transform;
+                var head=new GameObject("head"); SceneManager.MoveGameObjectToScene(head,scene); drill.Head=head.transform;
+                head.transform.position=new Vector3(0,1.6f,-5); Random.InitState(23); var a=drill.GetServeDestination();
+                var move=new Vector3(1,.3f,.5f); head.transform.position+=move; Random.InitState(23); var b=drill.GetServeDestination();
+                Assert.That(Vector3.Distance(b-a,move),Is.LessThan(.001f));
+                Assert.That(Mathf.Abs((b-head.transform.position).x),Is.LessThanOrEqualTo(drill.LateralSpread));
+                Assert.That(Mathf.Abs((b-head.transform.position).y-drill.ContactHeightFromHead),Is.LessThanOrEqualTo(drill.VerticalSpread));
+            }
+            finally {Random.state=randomState; EditorSceneManager.ClosePreviewScene(scene);}
+        }
         [TestCase("LeftHand")]
         [TestCase("RightHand")]
         public void GhostModelHasCompleteJointMappingAndMaterials(string name)
@@ -175,11 +232,19 @@ namespace GloveBallDemo.Tests
                     drill.Targets.BeginWave(0,1,1);
                     Assert.That(drill.Targets.ActiveTargetCount,Is.EqualTo(1));
                     var target=drill.Panels.Single(p=>p.gameObject.activeSelf);
-                    Assert.That(target.transform.position,Is.EqualTo(new Vector3(0,3.5f,1)));
+                    Assert.That(target.transform.position.y,Is.InRange(2.95f,3.65f));
+                    Assert.That(target.transform.position.x,Is.InRange(-3f,3f));
                     var position=target.transform.position;
                     Assert.That(drill.Targets.RegisterHit(target),Is.True);
                     Assert.That(drill.Targets.ActiveTargetCount,Is.EqualTo(1));
-                    Assert.That(drill.Panels.Single(p=>p.gameObject.activeSelf).transform.position,Is.EqualTo(position));
+                    Assert.That(Vector3.Distance(drill.Panels.Single(p=>p.gameObject.activeSelf).transform.position,position),Is.GreaterThan(.01f));
+                    Assert.That(drill.JoinedHands,Is.Not.Null);
+                    var warning=components.OfType<VolleyTrackingWarning>().Single();
+                    Assert.That(warning.transform.parent,Is.EqualTo(drill.Head));
+                    var net=scene.GetRootGameObjects().Single(o=>o.name=="Volley Net");
+                    var bounds=net.GetComponentsInChildren<Renderer>().First().bounds;
+                    Assert.That(bounds.max.y,Is.EqualTo(2.55f).Within(.01f));
+                    Assert.That(net.GetComponent<BoxCollider>().bounds.max.y,Is.EqualTo(2.43f).Within(.01f));
                 }
                 Assert.That(drill.Panels.Length,Is.GreaterThanOrEqualTo(3));
                 Assert.That(components.OfType<VolleyBodySurface>().Single().Drill,Is.EqualTo(drill));

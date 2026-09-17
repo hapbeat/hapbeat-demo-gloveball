@@ -23,6 +23,7 @@ namespace GloveBallDemo.Runtime
         public TargetPanel[] Panels;
         [Tooltip("Visible emitters. The drill owns timing; their BallLauncher components stay disabled.")]
         public BallLauncher[] FeedLaunchers;
+        public VolleyJoinedHands JoinedHands;
         [Header("Feed, relative to current head height; metres / seconds")]
         [Min(.3f)] public float FeedDistance = 5f;
         public float FeedHeightAboveHead = .4f;
@@ -30,6 +31,7 @@ namespace GloveBallDemo.Runtime
         [Min(.25f)] public float FlightSeconds = .85f;
         [Min(.15f)] public float ContactForwardDistance = .65f;
         [Min(0f)] public float LateralSpread = .3f;
+        [Min(0f)] public float VerticalSpread = .2f;
         [Min(.3f)] public float ServeInterval = 2.5f;
         [Min(0f)] public float ReadySeconds = 2f;
         [Header("Hand response (no auto aim)")]
@@ -105,12 +107,10 @@ namespace GloveBallDemo.Runtime
             _ball = Pool.Take();
             if (_ball == null) return;
             Vector3 forward = Vector3.ProjectOnPlane(CourtFrame.forward, Vector3.up).normalized;
-            Vector3 right = Vector3.Cross(Vector3.up, forward);
             Vector3 start = Head.position + forward * FeedDistance + Vector3.up * FeedHeightAboveHead;
             if (FeedLaunchers != null && FeedLaunchers.Length > 0)
                 start = FeedLaunchers[Random.Range(0, FeedLaunchers.Length)].MuzzlePosition;
-            Vector3 destination = Head.position + forward * ContactForwardDistance
-                + Vector3.up * ContactHeightFromHead + right * Random.Range(-LateralSpread, LateralSpread);
+            Vector3 destination = GetServeDestination();
             // Fixed flight time gives a readable feed independent of the former high-speed launcher rules.
             _ball.Body.linearDamping = 0f;
             _ball.LaunchIncoming(start, VolleyMath.ServeVelocity(start, destination, FlightSeconds, Physics.gravity));
@@ -119,9 +119,19 @@ namespace GloveBallDemo.Runtime
             Serves++;
         }
 
+        public Vector3 GetServeDestination()
+        {
+            var forward=Vector3.ProjectOnPlane(CourtFrame.forward,Vector3.up).normalized;
+            var right=Vector3.Cross(Vector3.up,forward);
+            return Head.position + forward*ContactForwardDistance
+                + Vector3.up*(ContactHeightFromHead+Random.Range(-VerticalSpread,VerticalSpread))
+                + right*Random.Range(-LateralSpread,LateralSpread);
+        }
+
         private void FixedUpdate()
         {
             Left.BeginPhysicsSample(); Right.BeginPhysicsSample();
+            if(JoinedHands!=null) JoinedHands.Sample(Time.fixedDeltaTime);
             if (_ball != null && _ball.gameObject.activeInHierarchy && TrackingReady)
             {
                 Vector3 current = _ball.Body.position;
@@ -132,16 +142,22 @@ namespace GloveBallDemo.Runtime
                     float radius = sphere != null ? sphere.radius * Mathf.Max(_ball.transform.lossyScale.x, _ball.transform.lossyScale.y, _ball.transform.lossyScale.z) : .12f;
                     bool l = Contact(Left, previous, current, radius, out float lt, out var ln);
                     bool r = Contact(Right, previous, current, radius, out float rt, out var rn);
+                    bool joined=JoinedHands!=null && JoinedHands.Joined;
+                    if(joined)
+                    {
+                        l=ContactBox(JoinedHands.Volume,JoinedHands.PreviousPosition,JoinedHands.PreviousRotation,previous,current,radius,out lt,out ln);
+                        r=false; // A joined hit is solved once; never also bounce off the individual hands.
+                    }
                     if (l || r)
                     {
                         var hand = l && (!r || lt <= rt) ? Left : Right;
                         var normal = hand == Left ? ln : rn;
                         var incoming = _ball.Body.linearVelocity;
-                        var velocity = VolleyMath.ReturnVelocity(incoming, hand.Velocity, normal, Restitution, SwingGain, MaximumReturnSpeed);
+                        var velocity = VolleyMath.ReturnVelocity(incoming, joined ? JoinedHands.Velocity : hand.Velocity, normal, Restitution, SwingGain, MaximumReturnSpeed);
                         if (_ball.Deflect(velocity))
                         {
                             // Place just clear of the contact volume on the outgoing side, not at an anchor.
-                            var volume = hand.ContactVolume;
+                            var volume = joined ? JoinedHands.Volume : hand.ContactVolume;
                             var localHit = volume.transform.InverseTransformPoint(Vector3.Lerp(previous, current, hand == Left ? lt : rt)) - volume.center;
                             var half = volume.size * .5f;
                             for (int axis = 0; axis < 3; axis++) localHit[axis] = Mathf.Clamp(localHit[axis], -half[axis], half[axis]);
@@ -150,6 +166,7 @@ namespace GloveBallDemo.Runtime
                                 if (Mathf.Abs(localNormal[axis]) > .5f) localHit[axis] = Mathf.Sign(localNormal[axis]) * half[axis];
                             _ball.Body.position = volume.transform.TransformPoint(volume.center + localHit) + normal * (radius + .01f);
                             HapticEventRelay.ReportBallImpact(_ball, hand.Side == GloveSide.Left ? DemoHapticEvent.LeftArmCollide : DemoHapticEvent.RightArmCollide, hand.transform.position);
+                            if(joined) HapticEventRelay.ReportHapticOnly(_ball.ImpactEvent(DemoHapticEvent.RightArmCollide),Right.transform.position);
                             _lastContact = Time.time; Returns++;
                         }
                     }
@@ -165,10 +182,16 @@ namespace GloveBallDemo.Runtime
             fraction = 0f; normal = Vector3.up;
             var box = hand.ContactVolume;
             if (!hand.Ready || box == null || !box.enabled) return false;
-            var start = Quaternion.Inverse(hand.PreviousPhysicsRotation) * (previous - hand.PreviousPhysicsPosition) - box.center;
-            var end = hand.transform.InverseTransformPoint(current) - box.center;
+            return ContactBox(box,hand.PreviousPhysicsPosition,hand.PreviousPhysicsRotation,previous,current,radius,out fraction,out normal);
+        }
+
+        private static bool ContactBox(BoxCollider box,Vector3 previousPosition,Quaternion previousRotation,Vector3 previous,Vector3 current,float radius,out float fraction,out Vector3 normal)
+        {
+            normal=Vector3.up;
+            var start = Quaternion.Inverse(previousRotation) * (previous - previousPosition) - box.center;
+            var end = box.transform.InverseTransformPoint(current) - box.center;
             if (!VolleyMath.SweptBoxContact(start, end, box.size * .5f, radius, out fraction, out var localNormal)) return false;
-            normal = hand.transform.TransformDirection(localNormal);
+            normal = box.transform.TransformDirection(localNormal);
             return true;
         }
 

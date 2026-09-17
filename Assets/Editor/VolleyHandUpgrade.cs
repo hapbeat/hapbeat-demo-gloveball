@@ -12,6 +12,95 @@ public static class VolleyHandUpgrade
 {
     const string Art = "Assets/GloveBallDemo/Art/UnityGhostHands/";
 
+    [MenuItem("GloveBall Demo/Volley/Apply Net and Joined Receive")]
+    public static void ApplyNetAndJoined()
+    {
+        if(EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play Mode first.");
+        for(int i=0;i<SceneManager.sceneCount;i++)
+            if(SceneManager.GetSceneAt(i).isDirty) throw new InvalidOperationException("Save manual edits first.");
+        var scene=EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");
+        var drill=All<VolleyDrillController>(scene).Single();
+        var marker=All<Transform>(scene).FirstOrDefault(t=>t.name=="BallSpawner");
+        var netPosition=marker!=null ? marker.position : Vector3.zero;
+        netPosition.y=0;
+        if(marker!=null) marker.gameObject.SetActive(false); // Remove visual from experience; retain recoverable authored hierarchy.
+        var net=All<Transform>(scene).FirstOrDefault(t=>t.name=="Volley Net");
+        if(net==null)
+        {
+            const string path="Assets/GloveBallDemo/Art/VolleyballNet/";
+            var model=AssetDatabase.LoadAssetAtPath<GameObject>(path+"VolleyballNet.fbx");
+            if(model==null) throw new InvalidOperationException("Import authored net FBX first.");
+            net=new GameObject("Volley Net").transform; net.position=netPosition;
+            var visual=UnityEngine.Object.Instantiate(model,net).transform;
+            visual.name="Net Mesh"; visual.localPosition=Vector3.zero;
+            var colours=new Dictionary<string,Color>{{"NetCord",new Color(.025f,.035f,.05f)},{"NetTape",new Color(.94f,.95f,.96f)},{"NetPost",new Color(.04f,.22f,.48f)}};
+            foreach(var renderer in net.GetComponentsInChildren<MeshRenderer>())
+            {
+                renderer.sharedMaterials=renderer.sharedMaterials.Select(old=>
+                {
+                    var key=colours.Keys.First(k=>old.name.StartsWith(k,StringComparison.Ordinal));
+                    var asset=path+key+".mat";
+                    var material=AssetDatabase.LoadAssetAtPath<Material>(asset);
+                    if(material==null)
+                    {
+                        material=new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                        material.SetColor("_BaseColor",colours[key]);
+                        material.SetFloat("_Smoothness",.15f); AssetDatabase.CreateAsset(material,asset);
+                    }
+                    return material;
+                }).ToArray();
+            }
+            var barrier=net.gameObject.AddComponent<BoxCollider>();
+            barrier.center=new Vector3(0,1.93f,0); barrier.size=new Vector3(9.5f,1,.04f);
+        }
+        // Normalize the initial authored installation if the FBX was used as the physics root.
+        if(net.GetComponent<MeshRenderer>()!=null)
+        {
+            var mesh=net; mesh.name="Net Mesh";
+            UnityEngine.Object.DestroyImmediate(mesh.GetComponent<BoxCollider>());
+            net=new GameObject("Volley Net").transform; net.position=netPosition;
+            mesh.SetParent(net,true);
+            var barrier=net.gameObject.AddComponent<BoxCollider>();
+            barrier.center=new Vector3(0,1.93f,0); barrier.size=new Vector3(9.5f,1,.04f);
+        }
+        var layout=new SerializedObject(drill.Targets);
+        layout.FindProperty("_minX").floatValue=netPosition.x-3;
+        layout.FindProperty("_maxX").floatValue=netPosition.x+3;
+        layout.FindProperty("_minZ").floatValue=netPosition.z+.2f;
+        layout.FindProperty("_maxZ").floatValue=netPosition.z+.6f;
+        layout.FindProperty("_minHeight").floatValue=2.95f;
+        layout.FindProperty("_maxHeight").floatValue=3.65f;
+        layout.ApplyModifiedPropertiesWithoutUndo();
+        drill.Targets.BeginWave(0,1,1);
+        drill.VerticalSpread=.2f;
+        if(drill.JoinedHands==null)
+        {
+            var joined=new GameObject("Volley Joined Hands").AddComponent<VolleyJoinedHands>();
+            joined.Left=drill.Left; joined.Right=drill.Right;
+            joined.Volume=joined.gameObject.AddComponent<BoxCollider>();
+            joined.Volume.isTrigger=true; joined.Volume.size=new Vector3(.32f,.10f,.24f); joined.Volume.enabled=false;
+            drill.JoinedHands=joined;
+        }
+        if(!All<VolleyTrackingWarning>(scene).Any())
+        {
+            var warning=new GameObject("Volley Tracking Warning",typeof(RectTransform),typeof(Canvas),typeof(VolleyTrackingWarning));
+            warning.transform.SetParent(drill.Head,false); warning.transform.localPosition=new Vector3(0,0,1.4f);
+            warning.transform.localScale=Vector3.one*.0015f;
+            warning.GetComponent<RectTransform>().sizeDelta=new Vector2(760,160);
+            var canvas=warning.GetComponent<Canvas>(); canvas.renderMode=RenderMode.WorldSpace; canvas.sortingOrder=100;
+            var background=warning.AddComponent<UnityEngine.UI.Image>(); background.color=new Color(.06f,.025f,.01f,.9f); background.raycastTarget=false;
+            var label=new GameObject("Message",typeof(RectTransform),typeof(UnityEngine.UI.Text)); label.transform.SetParent(warning.transform,false);
+            var rect=label.GetComponent<RectTransform>(); rect.anchorMin=Vector2.zero; rect.anchorMax=Vector2.one; rect.offsetMin=Vector2.zero; rect.offsetMax=Vector2.zero;
+            var text=label.GetComponent<UnityEngine.UI.Text>(); text.font=drill.StatusText.font; text.fontSize=40;
+            text.text="HANDS NOT TRACKED\nShow at least one hand"; text.alignment=TextAnchor.MiddleCenter; text.color=new Color(1,.8f,.2f); text.raycastTarget=false;
+            var state=warning.GetComponent<VolleyTrackingWarning>(); state.Left=drill.Left; state.Right=drill.Right;
+            state.Graphics=new UnityEngine.UI.Graphic[]{background,text}; background.enabled=false; text.enabled=false;
+        }
+        AssetDatabase.SaveAssets(); EditorSceneManager.MarkSceneDirty(scene);
+        if(!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException("Scene save failed.");
+        Debug.Log("[VolleyUpgrade] Net, random above-net target, head warning and joined hands applied.");
+    }
+
     [MenuItem("GloveBall Demo/Volley/Apply Wrist Frame and Receive Layout")]
     public static void ApplyWristAndFeed()
     {
