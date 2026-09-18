@@ -14,6 +14,22 @@ namespace GloveBallDemo.Runtime
         [Min(0f)] public float RecoilDistance=.10f;
         Vector3 _restPosition; bool _recoiling; float _shotTime;
         AudioSource _shotSource;
+        readonly System.Collections.Generic.Dictionary<Renderer,MaterialPropertyBlock> _warningOriginals=new();
+        public void SetWarning(bool warning)
+        {
+            if(!warning)
+            {
+                foreach(var pair in _warningOriginals)if(pair.Key!=null)pair.Key.SetPropertyBlock(pair.Value);
+                _warningOriginals.Clear();return;
+            }
+            if(_warningOriginals.Count>0)return;
+            foreach(var renderer in Pivot.GetComponentsInChildren<Renderer>())
+            {
+                var original=new MaterialPropertyBlock();renderer.GetPropertyBlock(original);_warningOriginals.Add(renderer,original);
+                var highlight=new MaterialPropertyBlock();renderer.GetPropertyBlock(highlight);
+                highlight.SetColor("_BaseColor",new Color(1f,.55f,.05f));renderer.SetPropertyBlock(highlight);
+            }
+        }
 
         public void PlayShotFeedback()
         {
@@ -35,7 +51,7 @@ namespace GloveBallDemo.Runtime
             var direction=Pivot.parent!=null?Pivot.parent.InverseTransformDirection(Pivot.forward):Pivot.forward;
             Pivot.localPosition=_restPosition-direction*(RecoilDistance*Mathf.Sin(Mathf.PI*phase));
         }
-        void OnDisable(){if(_recoiling){Pivot.localPosition=_restPosition;_recoiling=false;}}
+        void OnDisable(){SetWarning(false);if(_recoiling){Pivot.localPosition=_restPosition;_recoiling=false;}}
 
         public Quaternion SolveRotation(Vector3 destination, float seconds, Vector3 gravity, float physicsStep = 0f)
         {

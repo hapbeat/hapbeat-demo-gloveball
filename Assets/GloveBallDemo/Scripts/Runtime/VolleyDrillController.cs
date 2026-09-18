@@ -76,6 +76,9 @@ namespace GloveBallDemo.Runtime
         private Vector3 _previousBallPosition;
         private bool _haveBallSample;
         private bool _subscribed;
+        [Min(0f)] public float LauncherWarningSeconds=1f;
+        BallLauncher _pendingLauncher;
+        float _warningRemaining;
 
         private void Start()
         {
@@ -113,9 +116,12 @@ namespace GloveBallDemo.Runtime
                 if (_ball.State == BallState.Idle || _ball.State == BallState.Dead) _ball = null;
                 else if (_ballAge > MaximumBallAge) { _ball.Kill("volley timeout"); _ball = null; }
             }
+            bool continuingAttack=Drill==VolleyDrill.Block && Aerial!=null && Aerial.AttackStarted && _ball==null;
+            if(continuingAttack)Serve();
             if (!TrackingReady)
             {
-                if(Aerial!=null)Aerial.CancelFeed();
+                if(Aerial!=null && !continuingAttack)Aerial.CancelFeed();
+                if(_pendingLauncher!=null){_pendingLauncher.GetComponent<VolleyFeederAim>()?.SetWarning(false);_pendingLauncher=null;}
                 _trackingStable = 0f;
                 _nextServe = 0f;
             }
@@ -123,7 +129,7 @@ namespace GloveBallDemo.Runtime
             {
                 _trackingStable += Time.deltaTime;
                 _nextServe -= Time.deltaTime;
-                if (_trackingStable >= ReadySeconds && _ball == null && _nextServe <= 0f) Serve();
+                if (!continuingAttack && _trackingStable >= ReadySeconds && _ball == null && _nextServe <= 0f) Serve();
             }
             if (StatusText != null)
             {
@@ -139,6 +145,17 @@ namespace GloveBallDemo.Runtime
 
         private void Serve()
         {
+            if(Aerial==null && FeedLaunchers!=null && FeedLaunchers.Length>0)
+            {
+                if(_pendingLauncher==null)
+                {
+                    _pendingLauncher=FeedLaunchers[Random.Range(0,FeedLaunchers.Length)];
+                    _pendingLauncher.GetComponent<VolleyFeederAim>()?.SetWarning(true);
+                    _warningRemaining=LauncherWarningSeconds;
+                }
+                _warningRemaining-=Time.deltaTime;
+                if(_warningRemaining>0f)return;
+            }
             Vector3 forward = Vector3.ProjectOnPlane(CourtFrame.forward, Vector3.up).normalized;
             Vector3 start = Head.position + forward * FeedDistance + Vector3.up * FeedHeightAboveHead;
             Vector3 destination = GetServeDestination();
@@ -152,7 +169,7 @@ namespace GloveBallDemo.Runtime
             }
             else if (FeedLaunchers != null && FeedLaunchers.Length > 0)
             {
-                var launcher = FeedLaunchers[Random.Range(0, FeedLaunchers.Length)];
+                var launcher = _pendingLauncher;
                 if (launcher.TryGetComponent<VolleyFeederAim>(out var aim))
                 {
                     // Pitch changes the outlet height, which changes the minimum net-clearance flight time.
@@ -168,6 +185,7 @@ namespace GloveBallDemo.Runtime
             // Fixed flight time gives a readable feed independent of the former high-speed launcher rules.
             _ball.Body.linearDamping = 0f;
             _ball.LaunchIncoming(start, velocity);
+            if(_pendingLauncher!=null){_pendingLauncher.GetComponent<VolleyFeederAim>()?.SetWarning(false);_pendingLauncher=null;}
             if(firingAim!=null)firingAim.PlayShotFeedback();
             _previousBallPosition = start; _haveBallSample = true;
             _lastContact = -100f; _ballAge = 0f; _nextServe = ServeInterval;

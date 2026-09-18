@@ -23,6 +23,8 @@ namespace GloveBallDemo.Runtime
         public BoxCollider ContactVolume;
         [Min(.1f)] public float MaximumTrackedSpeed = 8f;
         [Min(.05f)] public float ReacquireDelay = .15f;
+        [Range(0f,.15f)] public float BriefLossSeconds=.10f;
+        [Min(0f)] public float MaximumPredictionDistance=.12f;
         [Header("Quest standalone Wide Motion Mode")]
         public bool EnableWideMotion = true;
         [Tooltip("EXPERIMENTAL: allow an estimated wrist to receive/block a ball. No inferred swing velocity or jump. Off until tested on your headset.")]
@@ -52,12 +54,13 @@ namespace GloveBallDemo.Runtime
             if(EnableWideMotion && InputMode!=VolleyInputMode.ControllersOnly && source!="controller" && wide!=null)
             {
                 wide.Prepare();
-                if(!valid && TrackingSpace!=null && wide.TryGetVisual(Side==GloveSide.Left,out var estimated))
+                if(!valid && (!Ready || now-_lastSampleTime>BriefLossSeconds) && TrackingSpace!=null && wide.TryGetVisual(Side==GloveSide.Left,out var estimated))
                 {ApplyWidePose(estimated,now);return;}
             }
             IsEstimated=false;
             if (!valid || TrackingSpace == null)
             {
+                if(TrackingSpace!=null && ContinueBriefLoss(now))return;
                 Ready = false; Velocity = Vector3.zero; Source = "lost";
                 _haveSample = false; _havePhysicsPose = false;
                 if (Visual != null) Visual.gameObject.SetActive(false);
@@ -66,7 +69,7 @@ namespace GloveBallDemo.Runtime
             Vector3 position = TrackingSpace.TransformPoint(pose.position);
             Quaternion rotation = TrackingSpace.rotation * pose.rotation;
             float dt = now - _lastSampleTime;
-            bool continuous = _haveSample && source == _lastSource && dt > 0f && dt < .12f
+            bool continuous = _haveSample && source == _lastSource && dt > 0f && dt < Mathf.Max(.12f,BriefLossSeconds+.03f)
                 && Vector3.Distance(position, _lastPosition) <= MaximumTrackedSpeed * dt + .025f;
             if (!continuous)
             {
@@ -91,6 +94,13 @@ namespace GloveBallDemo.Runtime
             // Never sweep the moving estimate through a ball or derive force from an inferred jump.
             _haveSample=false;_havePhysicsPose=false;
             if(Visual!=null)Visual.gameObject.SetActive(true);
+        }
+        public bool ContinueBriefLoss(float now)
+        {
+            float gap=now-_lastSampleTime;
+            if(!_haveSample || !Ready || gap<0f || gap>BriefLossSeconds)return false;
+            transform.position=_lastPosition+Vector3.ClampMagnitude(Velocity*gap,MaximumPredictionDistance);
+            Source="brief-loss";return true;
         }
 
         private bool TryPose(out Pose pose, out string source)

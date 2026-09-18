@@ -381,6 +381,8 @@ MonoBehaviour:
   ContactVolume: {fileID: 69585301}
   MaximumTrackedSpeed: 8
   ReacquireDelay: 0.15
+  BriefLossSeconds: 0.1
+  MaximumPredictionDistance: 0.12
   EnableWideMotion: 1
   AllowEstimatedContacts: 0
 --- !u!4 &69585300
@@ -3478,7 +3480,7 @@ Transform:
   m_GameObject: {fileID: 631991368}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0.55}
+  m_LocalPosition: {x: 0, y: 0, z: -0.3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -6010,7 +6012,7 @@ MonoBehaviour:
   ReceiveLobChance: 0.35
   ReceiveLobExtraSeconds: 0.3
   FlightSeconds: 1.5
-  ContactForwardDistance: 0.25
+  ContactForwardDistance: 0.12
   LateralSpread: 0.3
   VerticalSpread: 0.2
   ServeInterval: 1
@@ -6036,6 +6038,7 @@ MonoBehaviour:
   MaximumReturnSpeed: 14
   RehitCooldown: 0.2
   MaximumBallAge: 4
+  LauncherWarningSeconds: 1
 --- !u!4 &1137378106
 Transform:
   m_ObjectHideFlags: 0
@@ -6084,9 +6087,9 @@ MonoBehaviour:
   WindupSeconds: 1.2
   TossFlightSeconds: 1.15
   BlockSpeed: 9
-  FaceShotChance: 0.25
-  HorizontalSpread: 0.24
-  HeightSpread: 0.18
+  FaceShotChance: 0.6
+  HorizontalSpread: 0.35
+  HeightSpread: 0.12
   SpikeReachAboveEye: 0.5
   BlockReachAboveEye: 0.55
 --- !u!1 &1145247898
@@ -7756,7 +7759,7 @@ Transform:
   m_GameObject: {fileID: 1540327376}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0.55}
+  m_LocalPosition: {x: 0, y: 0, z: -0.3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -8080,6 +8083,8 @@ MonoBehaviour:
   ContactVolume: {fileID: 1638254372}
   MaximumTrackedSpeed: 8
   ReacquireDelay: 0.15
+  BriefLossSeconds: 0.1
+  MaximumPredictionDistance: 0.12
   EnableWideMotion: 1
   AllowEstimatedContacts: 0
 --- !u!4 &1638254371
@@ -10867,7 +10872,7 @@ RectTransform:
   m_GameObject: {fileID: 2106600142}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 1.4}
-  m_LocalScale: {x: 0.0015, y: 0.0015, z: 0.0015}
+  m_LocalScale: {x: 0.0008, y: 0.0008, z: 0.0008}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 612464743}
@@ -10875,7 +10880,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: -0.42, y: 0.29}
   m_SizeDelta: {x: 760, y: 160}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2106600144
@@ -11472,7 +11477,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _xrOrigin: {fileID: 631991372}
-  _anchor: {fileID: 2147000001}
+  _anchor: {fileID: 1540327377}
 --- !u!1001 &577963460530417258
 PrefabInstance:
   m_ObjectHideFlags: 0

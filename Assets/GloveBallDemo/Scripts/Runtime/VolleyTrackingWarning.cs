@@ -7,7 +7,6 @@ namespace GloveBallDemo.Runtime
         public VolleyTrackedHand Left;
         public VolleyTrackedHand Right;
         public Graphic[] Graphics;
-        private string _normalText;
         private void LateUpdate()
         {
             bool show=!Left.Ready && !Right.Ready;
@@ -16,8 +15,7 @@ namespace GloveBallDemo.Runtime
                 graphic.enabled=show;
                 if(graphic is Text text)
                 {
-                    if(_normalText==null)_normalText=text.text;
-                    text.text=Left.IsEstimated||Right.IsEstimated ? "WMM ESTIMATED HANDS\nShow a hand to resume" : _normalText;
+                    text.text=Left.IsEstimated||Right.IsEstimated ? "HAND TRACKING: ESTIMATED" : "HAND TRACKING: LOST";
                 }
             }
         }

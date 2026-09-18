@@ -295,6 +295,10 @@ MonoBehaviour:
   ContactVolume: {fileID: 69585301}
   MaximumTrackedSpeed: 8
   ReacquireDelay: 0.15
+  BriefLossSeconds: 0.1
+  MaximumPredictionDistance: 0.12
+  EnableWideMotion: 1
+  AllowEstimatedContacts: 0
 --- !u!4 &69585300
 Transform:
   m_ObjectHideFlags: 0
@@ -713,6 +717,9 @@ MonoBehaviour:
   Pivot: {fileID: 364246321}
   Muzzle: {fileID: 1923198877}
   DegreesPerSecond: 120
+  ShotClip: {fileID: 0}
+  ShotVolume: 0.7
+  RecoilDistance: 0.1
 --- !u!1 &107283862
 GameObject:
   m_ObjectHideFlags: 0
@@ -3180,6 +3187,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Origin: {fileID: 631991372}
+  RepositionTarget: {fileID: 0}
+  RecenterOnFirstTracking: 0
   HeightCorrection: 0
   StandingEyeHeight: 1.6
 --- !u!114 &631991374
@@ -5224,6 +5233,8 @@ MonoBehaviour:
   ReceiveNet: {fileID: 1572485602}
   ReceiveMinimumFlightSeconds: 0.5
   ReceiveNetClearance: 0.18
+  ReceiveLobChance: 0.35
+  ReceiveLobExtraSeconds: 0.3
   FlightSeconds: 1.5
   ContactForwardDistance: 0.55
   LateralSpread: 0.3
@@ -5231,10 +5242,27 @@ MonoBehaviour:
   ServeInterval: 1
   ReadySeconds: 1
   Restitution: 0.9
+  HandResponses:
+  - Kind: 1
+    Bounce: 1
+    ReturnDrag: 0.08
+  - Kind: 4
+    Bounce: 0.95
+    ReturnDrag: 0.12
+  - Kind: 0
+    Bounce: 0.9
+    ReturnDrag: 0.02
+  - Kind: 2
+    Bounce: 0.92
+    ReturnDrag: 0.18
+  - Kind: 3
+    Bounce: 0.95
+    ReturnDrag: 0.04
   SwingGain: 1.25
   MaximumReturnSpeed: 14
   RehitCooldown: 0.2
   MaximumBallAge: 4
+  LauncherWarningSeconds: 1
 --- !u!4 &1137378106
 Transform:
   m_ObjectHideFlags: 0
@@ -5282,7 +5310,7 @@ MonoBehaviour:
   TossLauncher: {fileID: 1739308276}
   WindupSeconds: 1.2
   TossFlightSeconds: 1.15
-  BlockFlightSeconds: 0.5
+  BlockSpeed: 9
   FaceShotChance: 0.25
   HorizontalSpread: 0.24
   HeightSpread: 0.18
@@ -5356,6 +5384,9 @@ MonoBehaviour:
   - {fileID: 1884672605}
   _player: {fileID: 1049602703}
   _layoutSeed: 20260824
+  RandomizeOnStart: 0
+  AlternateHorizontalThirds: 0
+  ZoneEdgeInset: 0.15
   _minX: -2.5
   _maxX: 2.5
   _minZ: 2.5
@@ -6101,6 +6132,9 @@ MonoBehaviour:
   Pivot: {fileID: 1495781714}
   Muzzle: {fileID: 1102758256}
   DegreesPerSecond: 120
+  ShotClip: {fileID: 0}
+  ShotVolume: 0.7
+  RecoilDistance: 0.1
 --- !u!1001 &1417256079
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7152,6 +7186,10 @@ MonoBehaviour:
   ContactVolume: {fileID: 1638254372}
   MaximumTrackedSpeed: 8
   ReacquireDelay: 0.15
+  BriefLossSeconds: 0.1
+  MaximumPredictionDistance: 0.12
+  EnableWideMotion: 1
+  AllowEstimatedContacts: 0
 --- !u!4 &1638254371
 Transform:
   m_ObjectHideFlags: 0
@@ -7546,6 +7584,9 @@ MonoBehaviour:
   Pivot: {fileID: 436388406}
   Muzzle: {fileID: 1714800750}
   DegreesPerSecond: 120
+  ShotClip: {fileID: 0}
+  ShotVolume: 0.7
+  RecoilDistance: 0.1
 --- !u!1 &1751589343
 GameObject:
   m_ObjectHideFlags: 0
@@ -9848,7 +9889,7 @@ RectTransform:
   m_GameObject: {fileID: 2106600142}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 1.4}
-  m_LocalScale: {x: 0.0015, y: 0.0015, z: 0.0015}
+  m_LocalScale: {x: 0.0008, y: 0.0008, z: 0.0008}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 612464743}
@@ -9856,7 +9897,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: -0.42, y: 0.29}
   m_SizeDelta: {x: 760, y: 160}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2106600144

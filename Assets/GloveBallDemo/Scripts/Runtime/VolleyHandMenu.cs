@@ -50,14 +50,14 @@ namespace GloveBallDemo.Runtime
             _font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             var go=new GameObject("Volley hand menu",typeof(RectTransform),typeof(Canvas));go.transform.SetParent(transform,false);
             _canvas=go.GetComponent<Canvas>();_canvas.renderMode=RenderMode.WorldSpace;_canvas.sortingOrder=100;
-            var rect=go.GetComponent<RectTransform>();rect.sizeDelta=new Vector2(620,650);rect.localScale=Vector3.one*.0016f;
+            var rect=go.GetComponent<RectTransform>();rect.sizeDelta=new Vector2(620,850);rect.localScale=Vector3.one*.0016f;
             go.AddComponent<Image>().color=new Color(.025f,.04f,.065f,.97f);
-            Label("VOLLEY MENU",rect,new Vector2(0,235),34);
-            _heightText=Label("",rect,new Vector2(0,185),23);
-            for(int i=0;i<6;i++)
+            Label("VOLLEY MENU",rect,new Vector2(0,375),34);
+            _heightText=Label("",rect,new Vector2(0,320),23);
+            for(int i=0;i<9;i++)
             {
                 var row=new GameObject("Menu row "+i,typeof(RectTransform),typeof(Image)).GetComponent<RectTransform>();
-                row.SetParent(rect,false);row.sizeDelta=new Vector2(555,64);row.anchoredPosition=new Vector2(0,110-i*77);
+                row.SetParent(rect,false);row.sizeDelta=new Vector2(555,60);row.anchoredPosition=new Vector2(0,235-i*72);
                 row.GetComponent<Image>().color=new Color(.1f,.18f,.24f);
                 _rows.Add(row);_labels.Add(Label("",row,Vector2.zero,27));
             }
@@ -192,16 +192,29 @@ namespace GloveBallDemo.Runtime
 #endif
                     break;
                 case 5:Floor.Recenter();SetOpen(false);break;
+                case 6:LoadDrill("VolleyReceive-codex");break;
+                case 7:LoadDrill("VolleyJumpSpike-codex");break;
+                case 8:LoadDrill("VolleyBlock-codex");break;
             }
             Refresh();
         }
         void Refresh()
         {
             if(_heightText==null)return;_heightText.text=$"Eye {Floor.EyeHeight:F2} m  /  correction {Floor.HeightCorrection:+0.00;-0.00;0.00} m\n"+(GloveBallWideMotionFeature.Active?.Status??"WMM: unavailable (Quest APK required)");
-            var names=new[]{"RESUME",$"HANDS ONLY: {(Drill.Left.InputMode==VolleyInputMode.HandsOnly?"ON":"OFF")}",$"STAND UPRIGHT: SET EYE {Floor.StandingEyeHeight:F2} m","USE RUNTIME FLOOR","RESTART","REPOSITION TO START"};
+            var names=new[]{"RESUME",$"HANDS ONLY: {(Drill.Left.InputMode==VolleyInputMode.HandsOnly?"ON":"OFF")}",$"STAND UPRIGHT: SET EYE {Floor.StandingEyeHeight:F2} m","USE RUNTIME FLOOR","RESTART","REPOSITION TO START","RECEIVE DEMO","SPIKE DEMO","BLOCK DEMO"};
             for(int i=0;i<names.Length;i++)_labels[i].text=names[i];
         }
         void OnDisable(){if(IsOpen)SetOpen(false);}
+        public void LoadDrill(string scene)
+        {
+            if(scene!="VolleyReceive-codex" && scene!="VolleyJumpSpike-codex" && scene!="VolleyBlock-codex")return;
+            SetOpen(false);
+#if UNITY_EDITOR
+            UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode("Assets/GloveBallDemo/Scenes/"+scene+".unity",new LoadSceneParameters(LoadSceneMode.Single));
+#else
+            SceneManager.LoadScene(scene);
+#endif
+        }
         void OnDestroy()
         {
             Dispose(_rayMaterial);

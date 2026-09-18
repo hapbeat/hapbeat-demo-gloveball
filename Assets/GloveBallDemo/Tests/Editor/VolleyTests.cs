@@ -11,6 +11,24 @@ namespace GloveBallDemo.Tests
     public class VolleyTests
     {
         [Test]
+        public void BriefLossKeepsVelocityOnlyInsideBoundedWindow()
+        {
+            var go=new GameObject("coast test");
+            try
+            {
+                var hand=go.AddComponent<VolleyTrackedHand>();
+                var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+                typeof(VolleyTrackedHand).GetField("_haveSample",flags).SetValue(hand,true);
+                typeof(VolleyTrackedHand).GetField("_lastSampleTime",flags).SetValue(hand,1f);
+                typeof(VolleyTrackedHand).GetField("<Ready>k__BackingField",flags).SetValue(hand,true);
+                typeof(VolleyTrackedHand).GetField("<Velocity>k__BackingField",flags).SetValue(hand,Vector3.up*4f);
+                Assert.That(hand.ContinueBriefLoss(1.05f),Is.True);
+                Assert.That(hand.Velocity.y,Is.EqualTo(4f));Assert.That(hand.transform.position.magnitude,Is.LessThanOrEqualTo(.12001f));
+                Assert.That(hand.ContinueBriefLoss(1.11f),Is.False);
+            }
+            finally{Object.DestroyImmediate(go);}
+        }
+        [Test]
         public void ReceiveSwingHasStrongerEffectThanPassiveBounce()
         {
             EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");

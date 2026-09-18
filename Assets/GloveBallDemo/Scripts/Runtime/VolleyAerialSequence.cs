@@ -20,6 +20,7 @@ namespace GloveBallDemo.Runtime
         public bool LastWasFaceShot { get; private set; }
         public string Cue { get; private set; }="LOWER BOTH HANDS, THEN SWING UP TO JUMP";
         float _windup=-1, _follow=-1, _sinceRelease=-1;
+        public bool AttackStarted=>_windup>=0f;
 
         public Vector3 GroundedEye=>Drill.Head.position-Vector3.up*Jump.Floor.VirtualLift;
         public float SolveBlockShot(Vector3 start,ref Vector3 destination)

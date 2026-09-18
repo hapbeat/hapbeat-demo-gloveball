@@ -295,6 +295,8 @@ MonoBehaviour:
   ContactVolume: {fileID: 69585301}
   MaximumTrackedSpeed: 8
   ReacquireDelay: 0.15
+  BriefLossSeconds: 0.1
+  MaximumPredictionDistance: 0.12
   EnableWideMotion: 1
   AllowEstimatedContacts: 0
 --- !u!4 &69585300
@@ -3184,6 +3186,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Origin: {fileID: 631991372}
+  RepositionTarget: {fileID: 0}
   RecenterOnFirstTracking: 0
   HeightCorrection: 0
   StandingEyeHeight: 1.6
@@ -5235,6 +5238,7 @@ MonoBehaviour:
   MaximumReturnSpeed: 18
   RehitCooldown: 0.2
   MaximumBallAge: 3
+  LauncherWarningSeconds: 1
 --- !u!4 &1137378106
 Transform:
   m_ObjectHideFlags: 0
@@ -7134,6 +7138,8 @@ MonoBehaviour:
   ContactVolume: {fileID: 1638254372}
   MaximumTrackedSpeed: 8
   ReacquireDelay: 0.15
+  BriefLossSeconds: 0.1
+  MaximumPredictionDistance: 0.12
   EnableWideMotion: 1
   AllowEstimatedContacts: 0
 --- !u!4 &1638254371
@@ -9835,7 +9841,7 @@ RectTransform:
   m_GameObject: {fileID: 2106600142}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 1.4}
-  m_LocalScale: {x: 0.0015, y: 0.0015, z: 0.0015}
+  m_LocalScale: {x: 0.0008, y: 0.0008, z: 0.0008}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 612464743}
@@ -9843,7 +9849,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: -0.42, y: 0.29}
   m_SizeDelta: {x: 760, y: 160}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2106600144
