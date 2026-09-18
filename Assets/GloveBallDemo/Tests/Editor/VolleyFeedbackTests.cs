@@ -18,6 +18,7 @@ namespace GloveBallDemo.Tests
         {
             EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyBlock-codex.unity");
             var jump=Object.FindFirstObjectByType<VolleyArmJump>();
+            jump.AutomaticJump=false; // Advanced mode retains the previous height-only gesture.
             jump.Tick(.05f,true,-.30f,-.30f,false);
             for(int i=1;i<=120;i++)jump.Tick(.05f,true,-.30f+i*.0025f,-.30f+i*.0025f,false);
             Assert.That(jump.Jumps,Is.EqualTo(1),"Height, not speed or gesture timeout, must trigger Block jump.");

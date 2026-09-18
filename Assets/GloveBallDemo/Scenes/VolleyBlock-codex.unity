@@ -3558,6 +3558,7 @@ MonoBehaviour:
   RequiredRise: 0.18
   MinimumUpwardSpeed: 0.8
   GestureWindow: 0.8
+  AutomaticJump: 1
   UseHeightThreshold: 1
   RearmHeightFromEyes: -0.25
   JumpHeightFromEyes: -0.05

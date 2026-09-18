@@ -22,6 +22,13 @@ namespace GloveBallDemo.Runtime
         [Min(0)] public float HeightSpread=.18f;
         public float SpikeReachAboveEye=.50f;
         public float BlockReachAboveEye=.55f;
+        [Header("Beginner automatic jump")]
+        [Min(0f)] public float AutoJumpLeadSeconds=.32f;
+        [Range(0f,.1f)] public float AutoJumpTimingJitter=.03f;
+        float _autoJumpAt;
+        bool _autoJumpIssued;
+        public float ScheduledJumpTime=>_autoJumpAt;
+        public bool BeginnerBlock=>Drill.Drill==VolleyDrill.Block && Jump.AutomaticJump;
         public bool LastWasFaceShot { get; private set; }
         public string Cue { get; private set; }="GET READY";
         float _windup=-1, _follow=-1, _sinceRelease=-1;
@@ -89,8 +96,16 @@ namespace GloveBallDemo.Runtime
         public bool TickFeed(float dt,out Vector3 start,out Vector3 destination,out float seconds)
         {
             start=destination=Vector3.zero;seconds=0;
-            if(_windup<0){_windup=0;_follow=-1;_sinceRelease=-1;}
+            if(dt<=0f)return false;
+            if(_windup<0)
+            {
+                _windup=0;_follow=-1;_sinceRelease=-1;_autoJumpIssued=false;
+                float lead=AutoJumpLeadSeconds+Random.Range(-AutoJumpTimingJitter,AutoJumpTimingJitter);
+                _autoJumpAt=Mathf.Max(0,WindupSeconds-Mathf.Clamp(lead,0,Jump.Duration*.75f));
+            }
             _windup+=dt;
+            if(BeginnerBlock && !_autoJumpIssued && _windup>=_autoJumpAt)
+                _autoJumpIssued=Jump.TryStartAutomaticJump();
             if(_preparedBall!=null)
             {
                 var position=TossPosition(_tossStart,_tossEnd,_windup,WindupSeconds);
@@ -98,7 +113,8 @@ namespace GloveBallDemo.Runtime
                 _preparedBall.Body.position=position;
             }
             bool block=Drill.Drill==VolleyDrill.Block;
-            Cue=block ? "HANDS AT CHEST — RAISE BOTH HANDS TO BLOCK" : "GET READY — HANDS LOW, WAIT FOR THE TOSS";
+            Cue=block ? BeginnerBlock ? "AUTO JUMP — REACH UP AND BLOCK THE BALL" : "ADVANCED: HANDS AT CHEST — RAISE BOTH HANDS TO JUMP"
+                : "GET READY — HANDS LOW, WAIT FOR THE TOSS";
             if(block)Opponent.PreviewPhase=Mathf.Min(.52f,_windup/WindupSeconds*.52f);
             if(_windup<WindupSeconds)return false;
             LastWasFaceShot=block&&Random.value<FaceShotChance;
@@ -141,6 +157,13 @@ namespace GloveBallDemo.Runtime
             var ball=TakePreparedBall();
             if(ball!=null && Drill!=null && Drill.Pool!=null)Drill.Pool.Return(ball,"cancelled volley toss");
             if(_follow<0 && Opponent!=null)Opponent.PreviewPhase=0;
+        }
+        public void SetBeginnerBlock(bool enabled)
+        {
+            if(Drill.Drill!=VolleyDrill.Block)return;
+            Jump.AutomaticJump=enabled;
+            Jump.ResetJump();
+            Drill.ResetCurrentAttempt();
         }
         void PlaySpikeAudio(Vector3 position)
         {

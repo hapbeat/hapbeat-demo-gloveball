@@ -217,6 +217,13 @@ namespace GloveBallDemo.Runtime
             _lastContact = -100f; _ballAge = 0f; _nextServe = ServeInterval;
             Serves++;
         }
+        public void ResetCurrentAttempt()
+        {
+            if(Aerial!=null)Aerial.CancelFeed();
+            if(_ball!=null){_ball.Kill("volley mode or position change");_ball=null;}
+            if(_pendingLauncher!=null){_pendingLauncher.GetComponent<VolleyFeederAim>()?.SetWarning(false);_pendingLauncher=null;}
+            _haveBallSample=false;_nextServe=ServeInterval;
+        }
 
         public Vector3 GetServeDestination()
         {

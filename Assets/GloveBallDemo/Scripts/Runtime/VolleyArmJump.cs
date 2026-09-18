@@ -16,6 +16,8 @@ namespace GloveBallDemo.Runtime
         public float RequiredRise=.18f;
         public float MinimumUpwardSpeed=.8f;
         public float GestureWindow=.8f;
+        [Tooltip("Beginner Block: the opponent sequence schedules jumps; raised hands never trigger another jump.")]
+        public bool AutomaticJump;
         [Header("Block: relaxed height-only gesture")]
         public bool UseHeightThreshold;
         [Tooltip("Both wrists below this eye-relative height prepare the next jump.")]
@@ -48,7 +50,7 @@ namespace GloveBallDemo.Runtime
         }
         public void Tick(float dt,bool tracked,float leftY,float rightY,bool paused,float headY=0f,float trackingDt=-1f)
         {
-            if(paused){ResetJump();return;}
+            if(paused){if(!AutomaticJump)ResetJump();return;}
             if(dt<=0f)
             {
                 if(!tracked && trackingDt>0f){_trackingGap+=trackingDt;if(_trackingGap>TrackingGraceSeconds){_sampled=false;_armed=false;}}
@@ -61,6 +63,7 @@ namespace GloveBallDemo.Runtime
                 _sampled=false;_armed=false;return;
             }
             _cooldown=Mathf.Max(0,_cooldown-dt);
+            if(AutomaticJump){_armed=false;_sampled=false;return;}
             if(!tracked)
             {
                 _trackingGap+=dt;
@@ -98,6 +101,12 @@ namespace GloveBallDemo.Runtime
         {
             Airborne=false;Lift=0;_elapsed=0;_sampled=false;_armed=false;_cooldown=Cooldown;_trackingGap=0;
             if(Floor!=null)Floor.SetVirtualLift(0);
+        }
+        public bool TryStartAutomaticJump()
+        {
+            if(!AutomaticJump || Airborne || _cooldown>0 || GameInputGate.IsBlocked)return false;
+            Airborne=true;_elapsed=0;Lift=0;Jumps++;_armed=false;_sampled=false;
+            return true;
         }
         void OnDisable()=>ResetJump();
     }

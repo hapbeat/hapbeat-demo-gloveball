@@ -54,7 +54,7 @@ namespace GloveBallDemo.Runtime
             go.AddComponent<Image>().color=new Color(.025f,.04f,.065f,.97f);
             Label("VOLLEY MENU",rect,new Vector2(0,375),34);
             _heightText=Label("",rect,new Vector2(0,320),23);
-            for(int i=0;i<8;i++)
+            for(int i=0;i<(Drill.Drill==VolleyDrill.Block?9:8);i++)
             {
                 var row=new GameObject("Menu row "+i,typeof(RectTransform),typeof(Image)).GetComponent<RectTransform>();
                 row.SetParent(rect,false);row.sizeDelta=new Vector2(555,60);row.anchoredPosition=new Vector2(0,235-i*72);
@@ -169,7 +169,7 @@ namespace GloveBallDemo.Runtime
         {
             if(_canvas==null)Build();if(IsOpen==open)return;IsOpen=open;
             foreach(var smoother in _handRays)smoother.Reset();
-            if(open){Floor.GetComponent<VolleyArmJump>()?.ResetJump();var forward=Vector3.ProjectOnPlane(Drill.Head.forward,Vector3.up).normalized;
+            if(open){var jump=Floor.GetComponent<VolleyArmJump>();if(jump!=null && !jump.AutomaticJump)jump.ResetJump();var forward=Vector3.ProjectOnPlane(Drill.Head.forward,Vector3.up).normalized;
                 _canvas.transform.position=Drill.Head.position+forward*1.25f;_canvas.transform.rotation=Quaternion.LookRotation(forward);_pinched[0]=_pinched[1]=true;}
             Drill.SetMenuPaused(open);
             _canvas.gameObject.SetActive(open);GameInputGate.SetBlocked(open);foreach(var ray in _rays)ray.enabled=false;
@@ -181,8 +181,8 @@ namespace GloveBallDemo.Runtime
             {
                 case 0:SetOpen(false);break;
                 case 1:var mode=Drill.Left.InputMode==VolleyInputMode.HandsOnly?VolleyInputMode.Automatic:VolleyInputMode.HandsOnly;Drill.Left.InputMode=Drill.Right.InputMode=mode;break;
-                case 2:Floor.CalibrateStandingHeight();SetOpen(false);break;
-                case 3:Floor.ClearCalibration();SetOpen(false);break;
+                case 2:ResetAutomaticAttempt();Floor.CalibrateStandingHeight();SetOpen(false);break;
+                case 3:ResetAutomaticAttempt();Floor.ClearCalibration();SetOpen(false);break;
                 case 4:
                     SetOpen(false);
 #if UNITY_EDITOR
@@ -191,18 +191,21 @@ namespace GloveBallDemo.Runtime
                     SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
 #endif
                     break;
-                case 5:Floor.Recenter();SetOpen(false);break;
+                case 5:ResetAutomaticAttempt();Floor.Recenter();SetOpen(false);break;
                 case 6:LoadDrill("VolleyReceive-codex");break;
                 case 7:LoadDrill("VolleyBlock-codex");break;
+                case 8:if(Drill.Aerial!=null)Drill.Aerial.SetBeginnerBlock(!Drill.Aerial.BeginnerBlock);break;
             }
             Refresh();
         }
         void Refresh()
         {
             if(_heightText==null)return;_heightText.text=$"Eye {Floor.EyeHeight:F2} m  /  correction {Floor.HeightCorrection:+0.00;-0.00;0.00} m\n"+(GloveBallWideMotionFeature.Active?.Status??"WMM: unavailable (Quest APK required)");
-            var names=new[]{"RESUME",$"HANDS ONLY: {(Drill.Left.InputMode==VolleyInputMode.HandsOnly?"ON":"OFF")}",$"STAND UPRIGHT: SET EYE {Floor.StandingEyeHeight:F2} m","USE RUNTIME FLOOR","RESTART","REPOSITION TO START","RECEIVE DEMO","BLOCK DEMO"};
-            for(int i=0;i<names.Length;i++)_labels[i].text=names[i];
+            var names=new List<string>{"RESUME",$"HANDS ONLY: {(Drill.Left.InputMode==VolleyInputMode.HandsOnly?"ON":"OFF")}",$"STAND UPRIGHT: SET EYE {Floor.StandingEyeHeight:F2} m","USE RUNTIME FLOOR","RESTART","REPOSITION TO START","RECEIVE DEMO","BLOCK DEMO"};
+            if(Drill.Drill==VolleyDrill.Block)names.Add(Drill.Aerial.BeginnerBlock?"BLOCK: BEGINNER (AUTO JUMP)":"BLOCK: ADVANCED (HAND JUMP)");
+            for(int i=0;i<names.Count;i++)_labels[i].text=names[i];
         }
+        void ResetAutomaticAttempt(){if(Drill.Aerial!=null && Drill.Aerial.BeginnerBlock)Drill.Aerial.SetBeginnerBlock(true);}
         void OnDisable(){if(IsOpen)SetOpen(false);}
         public bool CanExecuteControl(string action,string sceneId) =>
             action=="menu_open" || action=="menu_close" || action=="recenter" || action=="restart"
@@ -214,7 +217,7 @@ namespace GloveBallDemo.Runtime
             if(!CanExecuteControl(action,sceneId))throw new System.InvalidOperationException("Unsupported control.");
             if(action=="menu_open"){SetOpen(true);yield break;}
             if(action=="menu_close"){SetOpen(false);yield break;}
-            if(action=="recenter"){Floor.Recenter();SetOpen(false);yield break;}
+            if(action=="recenter"){ResetAutomaticAttempt();Floor.Recenter();SetOpen(false);yield break;}
             string scene=action=="restart" ? SceneManager.GetActiveScene().name : SceneName(sceneId);
             LoadDrill(scene);
             yield return null;
