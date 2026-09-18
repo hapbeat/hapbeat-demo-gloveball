@@ -21,7 +21,7 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
-        public void HandReturnUsesBallBounceMaterial()
+        public void HandReturnHasMildKindDifferencesIndependentOfFloorMaterial()
         {
             var go=new GameObject("return test");var material=new PhysicsMaterial();
             try
@@ -29,9 +29,35 @@ namespace GloveBallDemo.Tests
                 var d=go.AddComponent<VolleyDrillController>();var feel=new BallFeel{BounceMaterial=material};
                 material.bounciness=.1f;var low=d.ReturnForBall(feel,Vector3.down*5,Vector3.zero,Vector3.up);
                 material.bounciness=.8f;var high=d.ReturnForBall(feel,Vector3.down*5,Vector3.zero,Vector3.up);
-                Assert.That(high.y,Is.GreaterThan(low.y*7f));
+                Assert.That(high,Is.EqualTo(low),"Floor changes cannot destroy hand playability");
+                feel.Kind=BallKind.Volleyball;float volley=d.ReturnForBall(feel,Vector3.down*5,Vector3.zero,Vector3.up).y;
+                feel.Kind=BallKind.Perforated;float middle=d.ReturnForBall(feel,Vector3.down*5,Vector3.zero,Vector3.up).y;
+                foreach(var kind in new[]{BallKind.Bowling,BallKind.Foam})
+                {
+                    feel.Kind=kind;float passive=d.ReturnForBall(feel,Vector3.down*5,Vector3.zero,Vector3.up).y;
+                    float active=d.ReturnForBall(feel,Vector3.down*5,Vector3.up,Vector3.up).y;
+                    Assert.That(passive,Is.InRange(volley*.75f,middle));
+                    Assert.That(active,Is.GreaterThan(volley));
+                    Assert.That(d.ResponseFor(feel).ReturnDrag,Is.LessThanOrEqualTo(.18f));
+                }
+                Assert.That(middle,Is.LessThan(volley));
             }
             finally{Object.DestroyImmediate(go);Object.DestroyImmediate(material);}
+        }
+        [Test]
+        public void ReceiveRandomizesInitialTargetPerSceneInstance()
+        {
+            Vector3? first=null;
+            for(int i=0;i<2;i++)
+            {
+                var scene=EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");
+                var d=Object.FindFirstObjectByType<VolleyDrillController>();
+                Assert.That(d.Targets.RandomizeOnStart,Is.True);
+                d.Targets.BeginWave(0,1,1);
+                var p=d.Panels.Single(x=>x.gameObject.activeSelf).transform.position;
+                if(first.HasValue)Assert.That(Vector3.Distance(first.Value,p),Is.GreaterThan(.00001f));
+                first=p;
+            }
         }
         [Test]
         public void JoinedSurfaceHasHysteresisAndDropsOutWhenEitherHandIsLost()

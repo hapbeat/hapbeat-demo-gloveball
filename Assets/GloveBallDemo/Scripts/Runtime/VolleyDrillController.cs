@@ -45,6 +45,20 @@ namespace GloveBallDemo.Runtime
         [Min(0f)] public float ReadySeconds = 2f;
         [Header("Hand response (no auto aim)")]
         [Range(0f, 1f)] public float Restitution = .9f;
+        [System.Serializable]
+        public sealed class HandBallResponse
+        {
+            public BallKind Kind;
+            [Range(0f,1.2f)] public float Bounce=1f;
+            [Range(0f,2f)] public float ReturnDrag=.1f;
+        }
+        [Tooltip("Volley-only response, independent of floor physics materials. Bounce multiplies Restitution.")]
+        public HandBallResponse[] HandResponses={
+            new HandBallResponse{Kind=BallKind.Volleyball,Bounce=1f,ReturnDrag=.08f},
+            new HandBallResponse{Kind=BallKind.Perforated,Bounce=.9f,ReturnDrag=.12f},
+            new HandBallResponse{Kind=BallKind.Bowling,Bounce=.78f,ReturnDrag=.02f},
+            new HandBallResponse{Kind=BallKind.Foam,Bounce=.8f,ReturnDrag=.18f},
+            new HandBallResponse{Kind=BallKind.Basketball,Bounce=.95f,ReturnDrag=.04f}};
         [Range(0f, 3f)] public float SwingGain = 1.25f;
         [Min(1f)] public float MaximumReturnSpeed = 14f;
         [Min(.05f)] public float RehitCooldown = .2f;
@@ -193,8 +207,14 @@ namespace GloveBallDemo.Runtime
 
         public Vector3 ReturnForBall(BallFeel feel,Vector3 incoming,Vector3 handVelocity,Vector3 normal)
         {
-            float bounce=feel!=null && feel.BounceMaterial!=null ? feel.BounceMaterial.bounciness : 1f;
+            float bounce=ResponseFor(feel)?.Bounce ?? 1f;
             return VolleyMath.ReturnVelocity(incoming,handVelocity,normal,Restitution*bounce,SwingGain,MaximumReturnSpeed);
+        }
+        public HandBallResponse ResponseFor(BallFeel feel)
+        {
+            if(feel!=null && HandResponses!=null)
+                foreach(var response in HandResponses)if(response!=null && response.Kind==feel.Kind)return response;
+            return null;
         }
 
         private void FixedUpdate()
@@ -226,8 +246,8 @@ namespace GloveBallDemo.Runtime
                         var velocity = ReturnForBall(_ball.Feel,incoming,joined ? JoinedHands.Velocity : hand.Velocity,normal);
                         if (_ball.Deflect(velocity))
                         {
-                            // Incoming feeds stay calibrated; after reception each ball resumes its own drag.
-                            _ball.Body.linearDamping=_ball.Feel!=null?Mathf.Clamp(_ball.Feel.AirResistance,0f,2f):0f;
+                            // Incoming feeds stay calibrated; returns use per-kind gameplay drag, not floor settings.
+                            _ball.Body.linearDamping=ResponseFor(_ball.Feel)?.ReturnDrag ?? 0f;
                             // Place just clear of the contact volume on the outgoing side, not at an anchor.
                             var volume = joined ? JoinedHands.Volume : hand.ContactVolume;
                             var localHit = volume.transform.InverseTransformPoint(Vector3.Lerp(previous, current, hand == Left ? lt : rt)) - volume.center;

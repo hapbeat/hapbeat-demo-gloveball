@@ -9,6 +9,8 @@ namespace GloveBallDemo.Runtime
         [SerializeField] private TargetPanel[] _targets;
         [SerializeField] private Transform _player;
         [SerializeField] private int _layoutSeed = 20260824;
+        public bool RandomizeOnStart;
+        private int? _sessionSeed;
         [Header("Random target placement bounds (world space)")]
         [Tooltip("Left-most target centre in world-space X.")]
         [SerializeField] private float _minX = -3.7f;
@@ -60,6 +62,7 @@ namespace GloveBallDemo.Runtime
         public void BeginWave(int waveIndex, int minimumTargets = 3, int maximumTargets = 4)
         {
             if (!IsWired()) return;
+            if(RandomizeOnStart && !_sessionSeed.HasValue)_sessionSeed=System.Guid.NewGuid().GetHashCode();
             foreach (var target in _targets)
             {
                 if (target == null) continue;
@@ -93,7 +96,7 @@ namespace GloveBallDemo.Runtime
 
         private void CreateGeneration()
         {
-            var seed = unchecked(_layoutSeed + (_waveIndex * 7919) + (_generationIndex * 104729));
+            var seed = unchecked((RandomizeOnStart ? _sessionSeed.GetValueOrDefault(_layoutSeed) : _layoutSeed) + (_waveIndex * 7919) + (_generationIndex * 104729));
             var random = new System.Random(seed);
             var targetCount = random.Next(_minimumTargets, _maximumTargets + 1);
             var min = new Vector3(Mathf.Min(_minX, _maxX), Mathf.Min(_minHeight, _maxHeight), Mathf.Min(_minZ, _maxZ));

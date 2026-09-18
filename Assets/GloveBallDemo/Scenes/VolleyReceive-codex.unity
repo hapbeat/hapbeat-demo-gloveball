@@ -5214,6 +5214,22 @@ MonoBehaviour:
   ServeInterval: 1.2
   ReadySeconds: 2
   Restitution: 0.9
+  HandResponses:
+  - Kind: 1
+    Bounce: 1
+    ReturnDrag: 0.08
+  - Kind: 4
+    Bounce: 0.9
+    ReturnDrag: 0.12
+  - Kind: 0
+    Bounce: 0.78
+    ReturnDrag: 0.02
+  - Kind: 2
+    Bounce: 0.8
+    ReturnDrag: 0.18
+  - Kind: 3
+    Bounce: 0.95
+    ReturnDrag: 0.04
   SwingGain: 1.25
   MaximumReturnSpeed: 14
   RehitCooldown: 0.2
@@ -5315,6 +5331,7 @@ MonoBehaviour:
   - {fileID: 1884672605}
   _player: {fileID: 1049602703}
   _layoutSeed: 20260824
+  RandomizeOnStart: 1
   _minX: -3
   _maxX: 3
   _minZ: 0.2
