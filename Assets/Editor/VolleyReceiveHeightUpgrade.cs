@@ -15,12 +15,12 @@ public static class VolleyReceiveHeightUpgrade
         for(int i=0;i<SceneManager.sceneCount;i++)if(SceneManager.GetSceneAt(i).isDirty)throw new InvalidOperationException("Save changes first.");
         var scene=EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");
         var drill=UnityEngine.Object.FindFirstObjectByType<VolleyDrillController>();
-        drill.ReceiveContactHeight=.9f;drill.ReceiveHeightSpread=.1f;
+        drill.ReceiveContactHeight=.9f;drill.ReceiveHeightSpread=.1f;drill.ContactForwardDistance=0f;
         // Only feed tuning: preserve floor correction, hand volumes, targets and all manual scene edits.
         foreach(var launcher in drill.FeedLaunchers)
         {
             var aim=launcher.GetComponent<VolleyFeederAim>();var destination=drill.GetContactCentre();
-            for(int i=0;i<8;i++)aim.AimForShot(destination,drill.GetFlightSeconds(launcher.MuzzlePosition,destination));
+            for(int i=0;i<8;i++)aim.AimForShot(destination,drill.GetFlightSeconds(launcher.MuzzlePosition,destination),Time.fixedDeltaTime);
         }
         EditorSceneManager.MarkSceneDirty(scene);if(!EditorSceneManager.SaveScene(scene))throw new InvalidOperationException("Save failed");
     }

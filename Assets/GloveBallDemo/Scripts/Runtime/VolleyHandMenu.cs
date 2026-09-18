@@ -18,6 +18,28 @@ namespace GloveBallDemo.Runtime
         readonly List<Text> _labels=new List<Text>();
         readonly bool[] _pinched=new bool[2];
         readonly LineRenderer[] _rays=new LineRenderer[2];
+        readonly HandRaySmoother[] _handRays={new HandRaySmoother(),new HandRaySmoother()};
+
+        // Like XRI's pinch visual, separate the pinch origin from the aiming pose and smooth both.
+        // In the joint-only fallback, wrist position drives aim: curling the index cannot steer it.
+        public sealed class HandRaySmoother
+        {
+            bool _valid; int _source; Vector3 _origin, _direction;
+            public void Reset()=>_valid=false;
+            public Ray Sample(Vector3 origin,Vector3 direction,float deltaTime,int source)
+            {
+                if(!_valid || _source!=source){_origin=origin;_direction=direction.normalized;_valid=true;_source=source;}
+                else
+                {
+                    float alpha=1f-Mathf.Exp(-12f*Mathf.Max(0f,deltaTime));
+                    _origin=Vector3.Lerp(_origin,origin,alpha);
+                    _direction=Vector3.Slerp(_direction,direction.normalized,alpha).normalized;
+                }
+                return new Ray(_origin,_direction);
+            }
+        }
+        public static Ray JointRay(Pose wrist,Pose index,Pose thumb,Vector3 shoulder)
+            =>new Ray((index.position+thumb.position)*.5f,(wrist.position-shoulder).normalized);
         Canvas _canvas; Text _heightText; Material _rayMaterial; Font _font;
         float _savedTimeScale, _lastToggle=-10f, _gestureStart=-1f;
         bool _menuPressed, _gestureUsed;
@@ -116,9 +138,22 @@ namespace GloveBallDemo.Runtime
         {
             var aim=side==0?MetaAimHand.left:MetaAimHand.right;var space=Floor.Origin.CameraFloorOffsetObject.transform;
             if(aim!=null && (((MetaAimFlags)aim.aimFlags.ReadValue())&MetaAimFlags.Valid)!=0)
-            {ray=new Ray(space.TransformPoint(aim.devicePosition.ReadValue()),space.rotation*aim.deviceRotation.ReadValue()*Vector3.forward);pinch=aim.pinchStrengthIndex.ReadValue()>(_pinched[side]?.55f:.8f);return true;}
+            {
+                var origin=aim.devicePosition.ReadValue();
+                if(TryJoints(side,out var w,out var i,out var t))origin=(i.position+t.position)*.5f;
+                var local=_handRays[side].Sample(origin,aim.deviceRotation.ReadValue()*Vector3.forward,Time.unscaledDeltaTime,1);
+                ray=new Ray(space.TransformPoint(local.origin),space.TransformDirection(local.direction));
+                pinch=aim.pinchStrengthIndex.ReadValue()>(_pinched[side]?.55f:.8f);return true;
+            }
             if(TryJoints(side,out var wrist,out var index,out var thumb))
-            {var origin=space.TransformPoint(index.position);var shoulder=Drill.Head.position-Vector3.up*.25f+Drill.Head.right*(side==0?-.18f:.18f);ray=new Ray(origin,(origin-shoulder).normalized);pinch=Vector3.Distance(index.position,thumb.position)<(_pinched[side]?.04f:.025f);return true;}
+            {
+                var shoulder=Drill.Head.position-Vector3.up*.25f+Drill.Head.right*(side==0?-.18f:.18f);
+                var raw=JointRay(wrist,index,thumb,space.InverseTransformPoint(shoulder));
+                var local=_handRays[side].Sample(raw.origin,raw.direction,Time.unscaledDeltaTime,2);
+                ray=new Ray(space.TransformPoint(local.origin),space.TransformDirection(local.direction));
+                pinch=Vector3.Distance(index.position,thumb.position)<(_pinched[side]?.04f:.025f);return true;
+            }
+            _handRays[side].Reset();
             var device=InputDevices.GetDeviceAtXRNode(side==0?XRNode.LeftHand:XRNode.RightHand);
             if(device.TryGetFeatureValue(CommonUsages.isTracked,out bool tracked)&&tracked && device.TryGetFeatureValue(CommonUsages.devicePosition,out Vector3 p)&&device.TryGetFeatureValue(CommonUsages.deviceRotation,out Quaternion q))
             {device.TryGetFeatureValue(CommonUsages.triggerButton,out pinch);ray=new Ray(space.TransformPoint(p),space.rotation*q*Vector3.forward);return true;}
@@ -133,6 +168,7 @@ namespace GloveBallDemo.Runtime
         public void SetOpen(bool open)
         {
             if(_canvas==null)Build();if(IsOpen==open)return;IsOpen=open;
+            foreach(var smoother in _handRays)smoother.Reset();
             if(open){Floor.GetComponent<VolleyArmJump>()?.ResetJump();_savedTimeScale=Time.timeScale;Time.timeScale=0f;var forward=Vector3.ProjectOnPlane(Drill.Head.forward,Vector3.up).normalized;
                 _canvas.transform.position=Drill.Head.position+forward*1.25f;_canvas.transform.rotation=Quaternion.LookRotation(forward);_pinched[0]=_pinched[1]=true;}
             else Time.timeScale=_savedTimeScale;

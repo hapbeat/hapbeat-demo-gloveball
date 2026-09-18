@@ -10,7 +10,7 @@ namespace GloveBallDemo.Runtime
         public Transform Muzzle;
         [Min(1f)] public float DegreesPerSecond = 120f;
 
-        public Quaternion SolveRotation(Vector3 destination, float seconds, Vector3 gravity)
+        public Quaternion SolveRotation(Vector3 destination, float seconds, Vector3 gravity, float physicsStep = 0f)
         {
             var rotation = Pivot.rotation;
             var offset = Pivot.InverseTransformPoint(Muzzle.position);
@@ -18,7 +18,7 @@ namespace GloveBallDemo.Runtime
             for (int i = 0; i < 12; i++)
             {
                 var origin = Pivot.position + rotation * offset;
-                var velocity = VolleyMath.ServeVelocity(origin, destination, seconds, gravity);
+                var velocity = VolleyMath.ServeVelocity(origin, destination, seconds, gravity) - .5f * gravity * physicsStep;
                 rotation = Quaternion.LookRotation(velocity, Vector3.up);
             }
             return rotation;
@@ -30,10 +30,11 @@ namespace GloveBallDemo.Runtime
                 SolveRotation(destination, seconds, Physics.gravity), DegreesPerSecond * deltaTime);
         }
 
-        public Vector3 AimForShot(Vector3 destination, float seconds)
+        public Vector3 AimForShot(Vector3 destination, float seconds, float physicsStep = 0f)
         {
-            Pivot.rotation = SolveRotation(destination, seconds, Physics.gravity);
-            return VolleyMath.ServeVelocity(Muzzle.position, destination, seconds, Physics.gravity);
+            Pivot.rotation = SolveRotation(destination, seconds, Physics.gravity, physicsStep);
+            // PhysX advances velocity before position (semi-implicit Euler).
+            return VolleyMath.ServeVelocity(Muzzle.position, destination, seconds, Physics.gravity) - .5f * Physics.gravity * physicsStep;
         }
     }
 }

@@ -137,9 +137,10 @@ namespace GloveBallDemo.Runtime
                 if (launcher.TryGetComponent<VolleyFeederAim>(out var aim))
                 {
                     // Pitch changes the outlet height, which changes the minimum net-clearance flight time.
-                    for(int i=0;i<8;i++) velocity=aim.AimForShot(destination,GetFlightSeconds(launcher.MuzzlePosition,destination));
+                    for(int i=0;i<8;i++) velocity=aim.AimForShot(destination,GetFlightSeconds(launcher.MuzzlePosition,destination),Drill==VolleyDrill.Receive?Time.fixedDeltaTime:0f);
                 }
-                else velocity = VolleyMath.ServeVelocity(launcher.MuzzlePosition, destination, GetFlightSeconds(launcher.MuzzlePosition,destination), Physics.gravity);
+                else velocity = VolleyMath.ServeVelocity(launcher.MuzzlePosition, destination, GetFlightSeconds(launcher.MuzzlePosition,destination), Physics.gravity)
+                    - (Drill==VolleyDrill.Receive ? .5f*Physics.gravity*Time.fixedDeltaTime : Vector3.zero);
                 start = launcher.MuzzlePosition;
             }
             _ball=Pool.Take();

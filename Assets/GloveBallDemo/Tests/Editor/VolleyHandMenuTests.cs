@@ -8,6 +8,25 @@ namespace GloveBallDemo.Tests
     public class VolleyHandMenuTests
     {
         [Test]
+        public void PinchUsesMidpointWithoutSteeringWithIndexCurl()
+        {
+            var wrist=new Pose(new Vector3(0,0,.4f),Quaternion.identity);
+            var index=new Pose(new Vector3(0,.1f,.6f),Quaternion.identity);
+            var thumb=new Pose(new Vector3(0,0,.5f),Quaternion.identity);
+            var open=VolleyHandMenu.JointRay(wrist,index,thumb,Vector3.zero);
+            Assert.That(open.origin,Is.EqualTo((index.position+thumb.position)*.5f));
+            index.position=thumb.position;
+            var closed=VolleyHandMenu.JointRay(wrist,index,thumb,Vector3.zero);
+            Assert.That(closed.direction,Is.EqualTo(open.direction));
+            var smoother=new VolleyHandMenu.HandRaySmoother();
+            smoother.Sample(open.origin,open.direction,.02f,2);
+            var filtered=smoother.Sample(closed.origin,closed.direction,.02f,2);
+            Assert.That(Vector3.Distance(filtered.origin,open.origin),Is.LessThan(Vector3.Distance(closed.origin,open.origin)));
+            // Menu is paused: caller supplies unscaled time, and reacquisition must not sweep from stale pose.
+            smoother.Reset();
+            Assert.That(smoother.Sample(Vector3.one,Vector3.right,.02f,2).origin,Is.EqualTo(Vector3.one));
+        }
+        [Test]
         public void PalmTowardHeadPinchOpensWithoutMetaAimAndDoesNotRepeatWhileHeld()
         {
             EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");
