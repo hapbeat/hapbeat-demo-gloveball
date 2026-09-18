@@ -11,7 +11,7 @@ namespace GloveBallDemo.Runtime
         public BallLauncher TossLauncher;
         [Min(.5f)] public float WindupSeconds=1.2f;
         [Min(.5f)] public float TossFlightSeconds=1.15f;
-        [Min(.2f)] public float BlockFlightSeconds=.5f;
+        [Min(1f)] public float BlockSpeed=9f;
         [Range(0,1)] public float FaceShotChance=.25f;
         [Min(0)] public float HorizontalSpread=.24f;
         [Min(0)] public float HeightSpread=.18f;
@@ -22,6 +22,23 @@ namespace GloveBallDemo.Runtime
         float _windup=-1, _follow=-1, _sinceRelease=-1;
 
         public Vector3 GroundedEye=>Drill.Head.position-Vector3.up*Jump.Floor.VirtualLift;
+        public float SolveBlockShot(Vector3 start,ref Vector3 destination)
+        {
+            // A spike is a fast descending shot, not the receive feeder's net-clearing lob.
+            float seconds=Mathf.Clamp(Vector3.ProjectOnPlane(destination-start,Vector3.up).magnitude/BlockSpeed,.08f,.4f);
+            float g=Mathf.Abs(Physics.gravity.y);
+            float fraction=Drill.ReceiveNet!=null ? (Drill.ReceiveNet.bounds.center.z-start.z)/(destination.z-start.z) : 0f;
+            float minimum=float.NegativeInfinity;
+            if(fraction>0f && fraction<1f)
+            {
+                float safe=Drill.ReceiveNet.bounds.max.y+.12f;
+                seconds=Mathf.Min(seconds,Mathf.Sqrt(Mathf.Max(.001f,2f*(start.y-safe)/g))*.9f/fraction);
+                minimum=start.y+(safe-start.y-.5f*g*seconds*seconds*fraction*(1f-fraction))/fraction;
+            }
+            float maximum=start.y-.5f*g*seconds*seconds;
+            destination.y=Mathf.Clamp(destination.y,Mathf.Min(minimum,maximum),maximum);
+            return seconds;
+        }
         public Vector3 Destination(float horizontal,float vertical,bool faceShot)
         {
             var forward=Vector3.ProjectOnPlane(Drill.CourtFrame.forward,Vector3.up).normalized;
@@ -45,7 +62,7 @@ namespace GloveBallDemo.Runtime
             if(block)
             {
                 Opponent.Pose(.52f);start=Opponent.ReleasePosition;
-                seconds=Mathf.Max(BlockFlightSeconds,Drill.GetFlightSeconds(start,destination));
+                seconds=SolveBlockShot(start,ref destination);
                 _follow=0;
             }
             else

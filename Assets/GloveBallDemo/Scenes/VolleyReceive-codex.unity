@@ -3184,6 +3184,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Origin: {fileID: 631991372}
+  RecenterOnFirstTracking: 0
   HeightCorrection: 0
   StandingEyeHeight: 1.6
 --- !u!1 &651308258
@@ -5213,7 +5214,7 @@ MonoBehaviour:
   VerticalSpread: 0.2
   ServeInterval: 1.2
   ReadySeconds: 2
-  Restitution: 0.9
+  Restitution: 0.82
   HandResponses:
   - Kind: 1
     Bounce: 1
@@ -5230,8 +5231,8 @@ MonoBehaviour:
   - Kind: 3
     Bounce: 0.95
     ReturnDrag: 0.04
-  SwingGain: 1.25
-  MaximumReturnSpeed: 14
+  SwingGain: 2.5
+  MaximumReturnSpeed: 18
   RehitCooldown: 0.2
   MaximumBallAge: 3
 --- !u!4 &1137378106

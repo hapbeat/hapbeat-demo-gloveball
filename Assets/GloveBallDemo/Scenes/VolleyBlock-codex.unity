@@ -3529,6 +3529,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Origin: {fileID: 631991372}
+  RecenterOnFirstTracking: 1
   HeightCorrection: 0
   StandingEyeHeight: 1.6
 --- !u!114 &631991374
@@ -6081,7 +6082,7 @@ MonoBehaviour:
   TossLauncher: {fileID: 0}
   WindupSeconds: 1.2
   TossFlightSeconds: 1.15
-  BlockFlightSeconds: 0.5
+  BlockSpeed: 9
   FaceShotChance: 0.25
   HorizontalSpread: 0.24
   HeightSpread: 0.18

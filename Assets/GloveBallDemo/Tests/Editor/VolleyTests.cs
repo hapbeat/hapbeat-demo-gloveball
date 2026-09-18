@@ -11,6 +11,19 @@ namespace GloveBallDemo.Tests
     public class VolleyTests
     {
         [Test]
+        public void ReceiveSwingHasStrongerEffectThanPassiveBounce()
+        {
+            EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");
+            var d=Object.FindFirstObjectByType<VolleyDrillController>();
+            foreach(var kind in new[]{BallKind.Bowling,BallKind.Volleyball,BallKind.Foam,BallKind.Perforated})
+            {
+                var feel=new BallFeel{Kind=kind};
+                float passive=d.ReturnForBall(feel,Vector3.down*5,Vector3.zero,Vector3.up).y;
+                float active=d.ReturnForBall(feel,Vector3.down*5,Vector3.up,Vector3.up).y;
+                Assert.That(passive,Is.LessThan(4.2f));Assert.That(active-passive,Is.GreaterThan(3.2f));
+            }
+        }
+        [Test]
         public void OpponentTakeoffArmsLiftInFrontOfBody()
         {
             var go=new GameObject("arm path test");

@@ -71,10 +71,13 @@ namespace GloveBallDemo.Tests
                 Assert.That(Object.FindFirstObjectByType<VolleyHeadSurface>(),Is.Not.Null);
                 foreach(bool face in new[]{false,true})
                 {
-                    destination=aerial.Destination(0,0,face);seconds=drill.GetFlightSeconds(start,destination);
+                    destination=aerial.Destination(0,0,face);seconds=aerial.SolveBlockShot(start,ref destination);
                     velocity=VolleyMath.ServeVelocity(start,destination,seconds,Physics.gravity);
+                    Assert.That(velocity.y,Is.LessThanOrEqualTo(.001f),"Spike must never leave upward");
                     float t=(drill.ReceiveNet.transform.position.z-start.z)/(destination.z-start.z)*seconds;
-                    Assert.That((start+velocity*t+.5f*Physics.gravity*t*t).y,Is.GreaterThanOrEqualTo(drill.ReceiveNet.bounds.max.y+.17f));
+                    Assert.That((start+velocity*t+.5f*Physics.gravity*t*t).y,Is.GreaterThanOrEqualTo(drill.ReceiveNet.bounds.max.y+.119f));
+                    float floorTime=(velocity.y+Mathf.Sqrt(velocity.y*velocity.y+2f*9.81f*start.y))/9.81f;
+                    Assert.That((start+velocity*floorTime).z,Is.InRange(-9f,0f),"Unblocked spike lands in player court");
                 }
             }
             else

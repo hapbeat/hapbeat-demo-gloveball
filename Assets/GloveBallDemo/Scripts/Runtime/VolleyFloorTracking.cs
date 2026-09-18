@@ -10,6 +10,8 @@ namespace GloveBallDemo.Runtime
     public sealed class VolleyFloorTracking : MonoBehaviour
     {
         public XROrigin Origin;
+        public bool RecenterOnFirstTracking;
+        bool _centered;
         [Tooltip("App-only vertical correction for a miscalibrated runtime floor. Set through the standing-height menu.")]
         public float HeightCorrection;
         public float VirtualLift { get; private set; }
@@ -19,6 +21,8 @@ namespace GloveBallDemo.Runtime
         XRInputSubsystem _requested;
         void LateUpdate()
         {
+            if(RecenterOnFirstTracking && !_centered && InputDevices.GetDeviceAtXRNode(XRNode.Head).TryGetFeatureValue(CommonUsages.isTracked,out bool tracked) && tracked)
+            {Recenter();_centered=true;}
             SubsystemManager.GetSubsystems(_inputs);
             foreach(var input in _inputs)
             {
