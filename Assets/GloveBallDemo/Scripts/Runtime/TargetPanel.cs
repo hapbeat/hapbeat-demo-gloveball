@@ -26,6 +26,8 @@ namespace GloveBallDemo.Runtime
         private bool _flashCompleted;
 
         public event System.Action<TargetPanel> HitFlashCompleted;
+        /// <summary>Immediate accepted contact; feedback must not wait for the visual flash.</summary>
+        public event System.Action<TargetPanel, Ball> HitRegistered;
 
         private void Awake()
         {
@@ -69,6 +71,7 @@ namespace GloveBallDemo.Runtime
             _flashCompleted = false;
             _flashTimer = _flashDuration;
             ApplyColor(_hitColor);
+            HitRegistered?.Invoke(this,ball);
             DemoGameController.Instance?.OnTargetHit(this, ball);
             if (_flashTimer <= 0f)
             {

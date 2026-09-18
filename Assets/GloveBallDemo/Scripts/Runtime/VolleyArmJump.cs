@@ -16,6 +16,12 @@ namespace GloveBallDemo.Runtime
         public float RequiredRise=.18f;
         public float MinimumUpwardSpeed=.8f;
         public float GestureWindow=.8f;
+        [Header("Block: relaxed height-only gesture")]
+        public bool UseHeightThreshold;
+        [Tooltip("Both wrists below this eye-relative height prepare the next jump.")]
+        public float RearmHeightFromEyes=-.25f;
+        [Tooltip("Both wrists above this eye-relative height jump once. No speed or time requirement.")]
+        public float JumpHeightFromEyes=-.05f;
         [Min(0f)] public float TrackingGraceSeconds=1.5f;
         public bool Airborne { get; private set; }
         public int Jumps { get; private set; }
@@ -59,6 +65,15 @@ namespace GloveBallDemo.Runtime
             {
                 _trackingGap+=dt;
                 if(_trackingGap>TrackingGraceSeconds){_sampled=false;_armed=false;}
+                return;
+            }
+            if(UseHeightThreshold)
+            {
+                _trackingGap=0;
+                if(_cooldown>0)return;
+                if(leftY<=RearmHeightFromEyes && rightY<=RearmHeightFromEyes)_armed=true;
+                if(_armed && leftY>=JumpHeightFromEyes && rightY>=JumpHeightFromEyes)
+                {Airborne=true;_elapsed=0;Lift=0;Jumps++;_armed=false;_sampled=false;}
                 return;
             }
             if(dt>.12f){_sampled=false;_armed=false;_trackingGap=0;return;}

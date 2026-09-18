@@ -9,6 +9,11 @@ namespace GloveBallDemo.Runtime
         public VolleyArmJump Jump;
         public VolleyOpponentPrototype Opponent;
         public BallLauncher TossLauncher;
+        [Header("Opponent contact audio (no haptics)")]
+        public AudioClip SpikeClip;
+        [Range(0f,1f)] public float SpikeVolume=.85f;
+        public event System.Action<AudioClip,Vector3> SpikeAudioRequested;
+        AudioSource _spikeAudio;
         [Min(.5f)] public float WindupSeconds=1.2f;
         [Min(.5f)] public float TossFlightSeconds=1.15f;
         [Min(1f)] public float BlockSpeed=9f;
@@ -18,7 +23,7 @@ namespace GloveBallDemo.Runtime
         public float SpikeReachAboveEye=.50f;
         public float BlockReachAboveEye=.55f;
         public bool LastWasFaceShot { get; private set; }
-        public string Cue { get; private set; }="LOWER BOTH HANDS, THEN SWING UP TO JUMP";
+        public string Cue { get; private set; }="GET READY";
         float _windup=-1, _follow=-1, _sinceRelease=-1;
         public bool AttackStarted=>_windup>=0f;
         Ball _preparedBall;
@@ -93,7 +98,7 @@ namespace GloveBallDemo.Runtime
                 _preparedBall.Body.position=position;
             }
             bool block=Drill.Drill==VolleyDrill.Block;
-            Cue=block ? "WATCH OPPONENT — PREPARE BOTH HANDS LOW" : "GET READY — HANDS LOW, WAIT FOR THE TOSS";
+            Cue=block ? "HANDS AT CHEST — RAISE BOTH HANDS TO BLOCK" : "GET READY — HANDS LOW, WAIT FOR THE TOSS";
             if(block)Opponent.PreviewPhase=Mathf.Min(.52f,_windup/WindupSeconds*.52f);
             if(_windup<WindupSeconds)return false;
             LastWasFaceShot=block&&Random.value<FaceShotChance;
@@ -102,6 +107,7 @@ namespace GloveBallDemo.Runtime
             {
                 Opponent.Pose(.52f);start=Opponent.ReleasePosition;
                 seconds=SolveBlockShot(start,ref destination);
+                PlaySpikeAudio(start);
                 _follow=0;
             }
             else
@@ -118,7 +124,7 @@ namespace GloveBallDemo.Runtime
             if(_sinceRelease>=0)
             {
                 _sinceRelease+=Time.deltaTime;
-                Cue=Drill.Drill==VolleyDrill.Block ? "JUMP — SWING ARMS UP, BLOCK IN FRONT"
+                Cue=Drill.Drill==VolleyDrill.Block ? "RAISE BOTH HANDS — BLOCK IN FRONT"
                     : _sinceRelease<TossFlightSeconds-.65f ? "WATCH THE TOSS"
                     : _sinceRelease<TossFlightSeconds+.2f ? "JUMP — SWING BOTH ARMS UP, THEN SPIKE WITH RIGHT HAND"
                     : "LAND — LOWER BOTH HANDS FOR THE NEXT TOSS";
@@ -135,6 +141,20 @@ namespace GloveBallDemo.Runtime
             var ball=TakePreparedBall();
             if(ball!=null && Drill!=null && Drill.Pool!=null)Drill.Pool.Return(ball,"cancelled volley toss");
             if(_follow<0 && Opponent!=null)Opponent.PreviewPhase=0;
+        }
+        void PlaySpikeAudio(Vector3 position)
+        {
+            if(SpikeClip==null)return;
+            SpikeAudioRequested?.Invoke(SpikeClip,position);
+            if(!Application.isPlaying)return; // EditMode verification observes requests without PC audio.
+            if(_spikeAudio==null)
+            {
+                var source=new GameObject("Opponent spike audio");source.transform.SetParent(transform,false);
+                _spikeAudio=source.AddComponent<AudioSource>();_spikeAudio.playOnAwake=false;
+                _spikeAudio.spatialBlend=1f;_spikeAudio.minDistance=2f;_spikeAudio.maxDistance=25f;_spikeAudio.dopplerLevel=0;
+            }
+            _spikeAudio.transform.position=position;
+            _spikeAudio.PlayOneShot(SpikeClip,SpikeVolume);
         }
         void OnDisable()=>CancelFeed();
     }

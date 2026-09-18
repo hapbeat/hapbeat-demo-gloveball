@@ -3558,6 +3558,9 @@ MonoBehaviour:
   RequiredRise: 0.18
   MinimumUpwardSpeed: 0.8
   GestureWindow: 0.8
+  UseHeightThreshold: 1
+  RearmHeightFromEyes: -0.25
+  JumpHeightFromEyes: -0.05
   TrackingGraceSeconds: 1.5
 --- !u!1 &651308258
 GameObject:
@@ -6087,6 +6090,8 @@ MonoBehaviour:
   Jump: {fileID: 631991374}
   Opponent: {fileID: 1011802256}
   TossLauncher: {fileID: 1739308276}
+  SpikeClip: {fileID: 8300000, guid: 56237b5157dd1ef4696950aed9b842f2, type: 3}
+  SpikeVolume: 0.85
   WindupSeconds: 1.2
   TossFlightSeconds: 1.15
   BlockSpeed: 9
@@ -8485,7 +8490,7 @@ MonoBehaviour:
   Pivot: {fileID: 436388406}
   Muzzle: {fileID: 1714800750}
   DegreesPerSecond: 120
-  ShotClip: {fileID: 0}
+  ShotClip: {fileID: 8300000, guid: 3fbc656e6f4afda4db201bbf93411d44, type: 3}
   ShotVolume: 0.7
   RecoilDistance: 0.1
 --- !u!1 &1751589343

@@ -9,6 +9,27 @@ using UnityEngine.SceneManagement;
 /// <summary>Focused, non-destructive update of existing volley scenes. Never regenerates a scene.</summary>
 public static class VolleyTrackingAndTossSetup
 {
+    public static void ApplyFeedback()
+    {
+        if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play first.");
+        for(int i=0;i<SceneManager.sceneCount;i++)
+            if(SceneManager.GetSceneAt(i).isDirty)throw new InvalidOperationException("Save manual edits first.");
+        var scene=EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyBlock-codex.unity");
+        var aerial=UnityEngine.Object.FindFirstObjectByType<VolleyAerialSequence>();
+        aerial.Jump.UseHeightThreshold=true;
+        aerial.Jump.RearmHeightFromEyes=-.25f;
+        aerial.Jump.JumpHeightFromEyes=-.05f;
+        aerial.TossLauncher.GetComponent<VolleyFeederAim>().ShotClip=
+            AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/UltimateGloveBall/Sound/ball_launch_bland.wav");
+        const string spikePath="Assets/GloveBallDemo/Audio/BallImpacts/VolleyballImpact.wav";
+        aerial.SpikeClip=AssetDatabase.LoadAssetAtPath<AudioClip>(spikePath);
+        if(aerial.SpikeClip==null)throw new InvalidOperationException("Missing spike audio");
+        var importer=(AudioImporter)AssetImporter.GetAtPath(spikePath);
+        var settings=importer.defaultSampleSettings;settings.preloadAudioData=true;
+        importer.defaultSampleSettings=settings;importer.SaveAndReimport();
+        EditorSceneManager.MarkSceneDirty(scene);
+        if(!EditorSceneManager.SaveScene(scene))throw new InvalidOperationException("Save failed");
+    }
     public static void Apply()
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play first.");

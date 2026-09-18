@@ -106,13 +106,14 @@ namespace GloveBallDemo.Runtime
         private void Start()
         {
             if(Drill!=VolleyDrill.Block) Targets.BeginWave(0, Aerial!=null || Drill==VolleyDrill.Receive ? 1 : 3, Aerial!=null || Drill==VolleyDrill.Receive ? 1 : 3);
-            foreach (var panel in Panels) panel.HitFlashCompleted += OnTarget;
+            foreach (var panel in Panels){panel.HitRegistered+=OnTargetContact;panel.HitFlashCompleted += OnTarget;}
             _subscribed = true;
             _nextServe = ServeInterval;
         }
         private void OnDestroy()
         {
-            if (_subscribed) foreach (var panel in Panels) if (panel != null) panel.HitFlashCompleted -= OnTarget;
+            if (_subscribed) foreach (var panel in Panels) if (panel != null)
+                {panel.HitRegistered-=OnTargetContact;panel.HitFlashCompleted -= OnTarget;}
         }
 
         private bool HeadIsTracked()
@@ -300,8 +301,7 @@ namespace GloveBallDemo.Runtime
                             for (int axis = 0; axis < 3; axis++)
                                 if (Mathf.Abs(localNormal[axis]) > .5f) localHit[axis] = Mathf.Sign(localNormal[axis]) * half[axis];
                             _ball.Body.position = volume.transform.TransformPoint(volume.center + localHit) + normal * (radius + .01f);
-                            HapticEventRelay.ReportBallImpact(_ball, hand.Side == GloveSide.Left ? DemoHapticEvent.LeftArmCollide : DemoHapticEvent.RightArmCollide, hand.transform.position);
-                            if(joined) HapticEventRelay.ReportHapticOnly(_ball.ImpactEvent(DemoHapticEvent.RightArmCollide),Right.transform.position);
+                            ReportHandImpact(_ball,hand,joined);
                             _lastContact = Time.time; Returns++;
                         }
                     }
@@ -335,10 +335,23 @@ namespace GloveBallDemo.Runtime
             BodyHits++;
             HapticEventRelay.ReportBallImpact(ball, DemoHapticEvent.BodyCollide, point);
         }
-        private void OnTarget(TargetPanel panel)
+        private void ReportHandImpact(Ball ball,VolleyTrackedHand hand,bool joined)
+        {
+            if(joined)
+            {
+                // One audible impact, two explicitly sided haptic events, independent of which box side was hit.
+                HapticEventRelay.ReportBallImpact(ball,DemoHapticEvent.LeftArmCollide,Left.transform.position);
+                HapticEventRelay.ReportHapticOnly(ball.ImpactEvent(DemoHapticEvent.RightArmCollide),Right.transform.position);
+            }
+            else HapticEventRelay.ReportBallImpact(ball,hand.Side==GloveSide.Left ? DemoHapticEvent.LeftArmCollide : DemoHapticEvent.RightArmCollide,hand.transform.position);
+        }
+        private void OnTargetContact(TargetPanel panel,Ball ball)
         {
             TargetHits++;
-            HapticEventRelay.Report(DemoHapticEvent.TargetHit, panel.transform.position);
+            HapticEventRelay.PlayAudioOnly(DemoHapticEvent.TargetHit,panel.transform.position);
+        }
+        private void OnTarget(TargetPanel panel)
+        {
             if (_ball != null) { _ball.Kill("volley target"); _ball = null; }
         }
     }
