@@ -8,7 +8,7 @@ using UnityEngine.SceneManagement;
 namespace GloveBallDemo.Runtime
 {
     /// <summary>Volley-only paused menu. Meta hand menu gesture opens it; aim rays and pinch edges select rows.</summary>
-    public sealed class VolleyHandMenu : MonoBehaviour
+    public sealed class VolleyHandMenu : MonoBehaviour, Hapbeat.DemoSwitch.IDemoAppControls
     {
         public VolleyDrillController Drill;
         public VolleyFloorTracking Floor;
@@ -205,6 +205,22 @@ namespace GloveBallDemo.Runtime
             for(int i=0;i<names.Length;i++)_labels[i].text=names[i];
         }
         void OnDisable(){if(IsOpen)SetOpen(false);}
+        public bool CanExecuteControl(string action,string sceneId) =>
+            action=="menu_open" || action=="menu_close" || action=="recenter" || action=="restart"
+            || (action=="scene" && SceneName(sceneId)!=null);
+        static string SceneName(string id) => id=="receive" ? "VolleyReceive-codex"
+            : id=="spike" ? "VolleyJumpSpike-codex" : id=="block" ? "VolleyBlock-codex" : null;
+        public System.Collections.IEnumerator ExecuteControl(string action,string sceneId)
+        {
+            if(!CanExecuteControl(action,sceneId))throw new System.InvalidOperationException("Unsupported control.");
+            if(action=="menu_open"){SetOpen(true);yield break;}
+            if(action=="menu_close"){SetOpen(false);yield break;}
+            if(action=="recenter"){Floor.Recenter();SetOpen(false);yield break;}
+            string scene=action=="restart" ? SceneManager.GetActiveScene().name : SceneName(sceneId);
+            LoadDrill(scene);
+            yield return null;
+            if(SceneManager.GetActiveScene().name!=scene)throw new System.InvalidOperationException("Scene transition did not complete.");
+        }
         public void LoadDrill(string scene)
         {
             if(scene!="VolleyReceive-codex" && scene!="VolleyJumpSpike-codex" && scene!="VolleyBlock-codex")return;

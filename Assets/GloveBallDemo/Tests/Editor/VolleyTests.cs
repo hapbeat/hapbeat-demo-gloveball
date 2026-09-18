@@ -11,6 +11,17 @@ namespace GloveBallDemo.Tests
     public class VolleyTests
     {
         [Test]
+        public void RemoteControlsOnlyExposeKnownVolleyScenes()
+        {
+            var go=new GameObject("remote allowlist");
+            try{
+                var menu=go.AddComponent<VolleyHandMenu>();
+                foreach(var scene in new[]{"receive","spike","block"})Assert.That(menu.CanExecuteControl("scene",scene),Is.True);
+                Assert.That(menu.CanExecuteControl("scene","../other"),Is.False);
+                Assert.That(menu.CanExecuteControl("shell",""),Is.False);
+            }finally{Object.DestroyImmediate(go);}
+        }
+        [Test]
         public void BriefLossKeepsVelocityOnlyInsideBoundedWindow()
         {
             var go=new GameObject("coast test");
