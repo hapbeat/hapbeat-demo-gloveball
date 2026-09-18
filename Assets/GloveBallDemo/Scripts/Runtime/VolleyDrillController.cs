@@ -67,7 +67,30 @@ namespace GloveBallDemo.Runtime
         public int TargetHits { get; private set; }
         public int BodyHits { get; private set; }
         public int Serves { get; private set; }
-        public bool TrackingReady => (Left.Ready || Right.Ready) && HeadIsTracked();
+        [Min(0f)] public float TrackingGraceSeconds=1.5f;
+        public bool TrackingSuspended { get; private set; }
+        public bool TrackingReady => _trackingSeen && !TrackingSuspended && HeadIsTracked();
+        bool _trackingSeen, _menuPaused, _ownsPause;
+        float _trackingLostSeconds, _resumeTimeScale=1f;
+
+        public void TickTracking(float seconds,bool anyHandReady)
+        {
+            if(anyHandReady){_trackingSeen=true;_trackingLostSeconds=0;}
+            else _trackingLostSeconds+=Mathf.Max(0,seconds);
+            TrackingSuspended=!anyHandReady && _trackingLostSeconds>=TrackingGraceSeconds;
+            RefreshPause();
+        }
+        public void SetMenuPaused(bool paused){_menuPaused=paused;RefreshPause();}
+        void RefreshPause()
+        {
+            bool pause=_menuPaused||TrackingSuspended;
+            if(pause && !_ownsPause){_resumeTimeScale=Time.timeScale;Time.timeScale=0;_ownsPause=true;}
+            else if(!pause && _ownsPause){Time.timeScale=_resumeTimeScale;_ownsPause=false;}
+        }
+        void OnDisable()
+        {
+            _menuPaused=false;TrackingSuspended=false;RefreshPause();
+        }
         private Ball _ball;
         private float _ballAge;
         private float _nextServe;
@@ -100,7 +123,8 @@ namespace GloveBallDemo.Runtime
 
         private void Update()
         {
-            if(GameInputGate.IsBlocked) return;
+            TickTracking(Time.unscaledDeltaTime,Left.Ready||Right.Ready);
+            if(GameInputGate.IsBlocked || TrackingSuspended) return;
             if (Aerial==null && FeedLaunchers != null && Head != null && CourtFrame != null)
             {
                 var target = GetContactCentre();
@@ -136,8 +160,7 @@ namespace GloveBallDemo.Runtime
                 string action = Drill == VolleyDrill.Receive ? "RECEIVE: angle your hands toward a target" : "SPIKE: strike the dropping ball toward a target";
                 if(Aerial!=null)action=Aerial.Cue;
                 string state = !TrackingReady ? "Show hands / pick up controllers" : _trackingStable < ReadySeconds ? "READY " + Mathf.CeilToInt(ReadySeconds - _trackingStable) : action;
-                StatusText.text = state + "\nL: " + Left.Source + "   R: " + Right.Source
-                    + (JoinedHands!=null && JoinedHands.Joined ? "   JOINED" : "   SEPARATE");
+                StatusText.text = state;
             }
             if (ScoreText != null) ScoreText.text = Drill==VolleyDrill.Block ? $"BLOCKS {Returns}   BODY {BodyHits}"
                 : $"{Drill.ToString().ToUpperInvariant()}   TARGET {TargetHits}   RETURNS {Returns}   BODY {BodyHits}";
@@ -164,6 +187,7 @@ namespace GloveBallDemo.Runtime
             Vector3 velocity = VolleyMath.ServeVelocity(start, destination, FlightSeconds, Physics.gravity);
             if(Aerial!=null)
             {
+                if(Drill==VolleyDrill.Block && !Aerial.AttackStarted && !Aerial.BeginToss())return;
                 if(!Aerial.TickFeed(Time.deltaTime,out start,out destination,out float seconds))return;
                 velocity=VolleyMath.ServeVelocity(start,destination,seconds,Physics.gravity);
             }
@@ -180,7 +204,8 @@ namespace GloveBallDemo.Runtime
                     - (Drill==VolleyDrill.Receive ? .5f*Physics.gravity*Time.fixedDeltaTime : Vector3.zero);
                 start = launcher.MuzzlePosition;
             }
-            _ball=Pool.Take();
+            _ball=Aerial!=null ? Aerial.TakePreparedBall() : null;
+            if(_ball==null)_ball=Pool.Take();
             if(_ball==null)return;
             // Fixed flight time gives a readable feed independent of the former high-speed launcher rules.
             _ball.Body.linearDamping = 0f;

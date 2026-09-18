@@ -21,6 +21,38 @@ namespace GloveBallDemo.Runtime
         public string Cue { get; private set; }="LOWER BOTH HANDS, THEN SWING UP TO JUMP";
         float _windup=-1, _follow=-1, _sinceRelease=-1;
         public bool AttackStarted=>_windup>=0f;
+        Ball _preparedBall;
+        Vector3 _tossStart, _tossEnd;
+
+        public static Vector3 TossPosition(Vector3 start,Vector3 end,float elapsed,float duration)
+        {
+            float t=Mathf.Clamp01(elapsed/Mathf.Max(.01f,duration));
+            return Vector3.Lerp(start,end,t)-.5f*Physics.gravity*duration*duration*t*(1f-t);
+        }
+        public bool BeginToss()
+        {
+            if(_preparedBall!=null)return true;
+            if(TossLauncher==null || Opponent==null)return false;
+            _preparedBall=Drill.Pool.Take();
+            if(_preparedBall==null)return false;
+            _tossEnd=Opponent.ReleasePosition;
+            var aim=TossLauncher.GetComponent<VolleyFeederAim>();
+            if(aim!=null)aim.AimForShot(_tossEnd,WindupSeconds);
+            _tossStart=TossLauncher.MuzzlePosition;
+            _preparedBall.Body.isKinematic=true;
+            _preparedBall.Body.detectCollisions=false;
+            _preparedBall.transform.SetPositionAndRotation(_tossStart,Quaternion.identity);
+            _preparedBall.Body.position=_tossStart;
+            _preparedBall.gameObject.SetActive(true);
+            if(aim!=null)aim.PlayShotFeedback();
+            return true;
+        }
+        public Ball TakePreparedBall()
+        {
+            var ball=_preparedBall;_preparedBall=null;
+            if(ball!=null)ball.Body.detectCollisions=true;
+            return ball;
+        }
 
         public Vector3 GroundedEye=>Drill.Head.position-Vector3.up*Jump.Floor.VirtualLift;
         public float SolveBlockShot(Vector3 start,ref Vector3 destination)
@@ -54,6 +86,12 @@ namespace GloveBallDemo.Runtime
             start=destination=Vector3.zero;seconds=0;
             if(_windup<0){_windup=0;_follow=-1;_sinceRelease=-1;}
             _windup+=dt;
+            if(_preparedBall!=null)
+            {
+                var position=TossPosition(_tossStart,_tossEnd,_windup,WindupSeconds);
+                _preparedBall.transform.position=position;
+                _preparedBall.Body.position=position;
+            }
             bool block=Drill.Drill==VolleyDrill.Block;
             Cue=block ? "WATCH OPPONENT — PREPARE BOTH HANDS LOW" : "GET READY — HANDS LOW, WAIT FOR THE TOSS";
             if(block)Opponent.PreviewPhase=Mathf.Min(.52f,_windup/WindupSeconds*.52f);
@@ -94,7 +132,10 @@ namespace GloveBallDemo.Runtime
         public void CancelFeed()
         {
             _windup=-1;
+            var ball=TakePreparedBall();
+            if(ball!=null && Drill!=null && Drill.Pool!=null)Drill.Pool.Return(ball,"cancelled volley toss");
             if(_follow<0 && Opponent!=null)Opponent.PreviewPhase=0;
         }
+        void OnDisable()=>CancelFeed();
     }
 }

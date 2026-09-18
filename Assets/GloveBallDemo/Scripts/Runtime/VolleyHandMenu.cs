@@ -41,7 +41,7 @@ namespace GloveBallDemo.Runtime
         public static Ray JointRay(Pose wrist,Pose index,Pose thumb,Vector3 shoulder)
             =>new Ray((index.position+thumb.position)*.5f,(wrist.position-shoulder).normalized);
         Canvas _canvas; Text _heightText; Material _rayMaterial; Font _font;
-        float _savedTimeScale, _lastToggle=-10f, _gestureStart=-1f;
+        float _lastToggle=-10f, _gestureStart=-1f;
         bool _menuPressed, _gestureUsed;
 
         void Start(){if(_canvas==null)Build();}
@@ -54,7 +54,7 @@ namespace GloveBallDemo.Runtime
             go.AddComponent<Image>().color=new Color(.025f,.04f,.065f,.97f);
             Label("VOLLEY MENU",rect,new Vector2(0,375),34);
             _heightText=Label("",rect,new Vector2(0,320),23);
-            for(int i=0;i<9;i++)
+            for(int i=0;i<8;i++)
             {
                 var row=new GameObject("Menu row "+i,typeof(RectTransform),typeof(Image)).GetComponent<RectTransform>();
                 row.SetParent(rect,false);row.sizeDelta=new Vector2(555,60);row.anchoredPosition=new Vector2(0,235-i*72);
@@ -169,9 +169,9 @@ namespace GloveBallDemo.Runtime
         {
             if(_canvas==null)Build();if(IsOpen==open)return;IsOpen=open;
             foreach(var smoother in _handRays)smoother.Reset();
-            if(open){Floor.GetComponent<VolleyArmJump>()?.ResetJump();_savedTimeScale=Time.timeScale;Time.timeScale=0f;var forward=Vector3.ProjectOnPlane(Drill.Head.forward,Vector3.up).normalized;
+            if(open){Floor.GetComponent<VolleyArmJump>()?.ResetJump();var forward=Vector3.ProjectOnPlane(Drill.Head.forward,Vector3.up).normalized;
                 _canvas.transform.position=Drill.Head.position+forward*1.25f;_canvas.transform.rotation=Quaternion.LookRotation(forward);_pinched[0]=_pinched[1]=true;}
-            else Time.timeScale=_savedTimeScale;
+            Drill.SetMenuPaused(open);
             _canvas.gameObject.SetActive(open);GameInputGate.SetBlocked(open);foreach(var ray in _rays)ray.enabled=false;
         }
         public void Activate(int row)
@@ -193,15 +193,14 @@ namespace GloveBallDemo.Runtime
                     break;
                 case 5:Floor.Recenter();SetOpen(false);break;
                 case 6:LoadDrill("VolleyReceive-codex");break;
-                case 7:LoadDrill("VolleyJumpSpike-codex");break;
-                case 8:LoadDrill("VolleyBlock-codex");break;
+                case 7:LoadDrill("VolleyBlock-codex");break;
             }
             Refresh();
         }
         void Refresh()
         {
             if(_heightText==null)return;_heightText.text=$"Eye {Floor.EyeHeight:F2} m  /  correction {Floor.HeightCorrection:+0.00;-0.00;0.00} m\n"+(GloveBallWideMotionFeature.Active?.Status??"WMM: unavailable (Quest APK required)");
-            var names=new[]{"RESUME",$"HANDS ONLY: {(Drill.Left.InputMode==VolleyInputMode.HandsOnly?"ON":"OFF")}",$"STAND UPRIGHT: SET EYE {Floor.StandingEyeHeight:F2} m","USE RUNTIME FLOOR","RESTART","REPOSITION TO START","RECEIVE DEMO","SPIKE DEMO","BLOCK DEMO"};
+            var names=new[]{"RESUME",$"HANDS ONLY: {(Drill.Left.InputMode==VolleyInputMode.HandsOnly?"ON":"OFF")}",$"STAND UPRIGHT: SET EYE {Floor.StandingEyeHeight:F2} m","USE RUNTIME FLOOR","RESTART","REPOSITION TO START","RECEIVE DEMO","BLOCK DEMO"};
             for(int i=0;i<names.Length;i++)_labels[i].text=names[i];
         }
         void OnDisable(){if(IsOpen)SetOpen(false);}
@@ -209,7 +208,7 @@ namespace GloveBallDemo.Runtime
             action=="menu_open" || action=="menu_close" || action=="recenter" || action=="restart"
             || (action=="scene" && SceneName(sceneId)!=null);
         static string SceneName(string id) => id=="receive" ? "VolleyReceive-codex"
-            : id=="spike" ? "VolleyJumpSpike-codex" : id=="block" ? "VolleyBlock-codex" : null;
+            : id=="block" ? "VolleyBlock-codex" : null;
         public System.Collections.IEnumerator ExecuteControl(string action,string sceneId)
         {
             if(!CanExecuteControl(action,sceneId))throw new System.InvalidOperationException("Unsupported control.");
@@ -223,7 +222,7 @@ namespace GloveBallDemo.Runtime
         }
         public void LoadDrill(string scene)
         {
-            if(scene!="VolleyReceive-codex" && scene!="VolleyJumpSpike-codex" && scene!="VolleyBlock-codex")return;
+            if(scene!="VolleyReceive-codex" && scene!="VolleyBlock-codex")return;
             SetOpen(false);
 #if UNITY_EDITOR
             UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode("Assets/GloveBallDemo/Scenes/"+scene+".unity",new LoadSceneParameters(LoadSceneMode.Single));

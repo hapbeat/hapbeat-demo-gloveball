@@ -383,6 +383,7 @@ MonoBehaviour:
   ReacquireDelay: 0.15
   BriefLossSeconds: 0.1
   MaximumPredictionDistance: 0.12
+  VisualHoldSeconds: 1.5
   EnableWideMotion: 1
   AllowEstimatedContacts: 0
 --- !u!4 &69585300
@@ -2862,7 +2863,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 436388405}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.035566084, y: 0.9578647, z: 0.25045657, w: 0.1360216}
+  m_LocalRotation: {x: -0.34280404, y: 0.6571914, z: 0.47616234, w: 0.4731325}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -3557,6 +3558,7 @@ MonoBehaviour:
   RequiredRise: 0.18
   MinimumUpwardSpeed: 0.8
   GestureWindow: 0.8
+  TrackingGraceSeconds: 1.5
 --- !u!1 &651308258
 GameObject:
   m_ObjectHideFlags: 0
@@ -6038,6 +6040,7 @@ MonoBehaviour:
   MaximumReturnSpeed: 14
   RehitCooldown: 0.2
   MaximumBallAge: 4
+  TrackingGraceSeconds: 1.5
   LauncherWarningSeconds: 1
 --- !u!4 &1137378106
 Transform:
@@ -6083,7 +6086,7 @@ MonoBehaviour:
   Drill: {fileID: 1137378105}
   Jump: {fileID: 631991374}
   Opponent: {fileID: 1011802256}
-  TossLauncher: {fileID: 0}
+  TossLauncher: {fileID: 1739308276}
   WindupSeconds: 1.2
   TossFlightSeconds: 1.15
   BlockSpeed: 9
@@ -8085,6 +8088,7 @@ MonoBehaviour:
   ReacquireDelay: 0.15
   BriefLossSeconds: 0.1
   MaximumPredictionDistance: 0.12
+  VisualHoldSeconds: 1.5
   EnableWideMotion: 1
   AllowEstimatedContacts: 0
 --- !u!4 &1638254371
@@ -8373,7 +8377,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4323998927969770629, guid: a7ef2f0a7408c1c479f191d0d757e70b, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6409376540474383314, guid: a7ef2f0a7408c1c479f191d0d757e70b, type: 3}
       propertyPath: m_Enabled
@@ -8401,7 +8405,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8384528083579038058, guid: a7ef2f0a7408c1c479f191d0d757e70b, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 6.000001
+      value: 1.8
       objectReference: {fileID: 0}
     - target: {fileID: 8384528083579038058, guid: a7ef2f0a7408c1c479f191d0d757e70b, type: 3}
       propertyPath: m_LocalRotation.w
@@ -10872,7 +10876,7 @@ RectTransform:
   m_GameObject: {fileID: 2106600142}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 1.4}
-  m_LocalScale: {x: 0.0008, y: 0.0008, z: 0.0008}
+  m_LocalScale: {x: 0.0015, y: 0.0015, z: 0.0015}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 612464743}
@@ -10880,7 +10884,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0.42, y: 0.29}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 760, y: 160}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2106600144
@@ -10938,6 +10942,7 @@ MonoBehaviour:
   Graphics:
   - {fileID: 2106600144}
   - {fileID: 612464744}
+  Drill: {fileID: 1137378105}
 --- !u!223 &2106600147
 Canvas:
   m_ObjectHideFlags: 0

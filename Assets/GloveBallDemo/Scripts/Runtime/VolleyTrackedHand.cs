@@ -25,6 +25,7 @@ namespace GloveBallDemo.Runtime
         [Min(.05f)] public float ReacquireDelay = .15f;
         [Range(0f,.15f)] public float BriefLossSeconds=.10f;
         [Min(0f)] public float MaximumPredictionDistance=.12f;
+        [Min(0f)] public float VisualHoldSeconds=1.5f;
         [Header("Quest standalone Wide Motion Mode")]
         public bool EnableWideMotion = true;
         [Tooltip("EXPERIMENTAL: allow an estimated wrist to receive/block a ball. No inferred swing velocity or jump. Off until tested on your headset.")]
@@ -62,8 +63,11 @@ namespace GloveBallDemo.Runtime
             {
                 if(TrackingSpace!=null && ContinueBriefLoss(now))return;
                 Ready = false; Velocity = Vector3.zero; Source = "lost";
-                _haveSample = false; _havePhysicsPose = false;
-                if (Visual != null) Visual.gameObject.SetActive(false);
+                bool hold=_haveSample && now-_lastSampleTime<=VisualHoldSeconds;
+                if(hold)Source="held";
+                else _haveSample=false;
+                _havePhysicsPose = false;
+                if (Visual != null) Visual.gameObject.SetActive(hold);
                 return;
             }
             Vector3 position = TrackingSpace.TransformPoint(pose.position);
@@ -73,7 +77,11 @@ namespace GloveBallDemo.Runtime
                 && Vector3.Distance(position, _lastPosition) <= MaximumTrackedSpeed * dt + .025f;
             if (!continuous)
             {
-                _stableSince = now; Velocity = Vector3.zero; _havePhysicsPose = false;
+                bool recovered=_haveSample && source==_lastSource && dt<=VisualHoldSeconds
+                    && Vector3.Distance(position,_lastPosition)<=MaximumTrackedSpeed*Mathf.Max(dt,.01f)+.025f;
+                _stableSince = recovered ? now-ReacquireDelay : now;
+                Velocity = recovered && dt>0f ? Vector3.ClampMagnitude((position-_lastPosition)/dt,MaximumTrackedSpeed) : Vector3.zero;
+                _havePhysicsPose = false;
             }
             else Velocity = Vector3.ClampMagnitude((position - _lastPosition) / dt, MaximumTrackedSpeed);
             transform.SetPositionAndRotation(position, rotation);

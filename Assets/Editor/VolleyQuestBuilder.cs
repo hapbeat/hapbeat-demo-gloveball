@@ -22,7 +22,7 @@ public static class VolleyQuestBuilder
             PlayerSettings.productName="Hapbeat Volley";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android,"jp.hapbeat.volley");
             id.stringValue="volley";serialized.ApplyModifiedPropertiesWithoutUndo();AssetDatabase.SaveAssets();
-            var scenes=new[]{"VolleyReceive-codex","VolleyBlock-codex","VolleyJumpSpike-codex"}
+            var scenes=new[]{"VolleyReceive-codex","VolleyBlock-codex"}
                 .Select(n=>"Assets/GloveBallDemo/Scenes/"+n+".unity").ToArray();
             string output=Path.GetFullPath("Builds/Android/hapbeat-volley.apk");Directory.CreateDirectory(Path.GetDirectoryName(output));
             var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=scenes,locationPathName=output,target=BuildTarget.Android,options=BuildOptions.None});

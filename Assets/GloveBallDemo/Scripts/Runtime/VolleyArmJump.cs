@@ -3,7 +3,7 @@ using UnityEngine;
 namespace GloveBallDemo.Runtime
 {
     /// <summary>Two-arm, button-free jump. Detection is head-relative so virtual lift cannot trigger itself.</summary>
-    [DefaultExecutionOrder(-200)]
+    [DefaultExecutionOrder(-50)]
     public sealed class VolleyArmJump : MonoBehaviour
     {
         public VolleyFloorTracking Floor;
@@ -16,20 +16,23 @@ namespace GloveBallDemo.Runtime
         public float RequiredRise=.18f;
         public float MinimumUpwardSpeed=.8f;
         public float GestureWindow=.8f;
+        [Min(0f)] public float TrackingGraceSeconds=1.5f;
         public bool Airborne { get; private set; }
         public int Jumps { get; private set; }
         public float Lift { get; private set; }
         float _elapsed, _cooldown, _gestureAge, _baseLeft, _baseRight, _previousLeft, _previousRight;
         bool _sampled, _armed;
+        float _trackingGap;
 
         void Update()
         {
             // Use tracking-space coordinates, never the elevated world-space eye/hand positions.
             var space=Floor.Origin.CameraFloorOffsetObject.transform;
             float head=space.InverseTransformPoint(Floor.Origin.Camera.transform.position).y;
-            Tick(Time.deltaTime,Left.Ready&&Right.Ready&&!Left.IsEstimated&&!Right.IsEstimated,
+            Tick(Time.deltaTime,Left.Ready&&Right.Ready&&!Left.IsEstimated&&!Right.IsEstimated
+                && Left.Source!="brief-loss" && Right.Source!="brief-loss",
                 space.InverseTransformPoint(Left.transform.position).y-head,
-                space.InverseTransformPoint(Right.transform.position).y-head,GameInputGate.IsBlocked,head);
+                space.InverseTransformPoint(Right.transform.position).y-head,GameInputGate.IsBlocked,head,Time.unscaledDeltaTime);
             Floor.SetVirtualLift(Lift);
         }
         public static float HeightAt(float time,float duration,float height)
@@ -37,9 +40,14 @@ namespace GloveBallDemo.Runtime
             float t=Mathf.Clamp01(time/Mathf.Max(.1f,duration));
             return 4f*height*t*(1f-t);
         }
-        public void Tick(float dt,bool tracked,float leftY,float rightY,bool paused,float headY=0f)
+        public void Tick(float dt,bool tracked,float leftY,float rightY,bool paused,float headY=0f,float trackingDt=-1f)
         {
             if(paused){ResetJump();return;}
+            if(dt<=0f)
+            {
+                if(!tracked && trackingDt>0f){_trackingGap+=trackingDt;if(_trackingGap>TrackingGraceSeconds){_sampled=false;_armed=false;}}
+                return; // Tracking pause freezes an airborne jump, rather than cancelling it.
+            }
             if(Airborne)
             {
                 _elapsed+=Mathf.Max(0,dt);Lift=HeightAt(_elapsed,Duration,JumpHeight);
@@ -47,10 +55,19 @@ namespace GloveBallDemo.Runtime
                 _sampled=false;_armed=false;return;
             }
             _cooldown=Mathf.Max(0,_cooldown-dt);
-            if(!tracked || dt<=0 || dt>.12f){_sampled=false;_armed=false;return;}
+            if(!tracked)
+            {
+                _trackingGap+=dt;
+                if(_trackingGap>TrackingGraceSeconds){_sampled=false;_armed=false;}
+                return;
+            }
+            if(dt>.12f){_sampled=false;_armed=false;_trackingGap=0;return;}
+            // Infer intent only on a real reacquired pose. Never invent a jump during occlusion.
+            float sampleSeconds=dt+Mathf.Min(_trackingGap,.2f);
+            _trackingGap=0;
             // Absolute tracking-space wrist speed rejects a head crouch with stationary hands.
-            float lv=_sampled?(leftY+headY-_previousLeft)/dt:0;
-            float rv=_sampled?(rightY+headY-_previousRight)/dt:0;
+            float lv=_sampled?(leftY+headY-_previousLeft)/sampleSeconds:0;
+            float rv=_sampled?(rightY+headY-_previousRight)/sampleSeconds:0;
             _previousLeft=leftY+headY;_previousRight=rightY+headY;_sampled=true;
             if(_cooldown>0)return;
             if(!_armed && leftY<-LoweredDistance && rightY<-LoweredDistance)
@@ -64,7 +81,7 @@ namespace GloveBallDemo.Runtime
         }
         public void ResetJump()
         {
-            Airborne=false;Lift=0;_elapsed=0;_sampled=false;_armed=false;_cooldown=Cooldown;
+            Airborne=false;Lift=0;_elapsed=0;_sampled=false;_armed=false;_cooldown=Cooldown;_trackingGap=0;
             if(Floor!=null)Floor.SetVirtualLift(0);
         }
         void OnDisable()=>ResetJump();

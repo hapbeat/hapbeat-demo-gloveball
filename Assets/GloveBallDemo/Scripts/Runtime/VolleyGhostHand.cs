@@ -19,7 +19,7 @@ namespace GloveBallDemo.Runtime
             Mesh.enabled = Hand.Source != "lost";
             if (Hand.Source == "controller")
                 Skeleton.rootTransform.SetPositionAndRotation(Hand.transform.position - Hand.transform.forward * .06f, Hand.transform.rotation);
-            else if(Hand.IsEstimated)
+            else if(Hand.IsEstimated || Hand.Source=="held" || Hand.Source=="brief-loss")
                 Skeleton.rootTransform.SetPositionAndRotation(Hand.transform.position,Hand.transform.rotation);
         }
     }

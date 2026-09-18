@@ -297,6 +297,7 @@ MonoBehaviour:
   ReacquireDelay: 0.15
   BriefLossSeconds: 0.1
   MaximumPredictionDistance: 0.12
+  VisualHoldSeconds: 1.5
   EnableWideMotion: 1
   AllowEstimatedContacts: 0
 --- !u!4 &69585300
@@ -5238,6 +5239,7 @@ MonoBehaviour:
   MaximumReturnSpeed: 18
   RehitCooldown: 0.2
   MaximumBallAge: 3
+  TrackingGraceSeconds: 1.5
   LauncherWarningSeconds: 1
 --- !u!4 &1137378106
 Transform:
@@ -7140,6 +7142,7 @@ MonoBehaviour:
   ReacquireDelay: 0.15
   BriefLossSeconds: 0.1
   MaximumPredictionDistance: 0.12
+  VisualHoldSeconds: 1.5
   EnableWideMotion: 1
   AllowEstimatedContacts: 0
 --- !u!4 &1638254371
@@ -9841,7 +9844,7 @@ RectTransform:
   m_GameObject: {fileID: 2106600142}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 1.4}
-  m_LocalScale: {x: 0.0008, y: 0.0008, z: 0.0008}
+  m_LocalScale: {x: 0.0015, y: 0.0015, z: 0.0015}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 612464743}
@@ -9849,7 +9852,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0.42, y: 0.29}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 760, y: 160}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2106600144
@@ -9907,6 +9910,7 @@ MonoBehaviour:
   Graphics:
   - {fileID: 2106600144}
   - {fileID: 612464744}
+  Drill: {fileID: 1137378105}
 --- !u!223 &2106600147
 Canvas:
   m_ObjectHideFlags: 0
