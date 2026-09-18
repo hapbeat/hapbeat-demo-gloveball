@@ -56,5 +56,17 @@ namespace GloveBallDemo.Runtime
             var offset=Origin.CameraFloorOffsetObject.transform;
             var p=offset.localPosition;p.y-=HeightCorrection;offset.localPosition=p;HeightCorrection=0f;
         }
+        public void Recenter()
+        {
+            // App-local recenter: keep the court fixed, move head and hands together.
+            // Preserve the explicit height calibration; runtime floor errors are a separate setting.
+            SetVirtualLift(0f);
+            var offset=Origin.CameraFloorOffsetObject.transform;
+            var head=Origin.Camera.transform;
+            var forward=Vector3.ProjectOnPlane(head.forward,Vector3.up);
+            if(forward.sqrMagnitude>.001f)
+                offset.RotateAround(head.position,Vector3.up,Vector3.SignedAngle(forward,Origin.transform.forward,Vector3.up));
+            offset.position+=Vector3.ProjectOnPlane(Origin.transform.position-head.position,Vector3.up);
+        }
     }
 }

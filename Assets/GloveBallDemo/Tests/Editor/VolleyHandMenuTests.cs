@@ -8,6 +8,20 @@ namespace GloveBallDemo.Tests
     public class VolleyHandMenuTests
     {
         [Test]
+        public void RecenterMovesTrackingSpaceWithoutMovingCourtOrLosingHeightCorrection()
+        {
+            EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");
+            var floor=Object.FindFirstObjectByType<VolleyFloorTracking>();var origin=floor.Origin.transform;
+            var courtPosition=origin.position;var head=floor.Origin.Camera.transform;
+            head.localPosition=new Vector3(.5f,2.2f,.3f);head.localRotation=Quaternion.Euler(0,35,0);
+            floor.CalibrateStandingHeight();float correction=floor.HeightCorrection;
+            floor.Recenter();
+            Assert.That(Vector3.ProjectOnPlane(head.position-origin.position,Vector3.up).magnitude,Is.LessThan(.001f));
+            Assert.That(Vector3.Angle(head.forward,origin.forward),Is.LessThan(.1f));
+            Assert.That(floor.EyeHeight,Is.EqualTo(1.6f).Within(.001f));
+            Assert.That(floor.HeightCorrection,Is.EqualTo(correction));Assert.That(origin.position,Is.EqualTo(courtPosition));
+        }
+        [Test]
         public void PinchUsesMidpointWithoutSteeringWithIndexCurl()
         {
             var wrist=new Pose(new Vector3(0,0,.4f),Quaternion.identity);

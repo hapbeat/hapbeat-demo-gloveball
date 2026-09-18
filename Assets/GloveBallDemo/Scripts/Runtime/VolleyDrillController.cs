@@ -35,8 +35,10 @@ namespace GloveBallDemo.Runtime
         public BoxCollider ReceiveNet;
         [Min(.25f)] public float ReceiveMinimumFlightSeconds = .95f;
         [Min(.15f)] public float ReceiveNetClearance = .22f;
+        [Range(0f,1f)] public float ReceiveLobChance=.35f;
+        [Min(0f)] public float ReceiveLobExtraSeconds=.3f;
         [Min(.25f)] public float FlightSeconds = .85f;
-        [Min(.15f)] public float ContactForwardDistance = .65f;
+        [Min(0f)] public float ContactForwardDistance = .65f;
         [Min(0f)] public float LateralSpread = .3f;
         [Min(0f)] public float VerticalSpread = .2f;
         [Min(.3f)] public float ServeInterval = 2.5f;
@@ -114,7 +116,8 @@ namespace GloveBallDemo.Runtime
                 string action = Drill == VolleyDrill.Receive ? "RECEIVE: angle your hands toward a target" : "SPIKE: strike the dropping ball toward a target";
                 if(Aerial!=null)action=Aerial.Cue;
                 string state = !TrackingReady ? "Show hands / pick up controllers" : _trackingStable < ReadySeconds ? "READY " + Mathf.CeilToInt(ReadySeconds - _trackingStable) : action;
-                StatusText.text = state + "\nL: " + Left.Source + "   R: " + Right.Source + "   (no buttons)";
+                StatusText.text = state + "\nL: " + Left.Source + "   R: " + Right.Source
+                    + (JoinedHands!=null && JoinedHands.Joined ? "   JOINED" : "   SEPARATE");
             }
             if (ScoreText != null) ScoreText.text = Drill==VolleyDrill.Block ? $"BLOCKS {Returns}   BODY {BodyHits}"
                 : $"{Drill.ToString().ToUpperInvariant()}   TARGET {TargetHits}   RETURNS {Returns}   BODY {BodyHits}";
@@ -125,6 +128,8 @@ namespace GloveBallDemo.Runtime
             Vector3 forward = Vector3.ProjectOnPlane(CourtFrame.forward, Vector3.up).normalized;
             Vector3 start = Head.position + forward * FeedDistance + Vector3.up * FeedHeightAboveHead;
             Vector3 destination = GetServeDestination();
+            float lobExtra=Drill==VolleyDrill.Receive && Random.value<ReceiveLobChance ? ReceiveLobExtraSeconds : 0f;
+            VolleyFeederAim firingAim=null;
             Vector3 velocity = VolleyMath.ServeVelocity(start, destination, FlightSeconds, Physics.gravity);
             if(Aerial!=null)
             {
@@ -137,7 +142,8 @@ namespace GloveBallDemo.Runtime
                 if (launcher.TryGetComponent<VolleyFeederAim>(out var aim))
                 {
                     // Pitch changes the outlet height, which changes the minimum net-clearance flight time.
-                    for(int i=0;i<8;i++) velocity=aim.AimForShot(destination,GetFlightSeconds(launcher.MuzzlePosition,destination),Drill==VolleyDrill.Receive?Time.fixedDeltaTime:0f);
+                    for(int i=0;i<8;i++) velocity=aim.AimForShot(destination,GetFlightSeconds(launcher.MuzzlePosition,destination)+lobExtra,Drill==VolleyDrill.Receive?Time.fixedDeltaTime:0f);
+                    firingAim=aim;
                 }
                 else velocity = VolleyMath.ServeVelocity(launcher.MuzzlePosition, destination, GetFlightSeconds(launcher.MuzzlePosition,destination), Physics.gravity)
                     - (Drill==VolleyDrill.Receive ? .5f*Physics.gravity*Time.fixedDeltaTime : Vector3.zero);
@@ -148,6 +154,7 @@ namespace GloveBallDemo.Runtime
             // Fixed flight time gives a readable feed independent of the former high-speed launcher rules.
             _ball.Body.linearDamping = 0f;
             _ball.LaunchIncoming(start, velocity);
+            if(firingAim!=null)firingAim.PlayShotFeedback();
             _previousBallPosition = start; _haveBallSample = true;
             _lastContact = -100f; _ballAge = 0f; _nextServe = ServeInterval;
             Serves++;

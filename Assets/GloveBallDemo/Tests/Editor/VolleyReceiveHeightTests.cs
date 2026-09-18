@@ -20,10 +20,11 @@ namespace GloveBallDemo.Tests
                 var physics=scene.GetPhysicsScene();
                 foreach(var launcher in d.FeedLaunchers)
                 foreach(float height in new[]{.8f,.9f,1f})
+                foreach(float extra in new[]{0f,.3f})
                 {
                     var dest=d.GetContactCentre();dest.y=height;
                     var aim=launcher.GetComponent<VolleyFeederAim>();Vector3 velocity=default;
-                    for(int i=0;i<8;i++)velocity=aim.AimForShot(dest,d.GetFlightSeconds(launcher.MuzzlePosition,dest),Time.fixedDeltaTime);
+                    for(int i=0;i<8;i++)velocity=aim.AimForShot(dest,d.GetFlightSeconds(launcher.MuzzlePosition,dest)+extra,Time.fixedDeltaTime);
                     var go=new GameObject("Ball trajectory test");
                     UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go,scene);
                     var body=go.AddComponent<Rigidbody>();body.position=launcher.MuzzlePosition;body.linearDamping=0;body.linearVelocity=velocity;

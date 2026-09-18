@@ -715,6 +715,9 @@ MonoBehaviour:
   Pivot: {fileID: 364246321}
   Muzzle: {fileID: 1923198877}
   DegreesPerSecond: 120
+  ShotClip: {fileID: 8300000, guid: 3fbc656e6f4afda4db201bbf93411d44, type: 3}
+  ShotVolume: 0.7
+  RecoilDistance: 0.1
 --- !u!1 &107283862
 GameObject:
   m_ObjectHideFlags: 0
@@ -5202,6 +5205,8 @@ MonoBehaviour:
   ReceiveNet: {fileID: 1572485602}
   ReceiveMinimumFlightSeconds: 0.95
   ReceiveNetClearance: 0.22
+  ReceiveLobChance: 0.35
+  ReceiveLobExtraSeconds: 0.3
   FlightSeconds: 1.5
   ContactForwardDistance: 0
   LateralSpread: 0.3
@@ -6055,6 +6060,9 @@ MonoBehaviour:
   Pivot: {fileID: 1495781714}
   Muzzle: {fileID: 1102758256}
   DegreesPerSecond: 120
+  ShotClip: {fileID: 8300000, guid: 3fbc656e6f4afda4db201bbf93411d44, type: 3}
+  ShotVolume: 0.7
+  RecoilDistance: 0.1
 --- !u!1001 &1417256079
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7502,6 +7510,9 @@ MonoBehaviour:
   Pivot: {fileID: 436388406}
   Muzzle: {fileID: 1714800750}
   DegreesPerSecond: 120
+  ShotClip: {fileID: 8300000, guid: 3fbc656e6f4afda4db201bbf93411d44, type: 3}
+  ShotVolume: 0.7
+  RecoilDistance: 0.1
 --- !u!1 &1751589343
 GameObject:
   m_ObjectHideFlags: 0
