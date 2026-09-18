@@ -8,6 +8,27 @@ namespace GloveBallDemo.Tests
     public class VolleyHandMenuTests
     {
         [Test]
+        public void BlockMenuRepositionsToFixedStartRepeatedly()
+        {
+            EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyBlock-codex.unity");
+            var menu=Object.FindFirstObjectByType<VolleyHandMenu>();var floor=menu.Floor;
+            Assert.That(floor.RepositionTarget,Is.Not.Null);
+            var target=floor.RepositionTarget.position;var head=floor.Origin.Camera.transform;
+            try
+            {
+                for(int i=0;i<3;i++)
+                {
+                    head.localPosition=new Vector3(1+i,1.6f,-2-i);head.localRotation=Quaternion.Euler(0,30+i*20,0);
+                    menu.SetOpen(true);float height=floor.EyeHeight;menu.Activate(5);
+                    Assert.That(menu.IsOpen,Is.False);
+                    Assert.That(Vector3.ProjectOnPlane(head.position-target,Vector3.up).magnitude,Is.LessThan(.001f));
+                    Assert.That(Vector3.Angle(head.forward,floor.RepositionTarget.forward),Is.LessThan(.1f));
+                    Assert.That(floor.EyeHeight,Is.EqualTo(height).Within(.001f));
+                }
+            }
+            finally{menu.SetOpen(false);Object.DestroyImmediate(menu);}
+        }
+        [Test]
         public void RecenterMovesTrackingSpaceWithoutMovingCourtOrLosingHeightCorrection()
         {
             EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");

@@ -10,6 +10,8 @@ namespace GloveBallDemo.Runtime
     public sealed class VolleyFloorTracking : MonoBehaviour
     {
         public XROrigin Origin;
+        [Tooltip("Fixed scene destination for menu reposition and initial placement. XZ and forward are used; calibrated height is preserved.")]
+        public Transform RepositionTarget;
         public bool RecenterOnFirstTracking;
         bool _centered;
         [Tooltip("App-only vertical correction for a miscalibrated runtime floor. Set through the standing-height menu.")]
@@ -67,10 +69,11 @@ namespace GloveBallDemo.Runtime
             SetVirtualLift(0f);
             var offset=Origin.CameraFloorOffsetObject.transform;
             var head=Origin.Camera.transform;
+            var target=RepositionTarget!=null?RepositionTarget:Origin.transform;
             var forward=Vector3.ProjectOnPlane(head.forward,Vector3.up);
             if(forward.sqrMagnitude>.001f)
-                offset.RotateAround(head.position,Vector3.up,Vector3.SignedAngle(forward,Origin.transform.forward,Vector3.up));
-            offset.position+=Vector3.ProjectOnPlane(Origin.transform.position-head.position,Vector3.up);
+                offset.RotateAround(head.position,Vector3.up,Vector3.SignedAngle(forward,target.forward,Vector3.up));
+            offset.position+=Vector3.ProjectOnPlane(target.position-head.position,Vector3.up);
         }
     }
 }
