@@ -15,7 +15,7 @@ namespace GloveBallDemo.Runtime
         [SerializeField] private float _telegraphDuration = 0.6f;
         [Header("Ballistics")]
         [Tooltip("Elevation in degrees used for lob orders.")]
-        [SerializeField] private float _lobElevation = 30f;
+        [SerializeField] private float _lobElevation = 36f;
         [SerializeField] private int _hitsToStun = 3;
         [SerializeField] private float _stunDuration = 5f;
         [SerializeField] private Color _idleColor = new Color(0.6f, 0.15f, 0.2f);

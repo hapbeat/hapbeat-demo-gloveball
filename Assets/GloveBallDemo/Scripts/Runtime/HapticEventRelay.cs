@@ -75,6 +75,8 @@ namespace GloveBallDemo.Runtime
 
         public static HapticEventRelay Instance { get; private set; }
         private BallImpactBindings _ballImpactBindings;
+        private readonly AudioSource[] _impactVoices = new AudioSource[8];
+        private int _nextImpactVoice;
 
         /// <summary>Subscribed by diagnostics (batch smoke runs) to observe the event stream.</summary>
         public event Action<DemoHapticEvent, Vector3, float> EventReported;
@@ -124,12 +126,47 @@ namespace GloveBallDemo.Runtime
                 Instance.AudioRequested?.Invoke(ball.ImpactEvent(surface), position, ball.Feel.ImpactVolume);
                 if (Instance._audioSource != null)
                 {
-                    Instance._audioSource.transform.position = position;
-                    Instance._audioSource.PlayOneShot(ball.Feel.ImpactClip, ball.Feel.ImpactVolume);
+                    Instance.PlayBallSound(ball.Feel, position);
                 }
             }
             else PlayAudioOnly(surface, position);
             ReportHapticOnly(ball.ImpactEvent(surface), position);
+        }
+
+        private void PlayBallSound(BallFeel feel, Vector3 position)
+        {
+            // Independent voices: a new impact must not retune a sound already playing.
+            int index = _nextImpactVoice;
+            for (int i = 0; i < _impactVoices.Length; i++)
+            {
+                int candidate = (_nextImpactVoice + i) % _impactVoices.Length;
+                if (_impactVoices[candidate] == null || !_impactVoices[candidate].isPlaying)
+                { index = candidate; break; }
+            }
+            var voice = _impactVoices[index];
+            if (voice == null)
+            {
+                var go = new GameObject("Ball impact voice " + index);
+                go.transform.SetParent(transform, false);
+                voice = go.AddComponent<AudioSource>();
+                voice.playOnAwake = false;
+                _impactVoices[index] = voice;
+            }
+            _nextImpactVoice = (index + 1) % _impactVoices.Length;
+            voice.Stop();
+            voice.outputAudioMixerGroup = _audioSource.outputAudioMixerGroup;
+            voice.spatialBlend = _audioSource.spatialBlend;
+            voice.rolloffMode = _audioSource.rolloffMode;
+            voice.minDistance = _audioSource.minDistance;
+            voice.maxDistance = _audioSource.maxDistance;
+            voice.dopplerLevel = _audioSource.dopplerLevel;
+            voice.mute = _audioSource.mute;
+            voice.transform.position = position;
+            voice.clip = feel.ImpactClip;
+            voice.pitch = BallFeel.SampleRange(feel.ImpactPitchRange, UnityEngine.Random.value, .1f, 3f);
+            voice.volume = Mathf.Clamp01(_audioSource.volume * feel.ImpactVolume *
+                BallFeel.SampleRange(feel.ImpactVolumeRange, UnityEngine.Random.value, 0f, 1f));
+            voice.Play();
         }
 
         public void ReportInstance(DemoHapticEvent evt, Vector3 position, float gain)

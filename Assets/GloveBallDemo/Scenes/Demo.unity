@@ -1712,7 +1712,7 @@ Transform:
   m_GameObject: {fileID: 631991368}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.5, y: 0, z: -7.000001}
+  m_LocalPosition: {x: 0, y: 0, z: -5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2074,13 +2074,16 @@ MonoBehaviour:
   _finalRoundLaunchInterval: {x: 0.55, y: 0.85}
   _firstRoundBallSpeed: {x: 13, y: 15}
   _finalRoundBallSpeed: {x: 17, y: 21}
-  _aimHeight: 1.25
+  _aimHeight: 1.65
   _lobExtraHeight: 0.3
+  _firstRoundDirectShotShare: 0.7
+  _finalRoundDirectShotShare: 0.6
   _endlessSeed: 20260825
   _endlessMinInterval: 0.45
   _endlessMaxInterval: 1.25
   _endlessMinSpeed: 13
   _endlessMaxSpeed: 19
+  _endlessDirectShotShare: 0.5
   _endlessMaxActiveBalls: 16
   _logProgress: 1
 --- !u!1 &791518369
@@ -3557,7 +3560,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1551950803}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: eab2632895304de8ad67cadb53df11ae, type: 3}
   m_Name: 
@@ -4627,6 +4630,7 @@ MonoBehaviour:
   _prefab: {fileID: 1822205085755586216, guid: 70a065263db6ba74391a6833070ad89a, type: 3}
   _size: 32
   _verboseLog: 1
+  _launchBallKinds: 00000000010000000200000004000000
 --- !u!4 &1897988254
 Transform:
   m_ObjectHideFlags: 0

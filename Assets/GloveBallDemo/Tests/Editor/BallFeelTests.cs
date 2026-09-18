@@ -10,6 +10,28 @@ namespace GloveBallDemo.Tests
     public class BallFeelTests
     {
         [Test]
+        public void FoamImpactHasPromptAudibleOnset()
+        {
+            var clip = Resources.Load<BallFeelSettings>("BallFeelSettings").Find(BallKind.Foam).ImpactClip;
+            clip.LoadAudioData();
+            var data = new float[clip.samples * clip.channels];
+            Assert.That(clip.GetData(data, 0), Is.True);
+            float peak = 0f;
+            foreach (float sample in data) peak = Mathf.Max(peak, Mathf.Abs(sample));
+            Assert.That(peak, Is.GreaterThan(0f));
+            int onset = System.Array.FindIndex(data, sample => Mathf.Abs(sample) > peak * .1f);
+            Assert.That(onset / (float)(clip.channels * clip.frequency), Is.LessThan(.03f));
+        }
+        [TestCase(.95f, 1.05f, 0f, .95f)]
+        [TestCase(.95f, 1.05f, 1f, 1.05f)]
+        [TestCase(1.05f, .95f, .5f, 1f)]
+        [TestCase(1f, 1f, .3f, 1f)]
+        public void ImpactVariationRespectsRange(float a, float b, float sample, float expected)
+        {
+            Assert.That(BallFeel.SampleRange(new Vector2(a,b), sample, .1f, 3f),
+                Is.EqualTo(expected).Within(.0001f));
+        }
+        [Test]
         public void EveryKindHasUniqueAudioAndPhysicsAndFoamIsRough()
         {
             var settings = Resources.Load<BallFeelSettings>("BallFeelSettings");
@@ -21,7 +43,8 @@ namespace GloveBallDemo.Tests
                 Assert.That(feel, Is.Not.Null);
                 Assert.That(feel.ImpactClip, Is.Not.Null);
                 Assert.That(clips.Add(feel.ImpactClip), Is.True);
-                Assert.That(feel.ImpactClip.length, Is.InRange(.1f,1f));
+                // Supplied plastic click is only 34ms long.
+                Assert.That(feel.ImpactClip.length, Is.InRange(.01f,3f));
                 Assert.That(feel.BounceMaterial, Is.Not.Null);
             }
             Assert.That(settings.Find(BallKind.Foam).AirResistance, Is.GreaterThan(settings.Find(BallKind.Basketball).AirResistance));

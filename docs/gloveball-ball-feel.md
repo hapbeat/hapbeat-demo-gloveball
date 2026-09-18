@@ -7,6 +7,7 @@ Select `unity/gloveball/Assets/Resources/BallFeelSettings.asset` in Unity.
 - `Air Resistance`: Rigidbody linear damping. Foam and perforated balls slow down visibly.
 - `Bounce Material`: edit its Bounciness/Friction to change rebounds; the contacted surface's material/combine setting also affects the result.
 - `Impact Clip / Impact Volume`: audible player-impact sound per ball, independent of haptic clips and left/right targeting.
+- `Impact Pitch Range`: random pitch/speed (default 0.95–1.05); `Impact Volume Range`: random multiplier (0.9–1). Set both endpoints to 1 to disable. Eight independent impact voices prevent changing other playing sounds. This is not independent timbre synthesis.
 - `First Round Speed Multiplier / Final Round Speed Multiplier`: defaults .85/.95. Multiply Game's existing first/final-round speed bands; intermediate rounds interpolate. Endless speeds remain at Game's existing settings. An unreachable slow shot is clamped to the ballistic minimum.
 
 Initial gameplay tuning:
@@ -27,6 +28,8 @@ Foam appearance: `Assets/GloveBallDemo/Art/Balls/Foam_0.mat`, with procedural po
 
 ## Audio sources
 
+Update 2026-09-15: Foam audible effect now uses `soft_Anime_Motion24-1(Dry) [0.098–0.342s].wav` (0.236s). Measured onset at 10% peak fell from 109.64ms to 2.99ms; `FoamImpactHasPromptAudibleOnset` checks the imported clip stays below 30ms. Bowling haptics now use the newer `damage.wav`, copied unchanged with intensity 0.5 retained. These supersede the source filenames below. Current collision haptic gain is fixed at 1 before manifest/EventMap gains; impact velocity is not currently mapped to intensity.
+
 ### Haptic WAV replacement (separate from audible effects)
 
 The five haptic WAVs live in `Assets/GloveBallDemo/Kits/gloveball-kit/stream-clips/`:
@@ -38,7 +41,9 @@ To change one ball's haptics, overwrite its WAV **without deleting/replacing the
 
 `GloveBall Demo/Migrate Ball Impacts To Kit (no scene changes)` is an idempotent migration using Unity's MoveAsset, preserving GUIDs. Kit generation retains these ball clips and existing ball manifest entries. Do not run scene-generation commands for a clip replacement.
 
-All five source pages state CC0. Public high-quality previews were decoded to mono 44.1 kHz WAV, trimmed to a single short impact, peak-normalized and edge-faded. They are not lossless original downloads. Exact source URLs, hashes and cut positions are in `Assets/GloveBallDemo/Audio/BallImpacts/sources.json`; reproducible processing is `tools/prepare-ball-impact-audio.py` (Python + FFmpeg). No speaker playback is performed by the script.
+Current audible effects (2026-09-15): Bowling = bowling_1.ogg; Volleyball = volleyball-519580 [0.564–0.913s].wav; Foam = soft_Anime_Motion24-1(Dry).mp3; Perforated = pickle-1.wav. User-supplied files are decoded in full to mono 44.1kHz PCM16 without normalization; original asset GUIDs are preserved. Other supplied variations are not selected. Redistribution licenses have not been verified; do not label these four CC0. Basketball remains unchanged. See `Assets/GloveBallDemo/Audio/BallImpacts/sources.json`.
+
+The following are the former CC0 sources (only Basketball remains active). The old `tools/prepare-ball-impact-audio.py` importer now requires an explicit alternative `--output` directory and refuses to overwrite the current assets.
 
 1. [Bowling drop/roll/strike — mrrockcandy](https://freesound.org/people/mrrockcandy/sounds/792203/): early ball drop excerpt, not the later pin crash.
 2. [Volleyball spike — Luisa_Sanchez](https://freesound.org/people/Luisa_Sanchez/sounds/816991/): contact-microphone recording; timbre differs from an airborne microphone.

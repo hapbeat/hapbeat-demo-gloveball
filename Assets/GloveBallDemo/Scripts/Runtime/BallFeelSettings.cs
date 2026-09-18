@@ -12,6 +12,16 @@ namespace GloveBallDemo.Runtime
         public PhysicsMaterial BounceMaterial;
         public AudioClip ImpactClip;
         [Range(0f, 1f)] public float ImpactVolume = .7f;
+        [Tooltip("Random pitch range per impact. (1, 1) disables variation; also changes playback speed.")]
+        public Vector2 ImpactPitchRange = new Vector2(.95f, 1.05f);
+        [Tooltip("Random multiplier of Impact Volume. (1, 1) disables variation.")]
+        public Vector2 ImpactVolumeRange = new Vector2(.9f, 1f);
+
+        public static float SampleRange(Vector2 range, float sample, float minimum, float maximum)
+        {
+            return Mathf.Lerp(Mathf.Clamp(Mathf.Min(range.x, range.y), minimum, maximum),
+                Mathf.Clamp(Mathf.Max(range.x, range.y), minimum, maximum), Mathf.Clamp01(sample));
+        }
     }
 
     [CreateAssetMenu(menuName = "GloveBall/Ball Feel Settings")]

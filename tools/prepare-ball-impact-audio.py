@@ -1,5 +1,6 @@
 """Fetch verified CC0 public previews and extract short impacts, without playback."""
 import array
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -19,6 +20,13 @@ SOURCES = [
 ]
 
 def main():
+    global OUT
+    parser = argparse.ArgumentParser(description='Extract original CC0 alternatives into a separate directory.')
+    parser.add_argument('--output', type=Path, required=True)
+    args = parser.parse_args()
+    if args.output.resolve() == OUT.resolve():
+        parser.error('Current impact assets are user-provided; choose a different output directory.')
+    OUT = args.output
     OUT.mkdir(parents=True, exist_ok=True)
     records = []
     for name, author, sound_id, search_end, duration in SOURCES:

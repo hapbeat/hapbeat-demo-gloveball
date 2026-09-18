@@ -160,7 +160,7 @@ MonoBehaviour:
   _warningLight: {fileID: 690275296622453643}
   _bodyRenderer: {fileID: 6734030744858353165}
   _telegraphDuration: 0.6
-  _lobElevation: 30
+  _lobElevation: 36
   _hitsToStun: 3
   _stunDuration: 5
   _idleColor: {r: 0.6, g: 0.15, b: 0.2, a: 1}

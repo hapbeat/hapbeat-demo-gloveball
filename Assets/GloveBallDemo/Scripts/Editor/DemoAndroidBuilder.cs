@@ -1,6 +1,7 @@
 // Android / Quest build configuration. Like everything else in this project the settings are
 // applied from script, never through the Project Settings GUI, so a fresh clone reaches the
 // same state with one batch call.
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -27,8 +28,8 @@ namespace GloveBallDemo.Editor
     /// </summary>
     public static class DemoAndroidBuilder
     {
-        public const string ProductName = "Hapbeat GloveBall Demo";
-        public const string ApplicationIdentifier = "jp.hapbeat.gloveballdemo";
+        public const string ProductName = "gloveball_v2";
+        public const string ApplicationIdentifier = "jp.hapbeat.gloveballdemo.v2";
 
         /// <summary>Where the general XR settings asset is created when the project has none yet.</summary>
         private const string XrSettingsDir = "Assets/XR";
@@ -218,9 +219,12 @@ namespace GloveBallDemo.Editor
         /// <summary>Android player settings for a Quest sideload build. Idempotent.</summary>
         public static void ConfigureAndroidPlayer()
         {
-            PlayerSettings.productName = ProductName;
+            var productName = GetCommandLineArg("-gbProductName", ProductName);
+            var applicationIdentifier = GetCommandLineArg("-gbApplicationIdentifier", ApplicationIdentifier);
+
             PlayerSettings.companyName = "Hapbeat";
-            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, ApplicationIdentifier);
+            PlayerSettings.productName = productName;
+            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, applicationIdentifier);
 
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
@@ -248,11 +252,31 @@ namespace GloveBallDemo.Editor
             EditorUserBuildSettings.buildAppBundle = false;
             PlayerSettings.Android.useCustomKeystore = false;
 
-            Debug.Log($"[Android] player configured: id={ApplicationIdentifier} " +
+            var versionCode = GetCommandLineArg("-gbVersionCode", null);
+            if (int.TryParse(versionCode, out var parsedVersionCode) && parsedVersionCode > 0)
+            {
+                PlayerSettings.Android.bundleVersionCode = parsedVersionCode;
+            }
+
+            Debug.Log($"[Android] player configured: id={applicationIdentifier} product={productName} " +
                       $"backend=IL2CPP arch={PlayerSettings.Android.targetArchitectures} " +
                       $"minSdk={PlayerSettings.Android.minSdkVersion} " +
                       $"gfx={string.Join(",", PlayerSettings.GetGraphicsAPIs(BuildTarget.Android))} " +
                       $"internet={PlayerSettings.Android.forceInternetPermission}");
+        }
+
+        private static string GetCommandLineArg(string name, string fallback)
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (var i = 0; i + 1 < args.Length; i++)
+            {
+                if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return string.IsNullOrWhiteSpace(args[i + 1]) ? fallback : args[i + 1];
+                }
+            }
+
+            return fallback;
         }
 
         // --------------------------------------------------------------- build

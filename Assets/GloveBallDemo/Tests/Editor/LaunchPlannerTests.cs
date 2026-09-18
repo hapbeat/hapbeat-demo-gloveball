@@ -290,5 +290,23 @@ namespace GloveBallDemo.Tests
             planner.Commit();
             Assert.That(planner.Tick(0f, 0, 16, out _), Is.False);
         }
+
+        [Test]
+        public void EndlessPlannerHonorsDirectShotShareExtremes()
+        {
+            var direct = new EndlessLaunchPlanner(1, .01f, .01f, 13f, 13f, 1f);
+            var lob = new EndlessLaunchPlanner(1, .01f, .01f, 13f, 13f, 0f);
+            direct.Begin(1);
+            lob.Begin(1);
+            for (var i = 0; i < 20; i++)
+            {
+                Assert.That(direct.Tick(.02f, 0, 1, out var directOrder), Is.True);
+                Assert.That(lob.Tick(.02f, 0, 1, out var lobOrder), Is.True);
+                Assert.That(directOrder.Aim, Is.EqualTo(AimKind.Direct));
+                Assert.That(lobOrder.Aim, Is.EqualTo(AimKind.Lob));
+                direct.Commit();
+                lob.Commit();
+            }
+        }
     }
 }

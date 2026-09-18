@@ -10,19 +10,27 @@ namespace GloveBallDemo.Core
         private readonly float _maxInterval;
         private readonly float _minSpeed;
         private readonly float _maxSpeed;
+        private readonly float _directShotShare;
         private int _launcherCount;
         private float _timer;
         private float _nextInterval;
         private LaunchOrder _pendingOrder;
         private bool _hasPendingOrder;
 
-        public EndlessLaunchPlanner(int seed, float minInterval, float maxInterval, float minSpeed, float maxSpeed)
+        public EndlessLaunchPlanner(
+            int seed,
+            float minInterval,
+            float maxInterval,
+            float minSpeed,
+            float maxSpeed,
+            float directShotShare = .5f)
         {
             _random = new Random(seed);
             _minInterval = minInterval;
             _maxInterval = maxInterval;
             _minSpeed = minSpeed;
             _maxSpeed = maxSpeed;
+            _directShotShare = Math.Clamp(directShotShare, 0f, 1f);
         }
 
         public void Begin(int launcherCount)
@@ -55,7 +63,7 @@ namespace GloveBallDemo.Core
             _pendingOrder = new LaunchOrder(
                 _random.Next(_launcherCount),
                 Lerp(_minSpeed, _maxSpeed, (float)_random.NextDouble()),
-                _random.Next(2) == 0 ? AimKind.Direct : AimKind.Lob,
+                _random.NextDouble() < _directShotShare ? AimKind.Direct : AimKind.Lob,
                 Lerp(-LaunchPlanner.LateralOffsetLimit, LaunchPlanner.LateralOffsetLimit, (float)_random.NextDouble()),
                 Lerp(-LaunchPlanner.DepthOffsetLimit, LaunchPlanner.DepthOffsetLimit, (float)_random.NextDouble()));
             _hasPendingOrder = true;

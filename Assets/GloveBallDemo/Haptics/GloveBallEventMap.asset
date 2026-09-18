@@ -46,7 +46,7 @@ MonoBehaviour:
     displayName: Left Arm Collide
     category: gloveball-kit
     eventName: l_arm_collide
-    streamClip: {fileID: 8300000, guid: c2b5c595d2b1d7545b3ff1d374116884, type: 3}
+    streamClip: {fileID: 8300000, guid: fbed084fd3098a449a4f8d381b2ed01f, type: 3}
     loop: 0
     bindings: []
     gain: 0.7
@@ -102,7 +102,7 @@ MonoBehaviour:
     displayName: Right Arm Collide
     category: gloveball-kit
     eventName: r_arm_collide
-    streamClip: {fileID: 8300000, guid: c2b5c595d2b1d7545b3ff1d374116884, type: 3}
+    streamClip: {fileID: 8300000, guid: fbed084fd3098a449a4f8d381b2ed01f, type: 3}
     loop: 0
     bindings: []
     gain: 0.7
@@ -161,7 +161,7 @@ MonoBehaviour:
     streamClip: {fileID: 8300000, guid: f295ecbefe96bba4d8473f5211d3e620, type: 3}
     loop: 0
     bindings: []
-    gain: 0.5
+    gain: 0.4
     target: '*/pos_neck'
     delayOffsetSeconds: 0
     notes: Wave transition jingle.
@@ -175,7 +175,7 @@ MonoBehaviour:
     streamClip: {fileID: 8300000, guid: 2e35167872a859841a9f5510025541b5, type: 3}
     loop: 0
     bindings: []
-    gain: 0.5
+    gain: 0.4
     target: '*/pos_neck'
     delayOffsetSeconds: 0
     notes: Wave transition jingle.

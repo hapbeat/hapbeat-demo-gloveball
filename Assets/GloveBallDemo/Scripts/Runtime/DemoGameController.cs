@@ -34,7 +34,12 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Height above the floor the launchers aim at, in metres.")]
         [SerializeField] private float _aimHeight = 1.25f;
         [Tooltip("Extra height for lobbed shots so they drop in from above.")]
-        [SerializeField] private float _lobExtraHeight = 0.3f;
+        [SerializeField] private float _lobExtraHeight = 0.5f;
+        [Header("Shot Profile Randomness")]
+        [Tooltip("Share of first-round shots that use the direct trajectory. Lower values create more lobs.")]
+        [Range(0f, 1f)] [SerializeField] private float _firstRoundDirectShotShare = 0.70f;
+        [Tooltip("Share of final-round shots that use the direct trajectory. Intermediate rounds interpolate.")]
+        [Range(0f, 1f)] [SerializeField] private float _finalRoundDirectShotShare = 0.60f;
         [Header("Endless Random")]
         [SerializeField] private int _endlessSeed = 20260825;
         [Tooltip("Seconds between random endless shots.")]
@@ -43,6 +48,8 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Metres per second for random endless shots.")]
         [SerializeField] private float _endlessMinSpeed = 13f;
         [SerializeField] private float _endlessMaxSpeed = 19f;
+        [Tooltip("Share of Endless Random shots that use the direct trajectory. Lower values create more lobs.")]
+        [Range(0f, 1f)] [SerializeField] private float _endlessDirectShotShare = 0.5f;
         [SerializeField] private int _endlessMaxActiveBalls = 16;
         [SerializeField] private bool _logProgress = true;
 
@@ -341,7 +348,7 @@ namespace GloveBallDemo.Runtime
                 Mathf.Max(0.1f, Mathf.Max(speed.x, speed.y)),
                 Mathf.RoundToInt(Mathf.Lerp(5f, 9f, t)),
                 _launchers != null ? _launchers.Length : 3,
-                Mathf.Lerp(0.70f, 0.60f, t));
+                Mathf.Lerp(_firstRoundDirectShotShare, _finalRoundDirectShotShare, t));
         }
 
         private void CreateEndlessPlanner()
@@ -351,7 +358,8 @@ namespace GloveBallDemo.Runtime
                 _endlessMinInterval,
                 _endlessMaxInterval,
                 _endlessMinSpeed,
-                _endlessMaxSpeed);
+                _endlessMaxSpeed,
+                _endlessDirectShotShare);
             _endlessPlanner.Begin(_launchers != null ? _launchers.Length : 0);
         }
 
