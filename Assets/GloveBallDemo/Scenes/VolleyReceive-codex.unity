@@ -332,8 +332,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.12, y: 0.07, z: 0.2}
-  m_Center: {x: 0, y: 0, z: 0.08}
+  m_Size: {x: 0.14, y: 0.08, z: 0.42}
+  m_Center: {x: 0, y: 0, z: -0.03}
 --- !u!4 &74727660 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5948577082930106593, guid: e779ca65128e5784b82673eec27d7d04, type: 3}
@@ -5211,13 +5211,13 @@ MonoBehaviour:
   ContactForwardDistance: 0
   LateralSpread: 0.3
   VerticalSpread: 0.2
-  ServeInterval: 2.5
+  ServeInterval: 1.2
   ReadySeconds: 2
   Restitution: 0.9
   SwingGain: 1.25
   MaximumReturnSpeed: 14
   RehitCooldown: 0.2
-  MaximumBallAge: 5
+  MaximumBallAge: 3
 --- !u!4 &1137378106
 Transform:
   m_ObjectHideFlags: 0
@@ -7151,8 +7151,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.12, y: 0.07, z: 0.2}
-  m_Center: {x: 0, y: 0, z: 0.08}
+  m_Size: {x: 0.14, y: 0.08, z: 0.42}
+  m_Center: {x: 0, y: 0, z: -0.03}
 --- !u!4 &1647946873 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4333744169621640877, guid: 915fb969aaf791442a2842e979f67cc5, type: 3}
@@ -9714,8 +9714,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 0
   serializedVersion: 3
-  m_Size: {x: 0.32, y: 0.1, z: 0.24}
-  m_Center: {x: 0, y: 0, z: 0}
+  m_Size: {x: 0.38, y: 0.1, z: 0.42}
+  m_Center: {x: 0, y: 0, z: -0.03}
 --- !u!114 &2059489942
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9731,8 +9731,8 @@ MonoBehaviour:
   Left: {fileID: 69585299}
   Right: {fileID: 1638254370}
   Volume: {fileID: 2059489941}
-  JoinDistance: 0.18
-  SeparateDistance: 0.24
+  JoinDistance: 0.24
+  SeparateDistance: 0.32
   SmoothingSeconds: 0.06
 --- !u!4 &2059489943
 Transform:

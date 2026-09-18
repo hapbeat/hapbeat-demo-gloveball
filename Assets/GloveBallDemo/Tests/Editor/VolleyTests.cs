@@ -11,6 +11,29 @@ namespace GloveBallDemo.Tests
     public class VolleyTests
     {
         [Test]
+        public void JoinedRollCrossing180DoesNotFlipSurface()
+        {
+            var a=VolleyJoinedHands.StableSurfaceRotation(Quaternion.identity,Quaternion.Euler(0,0,179),Quaternion.identity,false);
+            var b=VolleyJoinedHands.StableSurfaceRotation(Quaternion.identity,Quaternion.Euler(0,0,181),a,true);
+            Assert.That(Quaternion.Angle(a,b),Is.LessThan(3f));
+            var c=VolleyJoinedHands.StableSurfaceRotation(Quaternion.Euler(0,0,181),Quaternion.identity,b,true);
+            Assert.That(Quaternion.Angle(b,c),Is.LessThan(3f),"Swapping hands cannot flip the box");
+        }
+
+        [Test]
+        public void HandReturnUsesBallBounceMaterial()
+        {
+            var go=new GameObject("return test");var material=new PhysicsMaterial();
+            try
+            {
+                var d=go.AddComponent<VolleyDrillController>();var feel=new BallFeel{BounceMaterial=material};
+                material.bounciness=.1f;var low=d.ReturnForBall(feel,Vector3.down*5,Vector3.zero,Vector3.up);
+                material.bounciness=.8f;var high=d.ReturnForBall(feel,Vector3.down*5,Vector3.zero,Vector3.up);
+                Assert.That(high.y,Is.GreaterThan(low.y*7f));
+            }
+            finally{Object.DestroyImmediate(go);Object.DestroyImmediate(material);}
+        }
+        [Test]
         public void JoinedSurfaceHasHysteresisAndDropsOutWhenEitherHandIsLost()
         {
             Assert.That(VolleyJoinedHands.ShouldJoin(false,true,true,.17f,.18f,.24f),Is.True);
@@ -41,6 +64,8 @@ namespace GloveBallDemo.Tests
                 }
                 joined.Left=hands[0]; joined.Right=hands[1]; joined.Sample(.02f);
                 Assert.That(joined.Joined,Is.True);
+                Assert.That(hands[0].ContactVolume.enabled,Is.False);
+                Assert.That(hands[1].ContactVolume.enabled,Is.False);
                 Assert.That(Vector3.Distance(joined.transform.position,new Vector3(0,1,0)),Is.LessThan(.001f));
                 Assert.That(Quaternion.Angle(joined.transform.rotation,Quaternion.Euler(30,0,0)),Is.LessThan(.01f));
                 Assert.That(joined.Volume.size,Is.EqualTo(new Vector3(.32f,.1f,.24f)));
@@ -213,8 +238,9 @@ namespace GloveBallDemo.Tests
                 {
                     Assert.That(hand.ContactVolume,Is.Not.Null);
                     Assert.That(hand.ContactVolume.isTrigger,Is.True);
-                    Assert.That(hand.ContactVolume.size,Is.EqualTo(new Vector3(.12f,.07f,.20f)));
-                    Assert.That(hand.ContactVolume.center,Is.EqualTo(new Vector3(0,0,.08f)));
+                    Assert.That(hand.ContactVolume.size,Is.EqualTo(name=="VolleyReceive-codex"?new Vector3(.14f,.08f,.42f):new Vector3(.12f,.07f,.20f)));
+                    Assert.That(hand.ContactVolume.center,Is.EqualTo(new Vector3(0,0,name=="VolleyReceive-codex"?-.03f:.08f)));
+                    Assert.That(hand.ContactVolume.center.z+hand.ContactVolume.size.z*.5f,Is.EqualTo(.18f).Within(.001f),"Keep fingertip edge unchanged");
                     var ghost=hand.Visual.GetComponent<VolleyGhostHand>();
                     Assert.That(ghost,Is.Not.Null);
                     Assert.That(ghost.Hand,Is.EqualTo(hand));

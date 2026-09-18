@@ -191,6 +191,12 @@ namespace GloveBallDemo.Runtime
             return Mathf.Max(ReceiveMinimumFlightSeconds,required);
         }
 
+        public Vector3 ReturnForBall(BallFeel feel,Vector3 incoming,Vector3 handVelocity,Vector3 normal)
+        {
+            float bounce=feel!=null && feel.BounceMaterial!=null ? feel.BounceMaterial.bounciness : 1f;
+            return VolleyMath.ReturnVelocity(incoming,handVelocity,normal,Restitution*bounce,SwingGain,MaximumReturnSpeed);
+        }
+
         private void FixedUpdate()
         {
             Left.BeginPhysicsSample(); Right.BeginPhysicsSample();
@@ -217,9 +223,11 @@ namespace GloveBallDemo.Runtime
                         var hand = l && (!r || lt <= rt) ? Left : Right;
                         var normal = hand == Left ? ln : rn;
                         var incoming = _ball.Body.linearVelocity;
-                        var velocity = VolleyMath.ReturnVelocity(incoming, joined ? JoinedHands.Velocity : hand.Velocity, normal, Restitution, SwingGain, MaximumReturnSpeed);
+                        var velocity = ReturnForBall(_ball.Feel,incoming,joined ? JoinedHands.Velocity : hand.Velocity,normal);
                         if (_ball.Deflect(velocity))
                         {
+                            // Incoming feeds stay calibrated; after reception each ball resumes its own drag.
+                            _ball.Body.linearDamping=_ball.Feel!=null?Mathf.Clamp(_ball.Feel.AirResistance,0f,2f):0f;
                             // Place just clear of the contact volume on the outgoing side, not at an anchor.
                             var volume = joined ? JoinedHands.Volume : hand.ContactVolume;
                             var localHit = volume.transform.InverseTransformPoint(Vector3.Lerp(previous, current, hand == Left ? lt : rt)) - volume.center;

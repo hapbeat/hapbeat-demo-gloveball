@@ -139,7 +139,7 @@ namespace GloveBallDemo.Runtime
         private void OnDrawGizmosSelected()
         {
             Gizmos.color = Color.cyan;
-            if (ContactVolume != null)
+            if (ContactVolume != null && (!Application.isPlaying || ContactVolume.enabled))
             {
                 Gizmos.matrix = ContactVolume.transform.localToWorldMatrix;
                 Gizmos.DrawWireCube(ContactVolume.center, ContactVolume.size);
