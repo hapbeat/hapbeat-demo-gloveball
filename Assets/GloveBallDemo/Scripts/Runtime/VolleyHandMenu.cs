@@ -202,7 +202,7 @@ namespace GloveBallDemo.Runtime
         {
             if(_heightText==null)return;_heightText.text=$"Eye {Floor.EyeHeight:F2} m  /  correction {Floor.HeightCorrection:+0.00;-0.00;0.00} m\n"+(GloveBallWideMotionFeature.Active?.Status??"WMM: unavailable (Quest APK required)");
             var names=new List<string>{"RESUME",$"HANDS ONLY: {(Drill.Left.InputMode==VolleyInputMode.HandsOnly?"ON":"OFF")}",$"STAND UPRIGHT: SET EYE {Floor.StandingEyeHeight:F2} m","USE RUNTIME FLOOR","RESTART","REPOSITION TO START","RECEIVE DEMO","BLOCK DEMO"};
-            if(Drill.Drill==VolleyDrill.Block)names.Add(Drill.Aerial.BeginnerBlock?"BLOCK: BEGINNER (AUTO JUMP)":"BLOCK: ADVANCED (HAND JUMP)");
+            if(Drill.Drill==VolleyDrill.Block)names.Add(Drill.Aerial.BeginnerBlock?"RALLY: BEGINNER (AUTO JUMP)":"RALLY: ADVANCED (HAND JUMP)");
             for(int i=0;i<names.Count;i++)_labels[i].text=names[i];
         }
         void ResetAutomaticAttempt(){if(Drill.Aerial!=null && Drill.Aerial.BeginnerBlock)Drill.Aerial.SetBeginnerBlock(true);}

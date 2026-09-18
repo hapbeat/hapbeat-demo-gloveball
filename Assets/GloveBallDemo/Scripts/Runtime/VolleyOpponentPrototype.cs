@@ -10,7 +10,10 @@ namespace GloveBallDemo.Runtime
         public Transform Target;
         public TextMesh Status;
         public enum MotionVariant { A_Readable, B_FastArm, C_PowerTwist }
+        public enum MotionRole { Spike, Set }
         public MotionVariant Variant;
+        [Tooltip("Spike is the opposing attacker. Set is the friendly teammate that presents a high ball to the player.")]
+        public MotionRole Role;
         public Transform LeftHand, RightHand, LeftShoe, RightShoe;
         [Range(.1f,2f)] public float PlaybackSpeed=1f;
         [Min(1f)] public float CycleSeconds=3.5f;
@@ -24,6 +27,8 @@ namespace GloveBallDemo.Runtime
         {
             get
             {
+                if (Role == MotionRole.Set)
+                    return transform.TransformPoint(new Vector3(0f, 1.92f, .26f));
                 var shoulder=Shoulder(.52f,Jump(.52f),out var rotation);
                 return transform.TransformPoint(shoulder+rotation*new Vector3(.25f,.56f,.22f));
             }
@@ -77,6 +82,11 @@ namespace GloveBallDemo.Runtime
         public void PreviewCurrentPhase()=>Pose(PreviewPhase);
         public void Pose(float phase)
         {
+            if (Role == MotionRole.Set)
+            {
+                PoseSet(phase);
+                return;
+            }
             var jump=Jump(phase);
             var hip=new Vector3(0,.95f+jump,0);
             var shoulder=Shoulder(phase,jump,out var bodyRotation);
@@ -114,6 +124,49 @@ namespace GloveBallDemo.Runtime
                 PreviewBall.position=release+velocity*elapsed+Physics.gravity*(.5f*elapsed*elapsed);
             }
             if(Status!=null)Status.text=Variant.ToString().Replace('_',' ')+"\n"+(phase<.13f?"BACKSWING":phase<.31f?"ARMS UP / JUMP":phase<.52f?"WIND UP":phase<.66f?"HIT / FOLLOW":"LAND / RESET");
+        }
+
+        /// <summary>Readable overhead set: a small crouch, both hands up in front, then a soft follow-through.</summary>
+        void PoseSet(float phase)
+        {
+            float crouch = phase < .2f ? -.12f * Mathf.Sin(phase / .2f * Mathf.PI) : 0f;
+            float raise = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.12f, .5f, phase));
+            float follow = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.52f, .78f, phase));
+            var hip = new Vector3(0f, .95f + crouch, 0f);
+            var shoulder = new Vector3(0f, 1.48f + crouch, .03f);
+            Torso.localPosition = (hip + shoulder) * .5f;
+            Torso.localScale = new Vector3(.42f, .53f, .25f);
+            Torso.localRotation = Quaternion.Euler(-5f * raise, 0f, 0f);
+            Head.localPosition = shoulder + Vector3.up * .24f;
+            Head.localRotation = Quaternion.identity;
+            var lHip = hip + Vector3.left * .13f;
+            var rHip = hip + Vector3.right * .13f;
+            var lk = new Vector3(-.15f, .49f + crouch, phase < .2f ? .11f : 0f);
+            var rk = new Vector3(.15f, .49f + crouch, phase < .2f ? .11f : 0f);
+            Limb(LeftThigh, lHip, lk, .15f); Limb(LeftShin, lk, new Vector3(-.15f, .08f, 0f), .11f);
+            Limb(RightThigh, rHip, rk, .15f); Limb(RightShin, rk, new Vector3(.15f, .08f, 0f), .11f);
+            var ls = shoulder + Vector3.left * .25f;
+            var rs = shoulder + Vector3.right * .25f;
+            var restLE = new Vector3(-.14f, 1.12f, .1f);
+            var restRE = new Vector3(.14f, 1.12f, .1f);
+            var restLH = new Vector3(-.2f, .82f, .18f);
+            var restRH = new Vector3(.2f, .82f, .18f);
+            var setLE = new Vector3(-.1f, 1.64f, .23f);
+            var setRE = new Vector3(.1f, 1.64f, .23f);
+            var setLH = new Vector3(-.09f, 1.91f, .28f);
+            var setRH = new Vector3(.09f, 1.91f, .28f);
+            var le = Vector3.Lerp(restLE, setLE, raise);
+            var re = Vector3.Lerp(restRE, setRE, raise);
+            var lh = Vector3.Lerp(restLH, setLH, raise) + Vector3.forward * (.07f * follow);
+            var rh = Vector3.Lerp(restRH, setRH, raise) + Vector3.forward * (.07f * follow);
+            Limb(LeftUpperArm, ls, le, .105f); Limb(LeftForearm, le, lh, .085f);
+            Limb(RightUpperArm, rs, re, .105f); Limb(RightForearm, re, rh, .085f);
+            if (LeftHand != null) { LeftHand.localPosition = lh; LeftHand.localRotation = Quaternion.LookRotation(Vector3.forward, Vector3.up); }
+            if (RightHand != null) { RightHand.localPosition = rh; RightHand.localRotation = Quaternion.LookRotation(Vector3.forward, Vector3.up); }
+            if (LeftShoe != null) LeftShoe.localPosition = new Vector3(-.15f, .06f, .08f);
+            if (RightShoe != null) RightShoe.localPosition = new Vector3(.15f, .06f, .08f);
+            if (PreviewBall != null) PreviewBall.gameObject.SetActive(false);
+            if (Status != null) Status.text = "FRIENDLY SET\n" + (phase < .2f ? "READY" : phase < .52f ? "HANDS UP" : "SET / FOLLOW");
         }
     }
 }

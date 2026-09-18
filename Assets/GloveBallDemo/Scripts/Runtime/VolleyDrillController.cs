@@ -105,7 +105,14 @@ namespace GloveBallDemo.Runtime
 
         private void Start()
         {
-            if(Drill!=VolleyDrill.Block) Targets.BeginWave(0, Aerial!=null || Drill==VolleyDrill.Receive ? 1 : 3, Aerial!=null || Drill==VolleyDrill.Receive ? 1 : 3);
+            bool rally=Drill==VolleyDrill.Block && Aerial!=null && Aerial.RallyEnabled;
+            if(rally && Application.isPlaying)
+            {
+                Aerial.EnsureRallyWiring();
+                if(ReceiveNet!=null)Targets.ConfigureRallyFloorTargets(ReceiveNet.transform.position);
+            }
+            if(Drill!=VolleyDrill.Block || rally)
+                Targets.BeginWave(0, Aerial!=null || Drill==VolleyDrill.Receive ? 1 : 3, Aerial!=null || Drill==VolleyDrill.Receive ? 1 : 3);
             foreach (var panel in Panels){panel.HitRegistered+=OnTargetContact;panel.HitFlashCompleted += OnTarget;}
             _subscribed = true;
             _nextServe = ServeInterval;
@@ -126,6 +133,7 @@ namespace GloveBallDemo.Runtime
         {
             TickTracking(Time.unscaledDeltaTime,Left.Ready||Right.Ready);
             if(GameInputGate.IsBlocked || TrackingSuspended) return;
+            bool rally=Drill==VolleyDrill.Block && Aerial!=null && Aerial.RallyEnabled;
             if (Aerial==null && FeedLaunchers != null && Head != null && CourtFrame != null)
             {
                 var target = GetContactCentre();
@@ -138,10 +146,19 @@ namespace GloveBallDemo.Runtime
             if (_ball != null)
             {
                 _ballAge += Time.deltaTime;
-                if (_ball.State == BallState.Idle || _ball.State == BallState.Dead) _ball = null;
-                else if (_ballAge > MaximumBallAge) { _ball.Kill("volley timeout"); _ball = null; }
+                if (_ball.State == BallState.Idle || _ball.State == BallState.Dead)
+                {
+                    if(rally)Aerial.RegisterBallUnavailable();
+                    _ball = null;
+                }
+                else if (_ballAge > MaximumBallAge)
+                {
+                    _ball.Kill("volley timeout");
+                    if(rally)Aerial.RegisterBallUnavailable();
+                    _ball = null;
+                }
             }
-            bool continuingAttack=Drill==VolleyDrill.Block && Aerial!=null && Aerial.AttackStarted && _ball==null;
+            bool continuingAttack=!rally && Drill==VolleyDrill.Block && Aerial!=null && Aerial.AttackStarted && _ball==null;
             if(continuingAttack)Serve();
             if (!TrackingReady)
             {
@@ -154,7 +171,10 @@ namespace GloveBallDemo.Runtime
             {
                 _trackingStable += Time.deltaTime;
                 _nextServe -= Time.deltaTime;
-                if (!continuingAttack && _trackingStable >= ReadySeconds && _ball == null && _nextServe <= 0f) Serve();
+                if(rally && _trackingStable>=ReadySeconds && _ball==null
+                    && Aerial.TickRally(Time.deltaTime,out var rallyStart,out var rallyDestination,out var rallySeconds))
+                    LaunchAerialBall(rallyStart,rallyDestination,rallySeconds);
+                else if (!rally && !continuingAttack && _trackingStable >= ReadySeconds && _ball == null && _nextServe <= 0f) Serve();
             }
             if (StatusText != null)
             {
@@ -163,7 +183,8 @@ namespace GloveBallDemo.Runtime
                 string state = !TrackingReady ? "Show hands / pick up controllers" : _trackingStable < ReadySeconds ? "READY " + Mathf.CeilToInt(ReadySeconds - _trackingStable) : action;
                 StatusText.text = state;
             }
-            if (ScoreText != null) ScoreText.text = Drill==VolleyDrill.Block ? $"BLOCKS {Returns}   BODY {BodyHits}"
+            if (ScoreText != null) ScoreText.text = rally ? $"RALLY   BLOCKS {Returns}   TARGET {TargetHits}   BODY {BodyHits}"
+                : Drill==VolleyDrill.Block ? $"BLOCKS {Returns}   BODY {BodyHits}"
                 : $"{Drill.ToString().ToUpperInvariant()}   TARGET {TargetHits}   RETURNS {Returns}   BODY {BodyHits}";
         }
 
@@ -216,6 +237,16 @@ namespace GloveBallDemo.Runtime
             _previousBallPosition = start; _haveBallSample = true;
             _lastContact = -100f; _ballAge = 0f; _nextServe = ServeInterval;
             Serves++;
+        }
+
+        void LaunchAerialBall(Vector3 start,Vector3 destination,float seconds)
+        {
+            if(Aerial==null)return;
+            _ball=Aerial.TakePreparedBall();
+            if(_ball==null)return;
+            _ball.Body.linearDamping=0f;
+            _ball.LaunchIncoming(start,VolleyMath.ServeVelocity(start,destination,seconds,Physics.gravity));
+            _previousBallPosition=start;_haveBallSample=true;_lastContact=-100f;_ballAge=0f;_nextServe=ServeInterval;Serves++;
         }
         public void ResetCurrentAttempt()
         {
@@ -293,6 +324,15 @@ namespace GloveBallDemo.Runtime
                     {
                         var hand = l && (!r || lt <= rt) ? Left : Right;
                         var normal = hand == Left ? ln : rn;
+                        if(Aerial!=null && Aerial.IsOpponentSpike)
+                        {
+                            ReportHandImpact(_ball,hand,joined);
+                            _lastContact=Time.time;Returns++;
+                            _ball.Kill("rally block");_ball=null;_haveBallSample=false;
+                            Aerial.RegisterOpponentBlock();
+                        }
+                        else if(_ball!=null)
+                        {
                         var incoming = _ball.Body.linearVelocity;
                         var velocity = ReturnForBall(_ball.Feel,incoming,joined ? JoinedHands.Velocity : hand.Velocity,normal);
                         if (_ball.Deflect(velocity))
@@ -310,10 +350,12 @@ namespace GloveBallDemo.Runtime
                             _ball.Body.position = volume.transform.TransformPoint(volume.center + localHit) + normal * (radius + .01f);
                             ReportHandImpact(_ball,hand,joined);
                             _lastContact = Time.time; Returns++;
+                            if(Aerial!=null && Aerial.IsPlayerSpike)Aerial.RegisterPlayerSpike();
+                        }
                         }
                     }
                 }
-                _previousBallPosition = _ball.Body.position; _haveBallSample = true;
+                if(_ball!=null){_previousBallPosition = _ball.Body.position; _haveBallSample = true;}
             }
             else _haveBallSample = false; // Never sweep across an unobserved tracking gap.
             Left.EndPhysicsSample(); Right.EndPhysicsSample();
@@ -356,6 +398,7 @@ namespace GloveBallDemo.Runtime
         {
             TargetHits++;
             HapticEventRelay.PlayAudioOnly(DemoHapticEvent.TargetHit,panel.transform.position);
+            if(Aerial!=null && Aerial.IsPlayerSpike)Aerial.RegisterTargetHit();
         }
         private void OnTarget(TargetPanel panel)
         {
