@@ -11,6 +11,26 @@ namespace GloveBallDemo.Tests
     public class VolleyTests
     {
         [Test]
+        public void OpponentTakeoffArmsLiftInFrontOfBody()
+        {
+            var go=new GameObject("arm path test");
+            try
+            {
+                var opponent=go.AddComponent<VolleyOpponentPrototype>();
+                foreach(bool right in new[]{false,true})
+                {
+                    float previousY=-1f;
+                    for(int i=0;i<=10;i++)
+                    {
+                        opponent.ArmPose(.21f+i*.01f,right,out var elbow,out var hand);
+                        Assert.That(hand.z,Is.GreaterThan(.15f));Assert.That(elbow.z,Is.GreaterThan(.09f));
+                        Assert.That(hand.y,Is.GreaterThanOrEqualTo(previousY));previousY=hand.y;
+                    }
+                }
+            }
+            finally{Object.DestroyImmediate(go);}
+        }
+        [Test]
         public void JoinedRollCrossing180DoesNotFlipSurface()
         {
             var a=VolleyJoinedHands.StableSurfaceRotation(Quaternion.identity,Quaternion.Euler(0,0,179),Quaternion.identity,false);
@@ -57,6 +77,23 @@ namespace GloveBallDemo.Tests
                 var p=d.Panels.Single(x=>x.gameObject.activeSelf).transform.position;
                 if(first.HasValue)Assert.That(Vector3.Distance(first.Value,p),Is.GreaterThan(.00001f));
                 first=p;
+            }
+        }
+        [Test]
+        public void ReceiveTargetsAlternateThirdsAndJoinedBoxOnlyDoublesPalmThickness()
+        {
+            EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");
+            var d=Object.FindFirstObjectByType<VolleyDrillController>();
+            Assert.That(d.JoinedHands.Volume.size,Is.EqualTo(new Vector3(.14f,.16f,.42f)));
+            Assert.That(d.Targets.AlternateHorizontalThirds,Is.True);
+            d.Targets.BeginWave(0,1,1);int previous=d.Targets.CurrentHorizontalZone;
+            for(int i=0;i<30;i++)
+            {
+                var panel=d.Panels.Single(x=>x.gameObject.activeSelf);float lastX=panel.transform.position.x;
+                d.Targets.RegisterHit(panel);int next=d.Targets.CurrentHorizontalZone;
+                Assert.That(next,Is.InRange(0,2));Assert.That(next,Is.Not.EqualTo(previous));
+                Assert.That(Mathf.Abs(d.Panels.Single(x=>x.gameObject.activeSelf).transform.position.x-lastX),Is.GreaterThanOrEqualTo(.59f));
+                previous=next;
             }
         }
         [Test]

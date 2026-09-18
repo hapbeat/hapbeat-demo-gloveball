@@ -5219,13 +5219,13 @@ MonoBehaviour:
     Bounce: 1
     ReturnDrag: 0.08
   - Kind: 4
-    Bounce: 0.9
+    Bounce: 0.95
     ReturnDrag: 0.12
   - Kind: 0
-    Bounce: 0.78
+    Bounce: 0.9
     ReturnDrag: 0.02
   - Kind: 2
-    Bounce: 0.8
+    Bounce: 0.92
     ReturnDrag: 0.18
   - Kind: 3
     Bounce: 0.95
@@ -5332,6 +5332,8 @@ MonoBehaviour:
   _player: {fileID: 1049602703}
   _layoutSeed: 20260824
   RandomizeOnStart: 1
+  AlternateHorizontalThirds: 1
+  ZoneEdgeInset: 0.15
   _minX: -3
   _maxX: 3
   _minZ: 0.2
@@ -9731,7 +9733,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 0
   serializedVersion: 3
-  m_Size: {x: 0.38, y: 0.1, z: 0.42}
+  m_Size: {x: 0.14, y: 0.16, z: 0.42}
   m_Center: {x: 0, y: 0, z: -0.03}
 --- !u!114 &2059489942
 MonoBehaviour:

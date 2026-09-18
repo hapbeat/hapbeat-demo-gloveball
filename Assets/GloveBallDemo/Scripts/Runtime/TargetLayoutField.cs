@@ -10,6 +10,10 @@ namespace GloveBallDemo.Runtime
         [SerializeField] private Transform _player;
         [SerializeField] private int _layoutSeed = 20260824;
         public bool RandomizeOnStart;
+        [Tooltip("Single-target mode: split X into thirds and never repeat the previous third.")]
+        public bool AlternateHorizontalThirds;
+        [Range(0f,.45f)] public float ZoneEdgeInset=.15f;
+        public int CurrentHorizontalZone { get; private set; }=-1;
         private int? _sessionSeed;
         [Header("Random target placement bounds (world space)")]
         [Tooltip("Left-most target centre in world-space X.")]
@@ -101,6 +105,15 @@ namespace GloveBallDemo.Runtime
             var targetCount = random.Next(_minimumTargets, _maximumTargets + 1);
             var min = new Vector3(Mathf.Min(_minX, _maxX), Mathf.Min(_minHeight, _maxHeight), Mathf.Min(_minZ, _maxZ));
             var max = new Vector3(Mathf.Max(_minX, _maxX), Mathf.Max(_minHeight, _maxHeight), Mathf.Max(_minZ, _maxZ));
+            if(AlternateHorizontalThirds && targetCount==1)
+            {
+                int zone=CurrentHorizontalZone<0 ? random.Next(3) : (CurrentHorizontalZone+1+random.Next(2))%3;
+                CurrentHorizontalZone=zone;
+                float width=(max.x-min.x)/3f;
+                float start=min.x+zone*width;
+                min.x=start+width*Mathf.Clamp(ZoneEdgeInset,0f,.45f);
+                max.x=start+width*(1f-Mathf.Clamp(ZoneEdgeInset,0f,.45f));
+            }
             var bounds = new Bounds((min + max) * .5f, max - min);
             var slots = new TargetLayoutPlanner(seed).Plan(_player.position, bounds, _minimumSpacing, targetCount);
 

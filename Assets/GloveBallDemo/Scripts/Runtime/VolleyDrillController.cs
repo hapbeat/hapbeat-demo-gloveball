@@ -55,9 +55,9 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Volley-only response, independent of floor physics materials. Bounce multiplies Restitution.")]
         public HandBallResponse[] HandResponses={
             new HandBallResponse{Kind=BallKind.Volleyball,Bounce=1f,ReturnDrag=.08f},
-            new HandBallResponse{Kind=BallKind.Perforated,Bounce=.9f,ReturnDrag=.12f},
-            new HandBallResponse{Kind=BallKind.Bowling,Bounce=.78f,ReturnDrag=.02f},
-            new HandBallResponse{Kind=BallKind.Foam,Bounce=.8f,ReturnDrag=.18f},
+            new HandBallResponse{Kind=BallKind.Perforated,Bounce=.95f,ReturnDrag=.12f},
+            new HandBallResponse{Kind=BallKind.Bowling,Bounce=.90f,ReturnDrag=.02f},
+            new HandBallResponse{Kind=BallKind.Foam,Bounce=.92f,ReturnDrag=.18f},
             new HandBallResponse{Kind=BallKind.Basketball,Bounce=.95f,ReturnDrag=.04f}};
         [Range(0f, 3f)] public float SwingGain = 1.25f;
         [Min(1f)] public float MaximumReturnSpeed = 14f;

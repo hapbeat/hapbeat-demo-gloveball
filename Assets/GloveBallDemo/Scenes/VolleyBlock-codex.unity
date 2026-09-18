@@ -381,6 +381,8 @@ MonoBehaviour:
   ContactVolume: {fileID: 69585301}
   MaximumTrackedSpeed: 8
   ReacquireDelay: 0.15
+  EnableWideMotion: 1
+  AllowEstimatedContacts: 0
 --- !u!4 &69585300
 Transform:
   m_ObjectHideFlags: 0
@@ -799,6 +801,9 @@ MonoBehaviour:
   Pivot: {fileID: 364246321}
   Muzzle: {fileID: 1923198877}
   DegreesPerSecond: 120
+  ShotClip: {fileID: 0}
+  ShotVolume: 0.7
+  RecoilDistance: 0.1
 --- !u!1 &107283862
 GameObject:
   m_ObjectHideFlags: 0
@@ -3473,7 +3478,7 @@ Transform:
   m_GameObject: {fileID: 631991368}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -1}
+  m_LocalPosition: {x: 0, y: 0, z: -0.55}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -6000,13 +6005,31 @@ MonoBehaviour:
   ReceiveNet: {fileID: 1572485602}
   ReceiveMinimumFlightSeconds: 0.5
   ReceiveNetClearance: 0.18
+  ReceiveLobChance: 0.35
+  ReceiveLobExtraSeconds: 0.3
   FlightSeconds: 1.5
-  ContactForwardDistance: 0.45
+  ContactForwardDistance: 0.25
   LateralSpread: 0.3
   VerticalSpread: 0.2
   ServeInterval: 1
   ReadySeconds: 1
   Restitution: 0.9
+  HandResponses:
+  - Kind: 1
+    Bounce: 1
+    ReturnDrag: 0.08
+  - Kind: 4
+    Bounce: 0.95
+    ReturnDrag: 0.12
+  - Kind: 0
+    Bounce: 0.9
+    ReturnDrag: 0.02
+  - Kind: 2
+    Bounce: 0.92
+    ReturnDrag: 0.18
+  - Kind: 3
+    Bounce: 0.95
+    ReturnDrag: 0.04
   SwingGain: 1.25
   MaximumReturnSpeed: 14
   RehitCooldown: 0.2
@@ -6132,6 +6155,9 @@ MonoBehaviour:
   - {fileID: 1884672605}
   _player: {fileID: 1049602703}
   _layoutSeed: 20260824
+  RandomizeOnStart: 0
+  AlternateHorizontalThirds: 0
+  ZoneEdgeInset: 0.15
   _minX: -3
   _maxX: 3
   _minZ: 0.2
@@ -6963,6 +6989,9 @@ MonoBehaviour:
   Pivot: {fileID: 1495781714}
   Muzzle: {fileID: 1102758256}
   DegreesPerSecond: 120
+  ShotClip: {fileID: 0}
+  ShotVolume: 0.7
+  RecoilDistance: 0.1
 --- !u!1001 &1417256079
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -8018,6 +8047,8 @@ MonoBehaviour:
   ContactVolume: {fileID: 1638254372}
   MaximumTrackedSpeed: 8
   ReacquireDelay: 0.15
+  EnableWideMotion: 1
+  AllowEstimatedContacts: 0
 --- !u!4 &1638254371
 Transform:
   m_ObjectHideFlags: 0
@@ -8412,6 +8443,9 @@ MonoBehaviour:
   Pivot: {fileID: 436388406}
   Muzzle: {fileID: 1714800750}
   DegreesPerSecond: 120
+  ShotClip: {fileID: 0}
+  ShotVolume: 0.7
+  RecoilDistance: 0.1
 --- !u!1 &1751589343
 GameObject:
   m_ObjectHideFlags: 0

@@ -43,14 +43,17 @@ namespace GloveBallDemo.Runtime
             rotation=Quaternion.Euler(-12f*wind+20f*follow,-twist*wind+twist*.65f*follow,0);
             return new Vector3(0,.95f+jump,0)+rotation*Vector3.up*.53f;
         }
-        void ArmPose(float phase,bool right,out Vector3 elbow,out Vector3 hand)
+        public void ArmPose(float phase,bool right,out Vector3 elbow,out Vector3 hand)
         {
             float side=right?1f:-1f;
             var restE=new Vector3(side*.04f,-.28f,.02f);var restH=new Vector3(side*.06f,-.56f,.07f);
             var backE=new Vector3(side*.07f,-.22f,-.24f);var backH=new Vector3(side*.08f,-.43f,-.43f);
             var upE=new Vector3(side*.05f,.27f,.1f);var upH=new Vector3(side*.02f,.55f,.19f);
             if(phase<.13f){float t=phase/.13f;elbow=Mix(restE,backE,t);hand=Mix(restH,backH,t);return;}
-            if(phase<.31f){float t=(phase-.13f)/.18f;elbow=Mix(backE,upE,t);hand=Mix(backH,upH,t);return;}
+            // Drive forward below the chest, then lift in front of the body; never sweep up behind the back.
+            var frontE=new Vector3(side*.05f,-.17f,.25f);var frontH=new Vector3(side*.04f,-.29f,.48f);
+            if(phase<.21f){float t=(phase-.13f)/.08f;elbow=Mix(backE,frontE,t);hand=Mix(backH,frontH,t);return;}
+            if(phase<.31f){float t=(phase-.21f)/.10f;elbow=Mix(frontE,upE,t);hand=Mix(frontH,upH,t);return;}
             if(!right)
             {
                 // Non-hitting arm points up, then pulls down as the hitting arm accelerates.
