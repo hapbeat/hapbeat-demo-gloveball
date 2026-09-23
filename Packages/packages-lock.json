@@ -27,13 +27,12 @@
       }
     },
     "com.hapbeat.sdk": {
-      "version": "https://github.com/hapbeat/hapbeat-unity-sdk.git#882275c1d4ec7b6cb4bf25d8b0532a56476037a8",
+      "version": "file:../../../../repos-sdk/hapbeat-unity-sdk",
       "depth": 0,
-      "source": "git",
+      "source": "local",
       "dependencies": {
         "com.unity.ugui": "2.0.0"
-      },
-      "hash": "882275c1d4ec7b6cb4bf25d8b0532a56476037a8"
+      }
     },
     "com.unity.ai.navigation": {
       "version": "2.0.9",

@@ -12,7 +12,9 @@ namespace GloveBallDemo.Tests
         const BindingFlags Private=BindingFlags.Instance|BindingFlags.NonPublic;
 
         [SetUp]
-        public void ApplyRallySceneWiring()=>VolleyRallySetup.Apply();
+        // VolleyRallySetup lives in Assembly-CSharp-Editor, which this asmdef cannot reference.
+        public void ApplyRallySceneWiring()=>System.Type.GetType("VolleyRallySetup, Assembly-CSharp-Editor",true)
+            .GetMethod("Apply",BindingFlags.Public|BindingFlags.Static).Invoke(null,null);
 
         [Test]
         public void RallySceneWiresOneFriendlySetterAndOneFloorTarget()
