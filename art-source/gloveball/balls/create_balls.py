@@ -8,7 +8,7 @@ import math
 from pathlib import Path
 import sys
 import bpy
-from mathutils import Vector
+from mathutils import Euler, Matrix, Vector
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--output', type=Path, default=Path(__file__).parent / 'generated')
@@ -114,13 +114,26 @@ sphere('FoamBall', 0.29, foam)
 
 rubber = material('Basketball | orange pebbled rubber', (0.58, 0.12, 0.018), 0.82)
 texture_bump(rubber, 135, 0.45, 0.0008)
-sphere('Basketball', 0.58, rubber)
-for axis in range(3):
-    bpy.ops.mesh.primitive_torus_add(major_radius=0.1091, minor_radius=0.0015,
-                                   major_segments=96, minor_segments=6, location=(0.58, 0, 0.12))
+basket = sphere('Basketball', 0.58, rubber)
+# Eight-panel layout: two perpendicular great circles meeting at the poles (±Z),
+# plus two curved seams, each a small circle around ±X crossing only the XZ great circle.
+seam_radius, cap_angle = 0.1091, math.radians(56)
+seam_rings = [(0.0, seam_radius, (0, math.pi / 2, 0)), (0.0, seam_radius, (math.pi / 2, 0, 0))]
+for sign in [-1, 1]:
+    seam_rings.append((sign * seam_radius * math.cos(cap_angle), seam_radius * math.sin(cap_angle),
+                       (0, math.pi / 2, 0)))
+# Tilt the whole pattern so the comparison camera shows the curved seams.
+pattern = (Matrix.Translation(basket.location) @ Euler((math.radians(30), 0, math.radians(-30))).to_matrix().to_4x4()
+           @ Matrix.Translation(-basket.location))
+for offset, major, rotation in seam_rings:
+    bpy.ops.mesh.primitive_torus_add(major_radius=major, minor_radius=0.0022,
+                                   major_segments=96, minor_segments=6,
+                                   location=basket.location + Vector((offset, 0, 0)))
     obj = bpy.context.object
     obj.name = 'BasketballSeam'
-    obj.rotation_euler[axis] = math.pi / 2
+    obj.rotation_euler = rotation
+    bpy.context.view_layer.update()
+    obj.matrix_world = pattern @ obj.matrix_world
     obj.data.materials.append(seam)
 
 plastic = material('Perforated | lime plastic', (0.55, 0.8, 0.025), 0.36)
