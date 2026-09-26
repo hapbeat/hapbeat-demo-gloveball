@@ -171,8 +171,8 @@ namespace GloveBallDemo.Runtime
             {
                 _trackingStable += Time.deltaTime;
                 _nextServe -= Time.deltaTime;
-                if(rally && _trackingStable>=ReadySeconds && _ball==null
-                    && Aerial.TickRally(Time.deltaTime,out var rallyStart,out var rallyDestination,out var rallySeconds))
+                if(rally && _trackingStable>=ReadySeconds
+                    && Aerial.TickRally(Time.deltaTime,_ball!=null,out var rallyStart,out var rallyDestination,out var rallySeconds))
                     LaunchAerialBall(rallyStart,rallyDestination,rallySeconds);
                 else if (!rally && !continuingAttack && _trackingStable >= ReadySeconds && _ball == null && _nextServe <= 0f) Serve();
             }
@@ -183,7 +183,7 @@ namespace GloveBallDemo.Runtime
                 string state = !TrackingReady ? "Show hands / pick up controllers" : _trackingStable < ReadySeconds ? "READY " + Mathf.CeilToInt(ReadySeconds - _trackingStable) : action;
                 StatusText.text = state;
             }
-            if (ScoreText != null) ScoreText.text = rally ? $"RALLY   BLOCKS {Returns}   TARGET {TargetHits}   BODY {BodyHits}"
+            if (ScoreText != null) ScoreText.text = rally ? $"{(Aerial.CurrentTurn==VolleyAerialSequence.RallyTurn.Spike?"SPIKE":"BLOCK")} TURN   BLOCKS {Aerial.Blocks}/{Aerial.BlockAttempts}   SPIKE PTS {Aerial.SpikePoints} ({Aerial.SpikeAttempts})"
                 : Drill==VolleyDrill.Block ? $"BLOCKS {Returns}   BODY {BodyHits}"
                 : $"{Drill.ToString().ToUpperInvariant()}   TARGET {TargetHits}   RETURNS {Returns}   BODY {BodyHits}";
         }
@@ -242,11 +242,20 @@ namespace GloveBallDemo.Runtime
         void LaunchAerialBall(Vector3 start,Vector3 destination,float seconds)
         {
             if(Aerial==null)return;
+            RetireRallyBall();
             _ball=Aerial.TakePreparedBall();
             if(_ball==null)return;
             _ball.Body.linearDamping=0f;
             _ball.LaunchIncoming(start,VolleyMath.ServeVelocity(start,destination,seconds,Physics.gravity));
             _previousBallPosition=start;_haveBallSample=true;_lastContact=-100f;_ballAge=0f;_nextServe=ServeInterval;Serves++;
+        }
+        /// <summary>The ball currently owned by the drill (in flight or rebounding), if any.</summary>
+        public Ball ActiveBall=>_ball;
+        /// <summary>Rally reset: a blocked or bouncing ball is removed before the next attempt starts.</summary>
+        public void RetireRallyBall()
+        {
+            if(_ball!=null){_ball.Kill("rally reset");_ball=null;}
+            _haveBallSample=false;
         }
         public void ResetCurrentAttempt()
         {

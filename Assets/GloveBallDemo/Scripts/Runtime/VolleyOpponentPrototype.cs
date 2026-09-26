@@ -10,10 +10,29 @@ namespace GloveBallDemo.Runtime
         public Transform Target;
         public TextMesh Status;
         public enum MotionVariant { A_Readable, B_FastArm, C_PowerTwist }
-        public enum MotionRole { Spike, Set }
+        public enum MotionRole { Spike, Set, Block }
         public MotionVariant Variant;
-        [Tooltip("Spike is the opposing attacker. Set is the friendly teammate that presents a high ball to the player.")]
+        [Tooltip("Spike is the opposing attacker. Set is the friendly teammate that presents a high ball to the player. Block is an opposing net blocker.")]
         public MotionRole Role;
+        [Header("Team kit")]
+        [Tooltip("Tints the jersey and shorts per instance without editing the shared prototype materials.")]
+        public bool OverrideKit;
+        public Color JerseyColour=new Color(.8f,.16f,.07f);
+        public Color ShortsColour=new Color(.05f,.07f,.1f);
+        static readonly int BaseColour=Shader.PropertyToID("_BaseColor");
+        void OnEnable()=>ApplyKit();
+        void OnValidate()=>ApplyKit();
+        public void ApplyKit()
+        {
+            if(!OverrideKit)return;
+            Tint(Torso,JerseyColour);Tint(LeftThigh,ShortsColour);Tint(RightThigh,ShortsColour);
+        }
+        static void Tint(Transform part,Color colour)
+        {
+            if(part==null || !part.TryGetComponent<Renderer>(out var renderer))return;
+            var block=new MaterialPropertyBlock();renderer.GetPropertyBlock(block);
+            block.SetColor(BaseColour,colour);renderer.SetPropertyBlock(block);
+        }
         public Transform LeftHand, RightHand, LeftShoe, RightShoe;
         [Range(.1f,2f)] public float PlaybackSpeed=1f;
         [Min(1f)] public float CycleSeconds=3.5f;
@@ -28,7 +47,7 @@ namespace GloveBallDemo.Runtime
             get
             {
                 if (Role == MotionRole.Set)
-                    return transform.TransformPoint(new Vector3(0f, 1.92f, .26f));
+                    return transform.TransformPoint(new Vector3(0f, 1.82f, .30f)); // ball in the forehead window at SetContactPhase
                 var shoulder=Shoulder(.52f,Jump(.52f),out var rotation);
                 return transform.TransformPoint(shoulder+rotation*new Vector3(.25f,.56f,.22f));
             }
@@ -87,6 +106,11 @@ namespace GloveBallDemo.Runtime
                 PoseSet(phase);
                 return;
             }
+            if (Role == MotionRole.Block)
+            {
+                PoseBlock(phase);
+                return;
+            }
             var jump=Jump(phase);
             var hip=new Vector3(0,.95f+jump,0);
             var shoulder=Shoulder(phase,jump,out var bodyRotation);
@@ -126,47 +150,89 @@ namespace GloveBallDemo.Runtime
             if(Status!=null)Status.text=Variant.ToString().Replace('_',' ')+"\n"+(phase<.13f?"BACKSWING":phase<.31f?"ARMS UP / JUMP":phase<.52f?"WIND UP":phase<.66f?"HIT / FOLLOW":"LAND / RESET");
         }
 
-        /// <summary>Readable overhead set: a small crouch, both hands up in front, then a soft follow-through.</summary>
+        /// <summary>Sampled pose key: phase, body height offset, and right-side elbow/hand (mirrored for the left).</summary>
+        struct Key
+        {
+            public float Phase, Body; public Vector3 Elbow, Hand;
+            public Key(float phase,float body,Vector3 elbow,Vector3 hand){Phase=phase;Body=body;Elbow=elbow;Hand=hand;}
+        }
+        static Key Sample(Key[] keys,float phase)
+        {
+            if(phase<=keys[0].Phase)return keys[0];
+            for(int i=1;i<keys.Length;i++)
+            {
+                if(phase>keys[i].Phase)continue;
+                float t=Mathf.SmoothStep(0f,1f,Mathf.InverseLerp(keys[i-1].Phase,keys[i].Phase,phase));
+                var a=keys[i-1];var b=keys[i];
+                return new Key(phase,Mathf.Lerp(a.Body,b.Body,t),Vector3.Lerp(a.Elbow,b.Elbow,t),Vector3.Lerp(a.Hand,b.Hand,t));
+            }
+            return keys[keys.Length-1];
+        }
+        static Vector3 Mirror(Vector3 v)=>new Vector3(-v.x,v.y,v.z);
+        void PoseSymmetric(Key key,float lean,float kneeForward)
+        {
+            var hip=new Vector3(0f,.95f+key.Body,0f);
+            var shoulder=new Vector3(0f,1.48f+key.Body,.03f);
+            Torso.localPosition=(hip+shoulder)*.5f;Torso.localScale=new Vector3(.42f,.53f,.25f);
+            Torso.localRotation=Quaternion.Euler(lean,0f,0f);
+            Head.localPosition=shoulder+Vector3.up*.24f;Head.localRotation=Quaternion.identity;
+            float feet=Mathf.Max(0f,key.Body);
+            var lk=new Vector3(-.15f,.49f+key.Body*.55f+feet*.45f,kneeForward);
+            var rk=new Vector3(.15f,.49f+key.Body*.55f+feet*.45f,kneeForward);
+            Limb(LeftThigh,hip+Vector3.left*.13f,lk,.15f);Limb(LeftShin,lk,new Vector3(-.15f,feet+.08f,0f),.11f);
+            Limb(RightThigh,hip+Vector3.right*.13f,rk,.15f);Limb(RightShin,rk,new Vector3(.15f,feet+.08f,0f),.11f);
+            var up=Vector3.up*key.Body;
+            var re=key.Elbow+up;var rh=key.Hand+up;var le=Mirror(key.Elbow)+up;var lh=Mirror(key.Hand)+up;
+            var ls=shoulder+Vector3.left*.25f;var rs=shoulder+Vector3.right*.25f;
+            Limb(LeftUpperArm,ls,le,.105f);Limb(LeftForearm,le,lh,.085f);
+            Limb(RightUpperArm,rs,re,.105f);Limb(RightForearm,re,rh,.085f);
+            if(LeftHand!=null){LeftHand.localPosition=lh;LeftHand.localRotation=Quaternion.FromToRotation(Vector3.up,(lh-le).normalized);}
+            if(RightHand!=null){RightHand.localPosition=rh;RightHand.localRotation=Quaternion.FromToRotation(Vector3.up,(rh-re).normalized);}
+            if(LeftShoe!=null)LeftShoe.localPosition=new Vector3(-.15f,feet+.06f,.08f);
+            if(RightShoe!=null)RightShoe.localPosition=new Vector3(.15f,feet+.06f,.08f);
+            if(PreviewBall!=null)PreviewBall.gameObject.SetActive(false);
+        }
+
+        /// <summary>Contact phase of the overhead set. The ball meets the forehead window here and leaves on the extension.</summary>
+        public const float SetContactPhase=.52f;
+        static readonly Key[] SetKeys={
+            new Key(0f,0f,new Vector3(.14f,1.12f,.1f),new Vector3(.2f,.82f,.18f)),          // ready
+            new Key(.22f,-.04f,new Vector3(.2f,1.40f,.16f),new Vector3(.12f,1.52f,.26f)),    // hands travel up
+            new Key(.42f,-.08f,new Vector3(.21f,1.58f,.17f),new Vector3(.09f,1.84f,.25f)),   // forehead window, knees loaded
+            new Key(.52f,-.11f,new Vector3(.21f,1.53f,.14f),new Vector3(.09f,1.79f,.22f)),   // absorb the ball
+            new Key(.66f,.04f,new Vector3(.1f,1.86f,.3f),new Vector3(.08f,2.12f,.42f)),      // legs and arms extend
+            new Key(.8f,.02f,new Vector3(.11f,1.82f,.3f),new Vector3(.08f,2.06f,.44f)),      // hold the follow-through
+            new Key(1f,0f,new Vector3(.14f,1.12f,.1f),new Vector3(.2f,.82f,.18f))};          // back to ready
+
+        /// <summary>Overhead set: hands rise to a forehead window, knees load while the ball drops in, then legs and arms extend together.</summary>
         void PoseSet(float phase)
         {
-            float crouch = phase < .2f ? -.12f * Mathf.Sin(phase / .2f * Mathf.PI) : 0f;
-            float raise = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.12f, .5f, phase));
-            float follow = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.52f, .78f, phase));
-            var hip = new Vector3(0f, .95f + crouch, 0f);
-            var shoulder = new Vector3(0f, 1.48f + crouch, .03f);
-            Torso.localPosition = (hip + shoulder) * .5f;
-            Torso.localScale = new Vector3(.42f, .53f, .25f);
-            Torso.localRotation = Quaternion.Euler(-5f * raise, 0f, 0f);
-            Head.localPosition = shoulder + Vector3.up * .24f;
-            Head.localRotation = Quaternion.identity;
-            var lHip = hip + Vector3.left * .13f;
-            var rHip = hip + Vector3.right * .13f;
-            var lk = new Vector3(-.15f, .49f + crouch, phase < .2f ? .11f : 0f);
-            var rk = new Vector3(.15f, .49f + crouch, phase < .2f ? .11f : 0f);
-            Limb(LeftThigh, lHip, lk, .15f); Limb(LeftShin, lk, new Vector3(-.15f, .08f, 0f), .11f);
-            Limb(RightThigh, rHip, rk, .15f); Limb(RightShin, rk, new Vector3(.15f, .08f, 0f), .11f);
-            var ls = shoulder + Vector3.left * .25f;
-            var rs = shoulder + Vector3.right * .25f;
-            var restLE = new Vector3(-.14f, 1.12f, .1f);
-            var restRE = new Vector3(.14f, 1.12f, .1f);
-            var restLH = new Vector3(-.2f, .82f, .18f);
-            var restRH = new Vector3(.2f, .82f, .18f);
-            var setLE = new Vector3(-.1f, 1.64f, .23f);
-            var setRE = new Vector3(.1f, 1.64f, .23f);
-            var setLH = new Vector3(-.09f, 1.91f, .28f);
-            var setRH = new Vector3(.09f, 1.91f, .28f);
-            var le = Vector3.Lerp(restLE, setLE, raise);
-            var re = Vector3.Lerp(restRE, setRE, raise);
-            var lh = Vector3.Lerp(restLH, setLH, raise) + Vector3.forward * (.07f * follow);
-            var rh = Vector3.Lerp(restRH, setRH, raise) + Vector3.forward * (.07f * follow);
-            Limb(LeftUpperArm, ls, le, .105f); Limb(LeftForearm, le, lh, .085f);
-            Limb(RightUpperArm, rs, re, .105f); Limb(RightForearm, re, rh, .085f);
-            if (LeftHand != null) { LeftHand.localPosition = lh; LeftHand.localRotation = Quaternion.LookRotation(Vector3.forward, Vector3.up); }
-            if (RightHand != null) { RightHand.localPosition = rh; RightHand.localRotation = Quaternion.LookRotation(Vector3.forward, Vector3.up); }
-            if (LeftShoe != null) LeftShoe.localPosition = new Vector3(-.15f, .06f, .08f);
-            if (RightShoe != null) RightShoe.localPosition = new Vector3(.15f, .06f, .08f);
-            if (PreviewBall != null) PreviewBall.gameObject.SetActive(false);
-            if (Status != null) Status.text = "FRIENDLY SET\n" + (phase < .2f ? "READY" : phase < .52f ? "HANDS UP" : "SET / FOLLOW");
+            var key=Sample(SetKeys,phase);
+            float lean=-6f*Mathf.InverseLerp(.12f,.42f,phase)*(1f-Mathf.InverseLerp(.8f,1f,phase));
+            PoseSymmetric(key,lean,key.Body<0f ? -key.Body*1.1f : 0f);
+            if (Status != null) Status.text = "FRIENDLY SET\n" + (phase < .22f ? "READY" : phase < SetContactPhase ? "HANDS UP" : "SET / FOLLOW");
+        }
+
+        static readonly Key[] BlockKeys={
+            new Key(0f,0f,new Vector3(.3f,1.3f,.12f),new Vector3(.22f,1.62f,.2f)),         // ready, hands at shoulders
+            new Key(.25f,-.15f,new Vector3(.31f,1.26f,.14f),new Vector3(.23f,1.56f,.22f)),  // dip
+            new Key(.45f,.6f,new Vector3(.19f,1.84f,.22f),new Vector3(.16f,2.14f,.42f)),    // arms penetrate over the net
+            new Key(.72f,.6f,new Vector3(.19f,1.84f,.22f),new Vector3(.16f,2.14f,.42f)),
+            new Key(.88f,0f,new Vector3(.3f,1.3f,.12f),new Vector3(.22f,1.62f,.2f)),
+            new Key(1f,0f,new Vector3(.3f,1.3f,.12f),new Vector3(.22f,1.62f,.2f))};
+        /// <summary>Normalised phase where a blocker's hands are highest.</summary>
+        public const float BlockPeakPhase=.585f;
+
+        /// <summary>Net block: dip, jump with both arms reaching up and over the net, land back into the ready stance.</summary>
+        void PoseBlock(float phase)
+        {
+            var key=Sample(BlockKeys,phase);
+            // Keys carry the arm shape; the jump arc itself scales with this actor's JumpHeight.
+            float dip=phase<.3f ? -.15f*Mathf.Sin(phase/.3f*Mathf.PI) : 0f;
+            float air=phase>.25f && phase<.88f ? JumpHeight*Mathf.Sin(Mathf.InverseLerp(.25f,.88f,phase)*Mathf.PI) : 0f;
+            key.Body=dip+air;
+            PoseSymmetric(key,0f,key.Body<0f ? -key.Body*1.1f : 0f);
+            if (Status != null) Status.text = "BLOCK";
         }
     }
 }

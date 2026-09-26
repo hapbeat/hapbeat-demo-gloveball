@@ -1,16 +1,19 @@
 using System;
+using System.Linq;
 using GloveBallDemo.Runtime;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-/// <summary>Focused configuration for the block-and-spike rally. It only edits VolleyBlock-codex; it never rebuilds a scene.</summary>
+/// <summary>Focused configuration for the spike/block turn rally. It only edits VolleyBlock-codex; it never rebuilds a scene.</summary>
 public static class VolleyRallySetup
 {
     const string ScenePath="Assets/GloveBallDemo/Scenes/VolleyBlock-codex.unity";
+    const string AllyName="Rally friendly setter";
+    const string BlockerPrefix="Opponent blocker ";
 
-    [MenuItem("Hapbeat/Volley/Apply block + spike rally")]
+    [MenuItem("Hapbeat/Volley/Apply spike + block turn rally")]
     public static void Apply()
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play before applying the rally setup.");
@@ -20,38 +23,47 @@ public static class VolleyRallySetup
         var drill=UnityEngine.Object.FindFirstObjectByType<VolleyDrillController>();
         if(drill==null || drill.Aerial==null || drill.ReceiveNet==null)throw new InvalidOperationException("VolleyBlock scene is missing its drill, aerial sequence, or net.");
         var aerial=drill.Aerial;
-        if(drill.FeedLaunchers==null || drill.FeedLaunchers.Length<2)throw new InvalidOperationException("Rally requires two existing feed launchers.");
-        var forward=Vector3.ProjectOnPlane(drill.CourtFrame.forward,Vector3.up).normalized;
-        var right=Vector3.Cross(Vector3.up,forward);
-        var net=drill.ReceiveNet.transform.position;
+        if(aerial.Opponent==null)throw new InvalidOperationException("Block opponent is missing.");
+        if(drill.FeedLaunchers==null || drill.FeedLaunchers.Length<1)throw new InvalidOperationException("Rally requires the opponent toss launcher.");
 
         aerial.RallyEnabled=true;
         aerial.TossLauncher=drill.FeedLaunchers[0];
         aerial.TossLauncher.gameObject.SetActive(true);
         aerial.TossLauncher.enabled=false;
-        aerial.AllyTossLauncher=drill.FeedLaunchers[1];
-        aerial.AllyTossLauncher.gameObject.SetActive(true);
-        aerial.AllyTossLauncher.enabled=false;
-        aerial.AllyTossLauncher.transform.SetPositionAndRotation(net-forward*3.4f+right*2.25f,Quaternion.LookRotation(forward,Vector3.up));
+        // The friendly pass now drops from above; the former second feeder stays hidden.
+        for(int i=1;i<drill.FeedLaunchers.Length;i++)drill.FeedLaunchers[i].gameObject.SetActive(false);
 
-        var ally=UnityEngine.Object.FindFirstObjectByType<VolleyOpponentPrototype>(FindObjectsInactive.Include);
-        foreach(var candidate in UnityEngine.Object.FindObjectsByType<VolleyOpponentPrototype>(FindObjectsInactive.Include,FindObjectsSortMode.None))
-            if(candidate.gameObject.name=="Rally friendly setter"){ally=candidate;break;}
-        if(ally==null || ally==aerial.Opponent)
-        {
-            if(aerial.Opponent==null)throw new InvalidOperationException("Block opponent is missing.");
-            ally=UnityEngine.Object.Instantiate(aerial.Opponent);
-            ally.name="Rally friendly setter";
-        }
-        ally.Animate=false;ally.PreviewOnly=false;ally.PreviewBall=null;ally.Target=null;ally.Status=null;
-        ally.Role=VolleyOpponentPrototype.MotionRole.Set;
-        ally.Variant=VolleyOpponentPrototype.MotionVariant.A_Readable;
-        ally.transform.SetPositionAndRotation(net-forward*2.15f+right*1.35f,Quaternion.LookRotation(forward,Vector3.up));
-        ally.PreviewPhase=0f;ally.Pose(0f);
+        var opponent=aerial.Opponent;
+        opponent.OverrideKit=true;opponent.JerseyColour=aerial.OpponentJersey;opponent.ShortsColour=aerial.OpponentShorts;opponent.ApplyKit();
+
+        var actors=UnityEngine.Object.FindObjectsByType<VolleyOpponentPrototype>(FindObjectsInactive.Include,FindObjectsSortMode.None);
+        // Idempotent: existing cast members keep their scene identity and are only reconfigured.
+        var ally=actors.FirstOrDefault(a=>a.gameObject.name==AllyName);
+        if(ally==null)ally=VolleyAerialSequence.CreateAlly(opponent,aerial.AllyJersey,aerial.AllyShorts);
+        else VolleyAerialSequence.ConfigureActor(ally,VolleyOpponentPrototype.MotionRole.Set,aerial.AllyJersey,aerial.AllyShorts);
+        var forward=Vector3.ProjectOnPlane(drill.CourtFrame.forward,Vector3.up).normalized;
+        var right=Vector3.Cross(Vector3.up,forward);
+        var net=drill.ReceiveNet.transform.position;net.y=drill.CourtFrame.position.y;
+        ally.transform.SetPositionAndRotation(net+right*aerial.AllyNetOffset.x+forward*aerial.AllyNetOffset.y,Quaternion.LookRotation(-right,Vector3.up));
         aerial.Ally=ally;
+
+        aerial.Blockers=new VolleyOpponentPrototype[3];
+        for(int i=0;i<aerial.Blockers.Length;i++)
+        {
+            var blocker=actors.FirstOrDefault(a=>a.gameObject.name==BlockerPrefix+(i+1));
+            if(blocker==null)blocker=VolleyAerialSequence.CreateBlocker(opponent,i,aerial,aerial.OpponentJersey,aerial.OpponentShorts);
+            else
+            {
+                VolleyAerialSequence.ConfigureActor(blocker,VolleyOpponentPrototype.MotionRole.Block,aerial.OpponentJersey,aerial.OpponentShorts);
+                blocker.GetComponent<VolleyBlockerContact>().Rally=aerial;
+            }
+            blocker.transform.SetPositionAndRotation(net+forward*aerial.BlockerStandbyDistance+right*((i-1)*1.8f),Quaternion.LookRotation(-forward,Vector3.up));
+            aerial.Blockers[i]=blocker;
+        }
 
         drill.MaximumBallAge=4.5f;
         ConfigureFloorTargets(drill,net);
+        EditorUtility.SetDirty(aerial);
         EditorSceneManager.MarkSceneDirty(scene);
         if(!EditorSceneManager.SaveScene(scene))throw new InvalidOperationException("Failed to save VolleyBlock-codex.");
     }

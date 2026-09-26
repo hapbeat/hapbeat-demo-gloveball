@@ -50,6 +50,15 @@ namespace GloveBallDemo.Runtime
             var p=offset.localPosition;p.y+=value-VirtualLift;offset.localPosition=p;
             VirtualLift=value;
         }
+        /// <summary>Horizontal world offset from RepositionTarget for the current drill stance (e.g. spike approach distance).</summary>
+        public Vector3 StanceOffset { get; private set; }
+        /// <summary>Moves head and hands together to a new horizontal stance; the court stays fixed. Call while the view is blanked.</summary>
+        public void SetStanceOffset(Vector3 value)
+        {
+            value=Vector3.ProjectOnPlane(value,Vector3.up);
+            Origin.CameraFloorOffsetObject.transform.position+=value-StanceOffset;
+            StanceOffset=value;
+        }
         public void CalibrateStandingHeight()
         {
             // Apply equally to camera and both tracked hands, not to the court or target floor frame.
@@ -73,7 +82,7 @@ namespace GloveBallDemo.Runtime
             var forward=Vector3.ProjectOnPlane(head.forward,Vector3.up);
             if(forward.sqrMagnitude>.001f)
                 offset.RotateAround(head.position,Vector3.up,Vector3.SignedAngle(forward,target.forward,Vector3.up));
-            offset.position+=Vector3.ProjectOnPlane(target.position-head.position,Vector3.up);
+            offset.position+=Vector3.ProjectOnPlane(target.position+StanceOffset-head.position,Vector3.up);
         }
     }
 }
