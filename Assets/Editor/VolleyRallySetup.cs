@@ -61,7 +61,18 @@ public static class VolleyRallySetup
             aerial.Blockers[i]=blocker;
         }
 
-        drill.MaximumBallAge=4.5f;
+        foreach(var blocker in aerial.Blockers)blocker.JumpHeight=.7f;
+        // Serialized scene values win over code defaults, so the tuned rally values are written explicitly.
+        aerial.AllyFlightSeconds=1.4f;       // higher set
+        aerial.RallyResetSeconds=2f;         // landing ball and marker stay visible
+        aerial.SpikeJumpHeight=1.3f;aerial.SpikeJumpSeconds=1.15f;
+        aerial.BlockJumpHeight=.85f;aerial.BlockJumpSeconds=1f;
+        aerial.MatchPoints=7;
+        // Fast overhead swings exceed 8 m/s in tracking space; the old limit flagged them as tracking jumps.
+        drill.Left.MaximumTrackedSpeed=drill.Right.MaximumTrackedSpeed=15f;
+        drill.Left.MaximumHandSpeed=drill.Right.MaximumHandSpeed=20f;
+        drill.MaximumReturnSpeed=18f;        // room for a hard downward spike
+        drill.MaximumBallAge=6f;
         ConfigureFloorTargets(drill,net);
         EditorUtility.SetDirty(aerial);
         EditorSceneManager.MarkSceneDirty(scene);

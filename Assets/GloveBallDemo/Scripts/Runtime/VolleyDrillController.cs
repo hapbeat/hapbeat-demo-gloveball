@@ -63,6 +63,10 @@ namespace GloveBallDemo.Runtime
         [Min(1f)] public float MaximumReturnSpeed = 14f;
         [Min(.05f)] public float RehitCooldown = .2f;
         [Min(.1f)] public float MaximumBallAge = 5f;
+        [Tooltip("Rally only: extra contact radius while the player has not touched the attacking ball yet (block or spike).")]
+        [Min(0f)] public float TouchAssistMargin = .04f;
+        [Tooltip("Rally only: a hand within this distance of an untouched ball is reported for the missed-hit hint.")]
+        [Min(0f)] public float NearHandDistance = .45f;
         public int Returns { get; private set; }
         public int TargetHits { get; private set; }
         public int BodyHits { get; private set; }
@@ -183,7 +187,7 @@ namespace GloveBallDemo.Runtime
                 string state = !TrackingReady ? "Show hands / pick up controllers" : _trackingStable < ReadySeconds ? "READY " + Mathf.CeilToInt(ReadySeconds - _trackingStable) : action;
                 StatusText.text = state;
             }
-            if (ScoreText != null) ScoreText.text = rally ? $"{(Aerial.CurrentTurn==VolleyAerialSequence.RallyTurn.Spike?"SPIKE":"BLOCK")} TURN   BLOCKS {Aerial.Blocks}/{Aerial.BlockAttempts}   SPIKE PTS {Aerial.SpikePoints} ({Aerial.SpikeAttempts})"
+            if (ScoreText != null) ScoreText.text = rally ? $"YOU {Aerial.PlayerScore} - {Aerial.OpponentScore} OPP   FIRST TO {Aerial.MatchPoints}   {(Aerial.CurrentTurn==VolleyAerialSequence.RallyTurn.Spike?"SPIKE":"BLOCK")} TURN"
                 : Drill==VolleyDrill.Block ? $"BLOCKS {Returns}   BODY {BodyHits}"
                 : $"{Drill.ToString().ToUpperInvariant()}   TARGET {TargetHits}   RETURNS {Returns}   BODY {BodyHits}";
         }
@@ -320,8 +324,9 @@ namespace GloveBallDemo.Runtime
                 {
                     var sphere = _ball.GetComponent<SphereCollider>();
                     float radius = sphere != null ? sphere.radius * Mathf.Max(_ball.transform.lossyScale.x, _ball.transform.lossyScale.y, _ball.transform.lossyScale.z) : .12f;
-                    bool l = Contact(Left, previous, current, radius, out float lt, out var ln);
-                    bool r = Contact(Right, previous, current, radius, out float rt, out var rn);
+                    float reach = radius + (Aerial != null && Aerial.AwaitingPlayerTouch ? TouchAssistMargin : 0f);
+                    bool l = Contact(Left, previous, current, reach, out float lt, out var ln);
+                    bool r = Contact(Right, previous, current, reach, out float rt, out var rn);
                     if(Aerial!=null && Drill==VolleyDrill.Spike)l=false;
                     bool joined=JoinedHands!=null && JoinedHands.Joined;
                     if(joined)
@@ -333,14 +338,7 @@ namespace GloveBallDemo.Runtime
                     {
                         var hand = l && (!r || lt <= rt) ? Left : Right;
                         var normal = hand == Left ? ln : rn;
-                        if(Aerial!=null && Aerial.IsOpponentSpike)
-                        {
-                            ReportHandImpact(_ball,hand,joined);
-                            _lastContact=Time.time;Returns++;
-                            _ball.Kill("rally block");_ball=null;_haveBallSample=false;
-                            Aerial.RegisterOpponentBlock();
-                        }
-                        else if(_ball!=null)
+                        // Blocks and spikes both deflect physically; the rally scores where the ball lands.
                         {
                         var incoming = _ball.Body.linearVelocity;
                         var velocity = ReturnForBall(_ball.Feel,incoming,joined ? JoinedHands.Velocity : hand.Velocity,normal);
@@ -359,9 +357,16 @@ namespace GloveBallDemo.Runtime
                             _ball.Body.position = volume.transform.TransformPoint(volume.center + localHit) + normal * (radius + .01f);
                             ReportHandImpact(_ball,hand,joined);
                             _lastContact = Time.time; Returns++;
-                            if(Aerial!=null && Aerial.IsPlayerSpike)Aerial.RegisterPlayerSpike();
+                            if(Aerial!=null)Aerial.RegisterPlayerTouch();
                         }
                         }
+                    }
+                    else if(Aerial!=null && Aerial.AwaitingPlayerTouch)
+                    {
+                        // Diagnose "I hit it but nothing happened": was a hand there, and could it collide?
+                        foreach(var hand in new[]{Left,Right})
+                            if(Vector3.Distance(hand.transform.position,current)<NearHandDistance)
+                                Aerial.NoteHandNearBall(hand.Ready && hand.ContactVolume!=null && hand.ContactVolume.enabled);
                     }
                 }
                 if(_ball!=null){_previousBallPosition = _ball.Body.position; _haveBallSample = true;}

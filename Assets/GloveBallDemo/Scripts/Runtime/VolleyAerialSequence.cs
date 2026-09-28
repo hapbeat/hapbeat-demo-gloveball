@@ -6,7 +6,7 @@ namespace GloveBallDemo.Runtime
     /// <summary>Feed choreography only; pooled balls and contacts remain owned by VolleyDrillController.</summary>
     public sealed class VolleyAerialSequence : MonoBehaviour
     {
-        public enum RallyPhase { Disabled, Idle, TurnChange, OpponentSet, OpponentSpike, AllyReceive, PlayerSpike, Recovery }
+        public enum RallyPhase { Disabled, Idle, TurnChange, OpponentSet, OpponentSpike, AllyReceive, PlayerSpike, Recovery, MatchOver }
         public enum RallyTurn { Block, Spike }
         public enum RallyMode { Alternate, SpikeOnly, BlockOnly }
         public VolleyDrillController Drill;
@@ -26,7 +26,18 @@ namespace GloveBallDemo.Runtime
         [Min(.05f)] public float BlinkInSeconds=.3f;
         [Tooltip("Pause after the view returns so the turn banner and chime register before play starts.")]
         [Min(0f)] public float TurnLeadSeconds=1.1f;
-        [Min(.1f)] public float RallyResetSeconds=1.4f;
+        [Tooltip("Time after a point is decided before the next attempt, so the landing ball and marker stay visible.")]
+        [Min(.1f)] public float RallyResetSeconds=2f;
+        [Header("Match")]
+        [Tooltip("First side to this many points wins; the match then restarts automatically.")]
+        [Min(1)] public int MatchPoints=7;
+        [Min(1f)] public float MatchEndSeconds=5f;
+        [Header("Jump per turn (virtual lift)")]
+        [Min(.1f)] public float BlockJumpHeight=.85f;
+        [Min(.4f)] public float BlockJumpSeconds=1f;
+        [Tooltip("Higher and longer so the player strikes down from above the blockers.")]
+        [Min(.1f)] public float SpikeJumpHeight=1.3f;
+        [Min(.4f)] public float SpikeJumpSeconds=1.15f;
         [Header("Spike turn: friendly setter")]
         public VolleyOpponentPrototype Ally;
         [Tooltip("Spike stance distance behind the block stance (away from the net).")]
@@ -39,7 +50,7 @@ namespace GloveBallDemo.Runtime
         [Min(0f)] public float AllyDropBehind=.8f;
         [Min(.4f)] public float AllyDropSeconds=1f;
         [Tooltip("Set flight from the setter's hands to the spike contact point.")]
-        [Min(.4f)] public float AllyFlightSeconds=1.05f;
+        [Min(.4f)] public float AllyFlightSeconds=1.4f;
         [Min(0f)] public float AllySetLateralSpread=.35f;
         [Tooltip("Spike contact point in front of the grounded eyes.")]
         public float SpikeContactForward=.3f;
@@ -49,9 +60,10 @@ namespace GloveBallDemo.Runtime
         public VolleyOpponentPrototype[] Blockers=new VolleyOpponentPrototype[0];
         [Range(0,3)] public int MinBlockers=2;
         [Range(0,3)] public int MaxBlockers=3;
-        [Tooltip("Blockers are placed within this lateral distance of the player.")]
-        [Min(.5f)] public float BlockerLateralRange=2.4f;
-        [Min(.5f)] public float BlockerMinSpacing=1.1f;
+        [Tooltip("Blockers form a wall with this spacing between neighbours.")]
+        [Min(.4f)] public float BlockerSpacing=.75f;
+        [Tooltip("The wall centre is the set's contact lateral plus a random offset of up to this distance.")]
+        [Min(0f)] public float BlockOffsetRange=.9f;
         public float BlockerNetDistance=.35f;
         public float BlockerStandbyDistance=3.2f;
         [Min(.4f)] public float BlockerJumpSeconds=.9f;
@@ -62,7 +74,6 @@ namespace GloveBallDemo.Runtime
         [Header("Spike landing")]
         public float CourtHalfWidth=4.5f;
         public float CourtDepth=9f;
-        [Min(0)] public int TargetBonusPoints=1;
         [Header("Team kits")]
         public Color AllyJersey=new Color(.12f,.38f,.92f);
         public Color AllyShorts=new Color(.92f,.93f,.95f);
@@ -97,13 +108,18 @@ namespace GloveBallDemo.Runtime
         /// <summary>0 = clear view, 1 = fully blanked by the turn change.</summary>
         public float FadeAlpha { get; private set; }
         public event System.Action<RallyTurn> TurnAnnounced;
-        public int BlockAttempts { get; private set; }
-        public int Blocks { get; private set; }
-        public int SpikeAttempts { get; private set; }
-        public int SpikePoints { get; private set; }
-        public int SpikesBlocked { get; private set; }
+        public int PlayerScore { get; private set; }
+        public int OpponentScore { get; private set; }
+        public bool PlayerWonMatch { get; private set; }
         public string Outcome { get; private set; }="";
+        /// <summary>True when the last decided point went to the player's team.</summary>
         public bool OutcomeGood { get; private set; }
+        /// <summary>Point decided: winner (true = player) and where the ball ended.</summary>
+        public event System.Action<bool,Vector3> PointScored;
+        public event System.Action<bool> MatchEnded;
+        public bool PlayerTouched=>_playerTouched;
+        public bool BlockerTouched=>_blockerTouched;
+        public bool AwaitingPlayerTouch=>(IsOpponentSpike || IsPlayerSpike) && !_playerTouched;
         public int OutcomeSerial { get; private set; }
         /// <summary>Seconds after the set leaves the setter's hands when the automatic spike jump starts.</summary>
         public float SpikeJumpTime { get; private set; }
@@ -117,6 +133,8 @@ namespace GloveBallDemo.Runtime
         int _attemptsInTurn;
         RallyTurn _pendingTurn;
         bool _layoutApplied, _spikeJumpIssued, _playerTouched, _homeCaptured, _blockersFresh;
+        bool _blockerTouched, _targetHit, _handLostNear, _handReadyNear;
+        Vector3 _lastBallPosition;
         Vector3 _opponentHome; Quaternion _opponentHomeRotation;
         float[] _blockerJumpAt=new float[0];
         bool[] _blockerActive=new bool[0];
@@ -194,7 +212,7 @@ namespace GloveBallDemo.Runtime
         public static VolleyOpponentPrototype CreateBlocker(VolleyOpponentPrototype template,int index,VolleyAerialSequence rally,Color jersey,Color shorts)
         {
             var blocker=Instantiate(template);blocker.name="Opponent blocker "+(index+1);
-            blocker.JumpHeight=.6f;
+            blocker.JumpHeight=.7f;
             foreach(var limb in new[]{blocker.LeftUpperArm,blocker.LeftForearm,blocker.RightUpperArm,blocker.RightForearm})
                 if(limb.GetComponent<Collider>()==null)limb.gameObject.AddComponent<CapsuleCollider>();
             if(blocker.Torso.GetComponent<Collider>()==null)blocker.Torso.gameObject.AddComponent<BoxCollider>();
@@ -297,8 +315,12 @@ namespace GloveBallDemo.Runtime
                 case RallyPhase.OpponentSet:
                     if(!TickFeed(dt,out start,out destination,out seconds))return false;
                     Phase=RallyPhase.OpponentSpike;_opponentFollow=0f;
+                    BeginBallInPlay(start);
                     Cue="BLOCK THE SPIKE";
                     return true;
+                case RallyPhase.OpponentSpike:
+                    TickLanding();
+                    return false;
                 case RallyPhase.AllyReceive:
                     return TickAllyReceive(dt,out start,out destination,out seconds);
                 case RallyPhase.PlayerSpike:
@@ -309,8 +331,19 @@ namespace GloveBallDemo.Runtime
                     if(_rallyTimer>=RallyResetSeconds)
                     {
                         Drill.RetireRallyBall();
-                        Phase=RallyPhase.Idle;
+                        if(PlayerScore>=MatchPoints || OpponentScore>=MatchPoints)
+                        {
+                            PlayerWonMatch=PlayerScore>OpponentScore;
+                            Phase=RallyPhase.MatchOver;_rallyTimer=0f;
+                            Cue=(PlayerWonMatch ? "YOU WIN " : "YOU LOSE ")+PlayerScore+" - "+OpponentScore;
+                            MatchEnded?.Invoke(PlayerWonMatch);
+                        }
+                        else Phase=RallyPhase.Idle;
                     }
+                    return false;
+                case RallyPhase.MatchOver:
+                    _rallyTimer+=dt;
+                    if(_rallyTimer>=MatchEndSeconds)ResetMatch();
                     return false;
             }
             return false;
@@ -344,6 +377,11 @@ namespace GloveBallDemo.Runtime
         void ApplyTurnLayout(RallyTurn turn)
         {
             if(Jump!=null && Jump.Floor!=null)Jump.Floor.SetStanceOffset(turn==RallyTurn.Spike ? -Forward*SpikeStandBackDistance : Vector3.zero);
+            if(Jump!=null)
+            {
+                Jump.JumpHeight=turn==RallyTurn.Spike ? SpikeJumpHeight : BlockJumpHeight;
+                Jump.Duration=turn==RallyTurn.Spike ? SpikeJumpSeconds : BlockJumpSeconds;
+            }
             if(Opponent!=null)
             {
                 // The attacker waits in the back row while its team blocks.
@@ -364,7 +402,7 @@ namespace GloveBallDemo.Runtime
             _blockerClock=-1f;
             if(turn==RallyTurn.Spike)
             {
-                ChooseBlockers();_blockersFresh=true; // The first attempt keeps this hidden placement.
+                PlanSpike();_blockersFresh=true; // The first attempt keeps this hidden placement.
                 for(int i=0;i<Blockers.Length;i++)if(Blockers[i]!=null)Blockers[i].transform.position=_blockerTargets[i];
             }
         }
@@ -374,14 +412,12 @@ namespace GloveBallDemo.Runtime
             if(CurrentTurn==RallyTurn.Block)
             {
                 if(!BeginToss())return;
-                BlockAttempts++;
                 Phase=RallyPhase.OpponentSet;
                 Cue="OPPONENT SETTING — PREPARE TO BLOCK";
             }
             else
             {
                 if(!BeginAllyReceive())return;
-                SpikeAttempts++;
                 Phase=RallyPhase.AllyReceive;
                 Cue="TEAMMATE SETTING — GET READY TO SPIKE";
             }
@@ -397,33 +433,27 @@ namespace GloveBallDemo.Runtime
             _tossStart=_tossEnd+Vector3.up*AllyDropHeight-Forward*AllyDropBehind;
             if(!StageBall(_tossStart))return false;
             _rallyTimer=0f;_allyFollow=-1f;
-            _allyLateral=Random.Range(-AllySetLateralSpread,AllySetLateralSpread);
             Act(Ally,0f);
-            if(!_blockersFresh)ChooseBlockers(); // Later attempts shuffle visibly during the drop.
+            if(!_blockersFresh)PlanSpike(); // Later attempts shuffle visibly during the drop.
             _blockersFresh=false;
             return true;
         }
 
-        /// <summary>Random 2-3 blockers along the net near the player, with gaps the player can hit through.</summary>
-        void ChooseBlockers()
+        /// <summary>Picks where the set goes and forms a 2-3 blocker wall in front of it, offset so a line or cross shot stays open.</summary>
+        void PlanSpike()
         {
+            _allyLateral=Random.Range(-AllySetLateralSpread,AllySetLateralSpread);
             if(Blockers==null || Blockers.Length==0)return;
             int wanted=Mathf.Clamp(Random.Range(Mathf.Min(MinBlockers,MaxBlockers),Mathf.Max(MinBlockers,MaxBlockers)+1),0,Blockers.Length);
-            float centre=Vector3.Dot(GroundedEye-NetCentre,Right);
+            float contact=Vector3.Dot(GroundedEye-NetCentre,Right)+_allyLateral;
             float limit=Drill.ReceiveNet!=null ? Mathf.Max(.5f,Drill.ReceiveNet.bounds.extents.x-.5f) : CourtHalfWidth;
-            var placed=new List<float>();
-            for(int attempt=0;attempt<200 && placed.Count<wanted;attempt++)
-            {
-                float x=Mathf.Clamp(centre+Random.Range(-BlockerLateralRange,BlockerLateralRange),-limit,limit);
-                bool clear=true;foreach(var other in placed)if(Mathf.Abs(other-x)<BlockerMinSpacing){clear=false;break;}
-                if(clear)placed.Add(x);
-            }
-            placed.Sort();
+            float half=Mathf.Max(0,wanted-1)*.5f*BlockerSpacing;
+            float centre=Mathf.Clamp(contact+Random.Range(-BlockOffsetRange,BlockOffsetRange),-limit+half,limit-half);
             for(int i=0;i<Blockers.Length;i++)
             {
-                bool active=i<placed.Count;
+                bool active=i<wanted;
                 _blockerActive[i]=active;
-                _blockerTargets[i]=active ? NetCentre+Right*placed[i]+Forward*BlockerNetDistance : BlockerStandby(i);
+                _blockerTargets[i]=active ? NetCentre+Right*(centre-half+i*BlockerSpacing)+Forward*BlockerNetDistance : BlockerStandby(i);
                 if(Blockers[i]!=null)SetSolid(Blockers[i],active);
             }
             _blockerClock=-1f;
@@ -447,7 +477,8 @@ namespace GloveBallDemo.Runtime
                 _blockerJumpAt[i]=AllyFlightSeconds+BlockerReactionSeconds+Random.Range(-BlockerTimingJitter,BlockerTimingJitter)
                     -VolleyOpponentPrototype.BlockPeakPhase*BlockerJumpSeconds;
             _blockerClock=0f;_allyFollow=0f;
-            _rallyTimer=0f;_spikeJumpIssued=false;_playerTouched=false;
+            _rallyTimer=0f;_spikeJumpIssued=false;
+            BeginBallInPlay(start);
             Phase=RallyPhase.PlayerSpike;
             Cue=BeginnerBlock ? "AUTO JUMP — SPIKE PAST THE BLOCKERS" : "JUMP: RAISE BOTH HANDS — SPIKE PAST THE BLOCKERS";
             return true;
@@ -458,16 +489,63 @@ namespace GloveBallDemo.Runtime
             _rallyTimer+=dt;
             if(BeginnerBlock && !_spikeJumpIssued && _rallyTimer>=SpikeJumpTime)
                 _spikeJumpIssued=Jump.TryStartAutomaticJump();
+            TickLanding();
+        }
+
+        void BeginBallInPlay(Vector3 start)
+        {
+            _lastBallPosition=start;
+            _playerTouched=_blockerTouched=_targetHit=_handLostNear=_handReadyNear=false;
+        }
+        /// <summary>The first floor contact decides the point; the ball itself keeps bouncing until the reset.</summary>
+        void TickLanding()
+        {
             var ball=Drill.ActiveBall;
             if(ball==null)return;
-            var position=ball.transform.position;
-            if(position.y>Drill.CourtFrame.position.y+.16f)return;
+            _lastBallPosition=ball.transform.position;
+            if(_lastBallPosition.y<=Drill.CourtFrame.position.y+.16f)Resolve(_lastBallPosition);
+        }
+        /// <summary>
+        /// Awards the point from where the ball ended and who touched it last.
+        /// Block turn: a touched ball must reach the opponent court. Spike turn: a blocker touch turns an out ball into a block-out.
+        /// </summary>
+        void Resolve(Vector3 position)
+        {
             var local=position-NetCentre;
             float depth=Vector3.Dot(local,Forward), side=Vector3.Dot(local,Right);
-            if(!_playerTouched){SetOutcome("MISSED",false);return;}
-            if(depth<=0f){SetOutcome("NET",false);return;}
-            if(depth<CourtDepth && Mathf.Abs(side)<CourtHalfWidth){SpikePoints++;SetOutcome("POINT!",true);return;}
-            SetOutcome("OUT",false);
+            bool inBounds=Mathf.Abs(side)<CourtHalfWidth && Mathf.Abs(depth)<CourtDepth;
+            bool opponentCourt=inBounds && depth>0f;
+            if(Phase==RallyPhase.OpponentSpike)
+            {
+                if(!inBounds)Award(!_playerTouched,_playerTouched ? "BLOCK OUT" : "OUT",position);
+                else if(opponentCourt)Award(true,_playerTouched ? "BLOCK POINT!" : "POINT!",position);
+                else Award(false,_playerTouched ? "BLOCK FELL ON YOUR SIDE" : "NO BLOCK"+MissHint(),position);
+                return;
+            }
+            if(!_playerTouched)Award(false,"MISSED"+MissHint(),position);
+            else if(!inBounds)Award(_blockerTouched,_blockerTouched ? "BLOCK OUT!" : "OUT",position);
+            else if(opponentCourt)Award(true,_targetHit ? "TARGET!" : _blockerTouched ? "OFF THE BLOCK!" : "POINT!",position);
+            else Award(false,_blockerTouched ? "BLOCKED" : "NET",position);
+        }
+        string MissHint()=>_handLostNear && !_handReadyNear ? " (HAND LOST)" : "";
+        void Award(bool player,string text,Vector3 position)
+        {
+            if(player)PlayerScore++;else OpponentScore++;
+            if(!_playerTouched && (_handLostNear || _handReadyNear))
+                Debug.Log("[VolleyRally] untouched "+Phase+": hand near ball ready="+_handReadyNear+" lost="+_handLostNear);
+            SetOutcome(text,player);
+            PointScored?.Invoke(player,position);
+        }
+        /// <summary>Drill reports a hand passing near the untouched ball, with whether it could collide.</summary>
+        public void NoteHandNearBall(bool collidable)
+        {
+            if(!AwaitingPlayerTouch)return;
+            if(collidable)_handReadyNear=true;else _handLostNear=true;
+        }
+        void ResetMatch()
+        {
+            PlayerScore=OpponentScore=0;TurnStarted=false;_attemptsInTurn=0;
+            Phase=RallyPhase.Idle;_rallyTimer=0f;
         }
 
         /// <summary>Advances follow-through, blocker footwork and blocker jumps; runs in every phase so motions finish during recovery.</summary>
@@ -511,38 +589,30 @@ namespace GloveBallDemo.Runtime
             return point;
         }
 
-        public bool RegisterOpponentBlock()
+        /// <summary>The player's hand deflected the rally ball (block or spike). The point is decided where it lands.</summary>
+        public void RegisterPlayerTouch()
         {
-            if(!IsOpponentSpike)return false;
-            Blocks++;
-            SetOutcome("BLOCK!",true);
-            return true;
-        }
-        public void RegisterPlayerSpike()
-        {
-            if(!IsPlayerSpike)return;
+            if(!IsOpponentSpike && !IsPlayerSpike)return;
             _playerTouched=true;
-            Cue="SPIKE!";
+            Cue=IsPlayerSpike ? "SPIKE!" : "TOUCHED — IS IT GOING BACK?";
         }
         public void RegisterTargetHit()
         {
-            if(!IsPlayerSpike || !_playerTouched)return;
-            SpikePoints+=1+TargetBonusPoints;
-            SetOutcome("TARGET! +"+(1+TargetBonusPoints),true);
+            if(IsPlayerSpike && _playerTouched)_targetHit=true;
         }
-        /// <summary>Called by a solid opposing blocker. The ball keeps bouncing physically; the attempt is scored now.</summary>
+        /// <summary>Called by a solid opposing blocker. The ball rebounds physically; its landing decides the point.</summary>
         public bool RegisterSpikeBlocked(Ball ball,Vector3 point)
         {
-            if(!IsPlayerSpike || !_playerTouched || ball==null || ball!=Drill.ActiveBall)return false;
-            SpikesBlocked++;
+            if(!IsPlayerSpike || !_playerTouched || _blockerTouched || ball==null || ball!=Drill.ActiveBall)return false;
+            _blockerTouched=true;
             PlaySpikeAudio(point);
-            SetOutcome("BLOCKED",false);
+            Cue="BLOCKER TOUCH!";
             return true;
         }
+        /// <summary>The ball vanished (target flash, timeout) before touching the floor: decide from its last position.</summary>
         public void RegisterBallUnavailable()
         {
-            if(Phase==RallyPhase.OpponentSpike)SetOutcome("NO BLOCK",false);
-            else if(Phase==RallyPhase.PlayerSpike)SetOutcome(_playerTouched ? "OUT" : "MISSED",false);
+            if(Phase==RallyPhase.OpponentSpike || Phase==RallyPhase.PlayerSpike)Resolve(_lastBallPosition);
         }
 
         public Vector3 GroundedEye=>Drill.Head.position-Vector3.up*Jump.Floor.VirtualLift;
@@ -653,7 +723,7 @@ namespace GloveBallDemo.Runtime
         /// <summary>Changing the mode restarts with a blinked turn change so the new first turn is announced.</summary>
         public void SetMode(RallyMode mode)
         {
-            Mode=mode;TurnStarted=false;_attemptsInTurn=0;
+            Mode=mode;TurnStarted=false;_attemptsInTurn=0;PlayerScore=OpponentScore=0;
             Jump.ResetJump();
             Drill.ResetCurrentAttempt();
         }

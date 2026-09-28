@@ -92,14 +92,18 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.FadeAlpha,Is.EqualTo(1f));Assert.That(_rally.CurrentTurn,Is.EqualTo(Turn.Spike));
             Assert.That(Vector3.Dot(_drill.Head.position-eye,Forward),Is.EqualTo(-_rally.SpikeStandBackDistance).Within(.001f),"Spike stance is further from the net.");
             Assert.That(Vector3.Distance(_rally.Opponent.transform.position,home),Is.GreaterThan(1f),"The attacker waits in the back row.");
+            Assert.That(_jump.JumpHeight,Is.EqualTo(_rally.SpikeJumpHeight));Assert.That(_jump.Duration,Is.EqualTo(_rally.SpikeJumpSeconds));
             RunUntil(()=>_rally.Phase==Phase.AllyReceive,3f,"first spike attempt");
             Assert.That(_rally.FadeAlpha,Is.Zero);
 
-            int active=0;float netZ=_drill.ReceiveNet.transform.position.z;
+            int active=0;float netZ=_drill.ReceiveNet.transform.position.z;float? previousX=null;
             for(int i=0;i<_rally.Blockers.Length;i++)if(_rally.ActiveBlockers[i])
             {
                 active++;
-                Assert.That(_rally.Blockers[i].transform.position.z-netZ,Is.EqualTo(_rally.BlockerNetDistance).Within(.01f));
+                var p=_rally.Blockers[i].transform.position;
+                Assert.That(p.z-netZ,Is.EqualTo(_rally.BlockerNetDistance).Within(.01f));
+                if(previousX.HasValue)Assert.That(p.x-previousX.Value,Is.EqualTo(_rally.BlockerSpacing).Within(.01f),"Blockers form a closed wall.");
+                previousX=p.x;
                 Assert.That(_rally.Blockers[i].GetComponentInChildren<Collider>().enabled,Is.True);
             }
             Assert.That(active,Is.InRange(_rally.MinBlockers,_rally.MaxBlockers));
@@ -111,11 +115,12 @@ namespace GloveBallDemo.Tests
             Assert.That(_destination.y,Is.EqualTo(_drill.Head.position.y+_jump.JumpHeight+_rally.SpikeReachAboveEye).Within(.001f));
             DiscardPrepared();
             _rally.RegisterBallUnavailable();
-            Assert.That(_rally.Outcome,Is.EqualTo("MISSED"));
+            Assert.That(_rally.Outcome,Is.EqualTo("MISSED"));Assert.That(_rally.OpponentScore,Is.EqualTo(1));
 
             RunUntil(()=>_rally.Phase==Phase.TurnChange,3f,"one spike, then the block turn is announced");
             RunUntil(()=>_rally.CurrentTurn==Turn.Block,1f,"block turn applied");
             Assert.That(_jump.Floor.StanceOffset,Is.EqualTo(Vector3.zero));
+            Assert.That(_jump.JumpHeight,Is.EqualTo(_rally.BlockJumpHeight));
             Assert.That(_rally.Opponent.transform.position,Is.EqualTo(home));
             foreach(var blocker in _rally.Blockers)Assert.That(blocker.GetComponentInChildren<Collider>().enabled,Is.False,"Standby blockers are not solid.");
             RunUntil(()=>_rally.Phase==Phase.OpponentSet,3f,"opponent attack starts");
@@ -157,27 +162,91 @@ namespace GloveBallDemo.Tests
             Assert.That(_announcements,Is.EqualTo(1),"Only the initial turn is announced.");
         }
 
+        Ball LaunchLive()
+        {
+            Launch();
+            typeof(VolleyDrillController).GetMethod("LaunchAerialBall",Private).Invoke(_drill,new object[]{_start,_destination,_seconds});
+            Assert.That(_drill.ActiveBall,Is.Not.Null);
+            return _drill.ActiveBall;
+        }
+        /// <summary>Puts the live ball on the floor at court coordinates (x = right, depth = toward the opponent) and ticks one frame.</summary>
+        void LandAt(Ball ball,float x,float depth)
+        {
+            ball.Body.isKinematic=true;
+            var net=_drill.ReceiveNet.transform.position;
+            ball.transform.position=new Vector3(net.x+x,.1f,net.z)+Forward*depth;
+            Frame();
+        }
+
         [Test]
-        public void SpikeOutcomesScoreBlockedAndInCourtBalls()
+        public void SpikePointsAreDecidedWhereTheBallLands()
         {
             _rally.Mode=Mode.SpikeOnly;
-            var launch=typeof(VolleyDrillController).GetMethod("LaunchAerialBall",Private);
             RunUntil(()=>_rally.Phase==Phase.AllyReceive,3f,"spike attempt");
-            Launch();launch.Invoke(_drill,new object[]{_start,_destination,_seconds});
-            var ball=_drill.ActiveBall;Assert.That(ball,Is.Not.Null);
+            var ball=LaunchLive();
             Assert.That(_rally.RegisterSpikeBlocked(ball,ball.transform.position),Is.False,"An untouched set cannot be blocked.");
-            _rally.RegisterPlayerSpike();
+            _rally.RegisterPlayerTouch();
             Assert.That(_rally.RegisterSpikeBlocked(ball,ball.transform.position),Is.True);
-            Assert.That(_rally.Outcome,Is.EqualTo("BLOCKED"));Assert.That(_rally.SpikesBlocked,Is.EqualTo(1));
-            RunUntil(()=>_rally.Phase==Phase.AllyReceive,4f,"next spike after recovery");
-            Assert.That(_drill.ActiveBall,Is.Null,"Recovery retires the rebounding ball.");
+            Assert.That(_rally.Phase,Is.EqualTo(Phase.PlayerSpike),"A blocker touch does not end the rally by itself.");
+            LandAt(ball,0f,-2f);
+            Assert.That(_rally.Outcome,Is.EqualTo("BLOCKED"));Assert.That(_rally.OpponentScore,Is.EqualTo(1));
+            Assert.That(_drill.ActiveBall,Is.SameAs(ball),"The rebounding ball stays visible during recovery.");
+            RunUntil(()=>_rally.Phase==Phase.AllyReceive,5f,"next spike after recovery");
+            Assert.That(_drill.ActiveBall,Is.Null,"Recovery retires the ball before the next attempt.");
 
-            Launch();launch.Invoke(_drill,new object[]{_start,_destination,_seconds});
-            ball=_drill.ActiveBall;_rally.RegisterPlayerSpike();
-            ball.Body.isKinematic=true;
-            ball.transform.position=_drill.ReceiveNet.transform.position+Forward*3f+Vector3.up*.1f;
-            Frame();
-            Assert.That(_rally.Outcome,Is.EqualTo("POINT!"));Assert.That(_rally.SpikePoints,Is.EqualTo(1));
+            ball=LaunchLive();_rally.RegisterPlayerTouch();
+            LandAt(ball,1f,3f);
+            Assert.That(_rally.Outcome,Is.EqualTo("POINT!"));Assert.That(_rally.PlayerScore,Is.EqualTo(1));
+            RunUntil(()=>_rally.Phase==Phase.AllyReceive,5f,"third spike");
+
+            ball=LaunchLive();_rally.RegisterPlayerTouch();_rally.RegisterSpikeBlocked(ball,ball.transform.position);
+            LandAt(ball,6f,3f);
+            Assert.That(_rally.Outcome,Is.EqualTo("BLOCK OUT!"));Assert.That(_rally.PlayerScore,Is.EqualTo(2));
+            RunUntil(()=>_rally.Phase==Phase.AllyReceive,5f,"fourth spike");
+
+            ball=LaunchLive();_rally.RegisterPlayerTouch();
+            LandAt(ball,0f,10f);
+            Assert.That(_rally.Outcome,Is.EqualTo("OUT"));Assert.That(_rally.OpponentScore,Is.EqualTo(2));
+        }
+
+        [Test]
+        public void BlockedBallStaysInPlayAndMustReachTheOpponentCourt()
+        {
+            _rally.Mode=Mode.BlockOnly;
+            RunUntil(()=>_rally.Phase==Phase.OpponentSet,3f,"opponent attack");
+            var ball=LaunchLive();
+            _rally.RegisterPlayerTouch();
+            Assert.That(_rally.Phase,Is.EqualTo(Phase.OpponentSpike),"Touching the spike is not a point by itself.");
+            Assert.That(_drill.ActiveBall,Is.SameAs(ball),"The blocked ball is not removed.");
+            LandAt(ball,0f,1.5f);
+            Assert.That(_rally.Outcome,Is.EqualTo("BLOCK POINT!"));Assert.That(_rally.PlayerScore,Is.EqualTo(1));
+            RunUntil(()=>_rally.Phase==Phase.OpponentSet,5f,"second attack");
+
+            ball=LaunchLive();_rally.RegisterPlayerTouch();
+            LandAt(ball,.5f,-1.5f);
+            Assert.That(_rally.Outcome,Is.EqualTo("BLOCK FELL ON YOUR SIDE"));Assert.That(_rally.OpponentScore,Is.EqualTo(1));
+            RunUntil(()=>_rally.Phase==Phase.OpponentSet,5f,"third attack");
+
+            ball=LaunchLive();
+            LandAt(ball,0f,-1f);
+            Assert.That(_rally.Outcome,Does.StartWith("NO BLOCK"));Assert.That(_rally.OpponentScore,Is.EqualTo(2));
+        }
+
+        [Test]
+        public void FirstToMatchPointsWinsThenANewMatchStarts()
+        {
+            _rally.Mode=Mode.SpikeOnly;_rally.MatchPoints=2;
+            bool? won=null;_rally.MatchEnded+=w=>won=w;
+            for(int i=0;i<2;i++)
+            {
+                RunUntil(()=>_rally.Phase==Phase.AllyReceive,5f,"spike "+i);
+                var ball=LaunchLive();_rally.RegisterPlayerTouch();LandAt(ball,0f,3f);
+            }
+            Assert.That(_rally.PlayerScore,Is.EqualTo(2));
+            RunUntil(()=>_rally.Phase==Phase.MatchOver,3f,"match over after the last point is shown");
+            Assert.That(won,Is.True);Assert.That(_rally.PlayerWonMatch,Is.True);
+            RunUntil(()=>_rally.Phase==Phase.TurnChange,_rally.MatchEndSeconds+1f,"new match re-announces the first turn");
+            Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero);
         }
 
         [Test]

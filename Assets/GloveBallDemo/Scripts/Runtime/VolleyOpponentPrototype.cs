@@ -195,14 +195,15 @@ namespace GloveBallDemo.Runtime
 
         /// <summary>Contact phase of the overhead set. The ball meets the forehead window here and leaves on the extension.</summary>
         public const float SetContactPhase=.52f;
+        // Elbows stay outside the shoulder line (x >= .25) at rest so the arms never cross in front of the jersey.
         static readonly Key[] SetKeys={
-            new Key(0f,0f,new Vector3(.14f,1.12f,.1f),new Vector3(.2f,.82f,.18f)),          // ready
-            new Key(.22f,-.04f,new Vector3(.2f,1.40f,.16f),new Vector3(.12f,1.52f,.26f)),    // hands travel up
-            new Key(.42f,-.08f,new Vector3(.21f,1.58f,.17f),new Vector3(.09f,1.84f,.25f)),   // forehead window, knees loaded
-            new Key(.52f,-.11f,new Vector3(.21f,1.53f,.14f),new Vector3(.09f,1.79f,.22f)),   // absorb the ball
-            new Key(.66f,.04f,new Vector3(.1f,1.86f,.3f),new Vector3(.08f,2.12f,.42f)),      // legs and arms extend
-            new Key(.8f,.02f,new Vector3(.11f,1.82f,.3f),new Vector3(.08f,2.06f,.44f)),      // hold the follow-through
-            new Key(1f,0f,new Vector3(.14f,1.12f,.1f),new Vector3(.2f,.82f,.18f))};          // back to ready
+            new Key(0f,0f,new Vector3(.27f,1.2f,.05f),new Vector3(.25f,.95f,.16f)),         // ready, arms hanging outside the body
+            new Key(.22f,-.04f,new Vector3(.29f,1.40f,.12f),new Vector3(.19f,1.52f,.26f)),   // hands travel up in front
+            new Key(.42f,-.08f,new Vector3(.25f,1.58f,.17f),new Vector3(.1f,1.84f,.25f)),    // forehead window, knees loaded
+            new Key(.52f,-.11f,new Vector3(.25f,1.53f,.14f),new Vector3(.1f,1.79f,.22f)),    // absorb the ball
+            new Key(.66f,.04f,new Vector3(.15f,1.86f,.3f),new Vector3(.09f,2.12f,.42f)),     // legs and arms extend
+            new Key(.8f,.02f,new Vector3(.16f,1.82f,.3f),new Vector3(.09f,2.06f,.44f)),      // hold the follow-through
+            new Key(1f,0f,new Vector3(.27f,1.2f,.05f),new Vector3(.25f,.95f,.16f))};         // back to ready
 
         /// <summary>Overhead set: hands rise to a forehead window, knees load while the ball drops in, then legs and arms extend together.</summary>
         void PoseSet(float phase)

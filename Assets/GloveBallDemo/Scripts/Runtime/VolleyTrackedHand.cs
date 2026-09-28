@@ -21,7 +21,10 @@ namespace GloveBallDemo.Runtime
         public Vector3 ControllerPositionOffset = new Vector3(0f, 0f, .07f);
         [Tooltip("Editable thick receive volume. Local Y is palm normal; X includes thumb side.")]
         public BoxCollider ContactVolume;
+        [Tooltip("Tracking-space speed above which a pose change is treated as a tracking jump. Virtual jump lift and stance moves are excluded.")]
         [Min(.1f)] public float MaximumTrackedSpeed = 8f;
+        [Tooltip("Upper bound for the world-space hand velocity used for ball returns (swing plus virtual jump lift).")]
+        [Min(.1f)] public float MaximumHandSpeed = 20f;
         [Min(.05f)] public float ReacquireDelay = .15f;
         [Range(0f,.15f)] public float BriefLossSeconds=.10f;
         [Min(0f)] public float MaximumPredictionDistance=.12f;
@@ -39,6 +42,7 @@ namespace GloveBallDemo.Runtime
         public Vector3 Normal => transform.up;
         private readonly List<XRHandSubsystem> _subsystems = new List<XRHandSubsystem>();
         private Vector3 _lastPosition;
+        private Vector3 _lastLocalPosition;
         private float _lastSampleTime;
         private float _stableSince;
         private string _lastSource = "lost";
@@ -73,19 +77,22 @@ namespace GloveBallDemo.Runtime
             Vector3 position = TrackingSpace.TransformPoint(pose.position);
             Quaternion rotation = TrackingSpace.rotation * pose.rotation;
             float dt = now - _lastSampleTime;
+            // Continuity is judged in tracking space: a fast swing during a virtual jump (Camera Offset lift)
+            // or a blinked stance move must not look like a tracking glitch and disable contacts.
+            float moved=Vector3.Distance(pose.position,_lastLocalPosition);
             bool continuous = _haveSample && source == _lastSource && dt > 0f && dt < Mathf.Max(.12f,BriefLossSeconds+.03f)
-                && Vector3.Distance(position, _lastPosition) <= MaximumTrackedSpeed * dt + .025f;
+                && moved <= MaximumTrackedSpeed * dt + .025f;
             if (!continuous)
             {
                 bool recovered=_haveSample && source==_lastSource && dt<=VisualHoldSeconds
-                    && Vector3.Distance(position,_lastPosition)<=MaximumTrackedSpeed*Mathf.Max(dt,.01f)+.025f;
+                    && moved<=MaximumTrackedSpeed*Mathf.Max(dt,.01f)+.025f;
                 _stableSince = recovered ? now-ReacquireDelay : now;
-                Velocity = recovered && dt>0f ? Vector3.ClampMagnitude((position-_lastPosition)/dt,MaximumTrackedSpeed) : Vector3.zero;
+                Velocity = recovered && dt>0f ? Vector3.ClampMagnitude((position-_lastPosition)/dt,MaximumHandSpeed) : Vector3.zero;
                 _havePhysicsPose = false;
             }
-            else Velocity = Vector3.ClampMagnitude((position - _lastPosition) / dt, MaximumTrackedSpeed);
+            else Velocity = Vector3.ClampMagnitude((position - _lastPosition) / dt, MaximumHandSpeed);
             transform.SetPositionAndRotation(position, rotation);
-            Source = source; _lastSource = source; _lastPosition = position; _lastSampleTime = now;
+            Source = source; _lastSource = source; _lastPosition = position; _lastLocalPosition = pose.position; _lastSampleTime = now;
             _haveSample = true;
             Ready = now - _stableSince >= ReacquireDelay;
             if (Visual != null) Visual.gameObject.SetActive(true);
