@@ -28,6 +28,8 @@ namespace GloveBallDemo.Runtime
         public bool Airborne { get; private set; }
         public int Jumps { get; private set; }
         public float Lift { get; private set; }
+        /// <summary>0..1 through the current jump; 0 when grounded.</summary>
+        public float Progress=>Airborne ? Mathf.Clamp01(_elapsed/Mathf.Max(.1f,Duration)) : 0f;
         float _elapsed, _cooldown, _gestureAge, _baseLeft, _baseRight, _previousLeft, _previousRight;
         bool _sampled, _armed;
         float _trackingGap;

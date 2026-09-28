@@ -63,8 +63,16 @@ namespace GloveBallDemo.Runtime
         [Min(1f)] public float MaximumReturnSpeed = 14f;
         [Min(.05f)] public float RehitCooldown = .2f;
         [Min(.1f)] public float MaximumBallAge = 5f;
-        [Tooltip("Rally only: extra contact radius while the player has not touched the attacking ball yet (block or spike).")]
-        [Min(0f)] public float TouchAssistMargin = .04f;
+        [Header("Rally spike / block contact")]
+        [Tooltip("Extra contact radius for the first touch of a set (spike). Blocks get no assist.")]
+        [Min(0f)] public float SpikeTouchAssist = .06f;
+        [Tooltip("Hand speed above which a spike follows the swing direction instead of the palm reflection (slower = tip).")]
+        [Min(0f)] public float SpikeSwingSpeed = 2.5f;
+        [Min(0f)] public float SpikePower = 1.6f;
+        [Min(0f)] public float SpikeMinimumSpeed = 10f;
+        [Min(1f)] public float SpikeMaximumSpeed = 20f;
+        [Tooltip("Largest upward component (sine) allowed for a swing-driven spike.")]
+        [Range(-1f,1f)] public float SpikeMaximumRise = .1f;
         [Tooltip("Rally only: a hand within this distance of an untouched ball is reported for the missed-hit hint.")]
         [Min(0f)] public float NearHandDistance = .45f;
         public int Returns { get; private set; }
@@ -110,12 +118,10 @@ namespace GloveBallDemo.Runtime
         private void Start()
         {
             bool rally=Drill==VolleyDrill.Block && Aerial!=null && Aerial.RallyEnabled;
-            if(rally && Application.isPlaying)
-            {
-                Aerial.EnsureRallyWiring();
-                if(ReceiveNet!=null)Targets.ConfigureRallyFloorTargets(ReceiveNet.transform.position);
-            }
-            if(Drill!=VolleyDrill.Block || rally)
+            if(rally && Application.isPlaying)Aerial.EnsureRallyWiring();
+            // The rally scores by landing position; floor targets would only distract.
+            if(rally)foreach(var panel in Panels)panel.gameObject.SetActive(false);
+            else if(Drill!=VolleyDrill.Block)
                 Targets.BeginWave(0, Aerial!=null || Drill==VolleyDrill.Receive ? 1 : 3, Aerial!=null || Drill==VolleyDrill.Receive ? 1 : 3);
             foreach (var panel in Panels){panel.HitRegistered+=OnTargetContact;panel.HitFlashCompleted += OnTarget;}
             _subscribed = true;
@@ -324,7 +330,8 @@ namespace GloveBallDemo.Runtime
                 {
                     var sphere = _ball.GetComponent<SphereCollider>();
                     float radius = sphere != null ? sphere.radius * Mathf.Max(_ball.transform.lossyScale.x, _ball.transform.lossyScale.y, _ball.transform.lossyScale.z) : .12f;
-                    float reach = radius + (Aerial != null && Aerial.AwaitingPlayerTouch ? TouchAssistMargin : 0f);
+                    bool firstSpikeTouch = Aerial != null && Aerial.IsPlayerSpike && Aerial.AwaitingPlayerTouch;
+                    float reach = radius + (firstSpikeTouch ? SpikeTouchAssist : 0f);
                     bool l = Contact(Left, previous, current, reach, out float lt, out var ln);
                     bool r = Contact(Right, previous, current, reach, out float rt, out var rn);
                     if(Aerial!=null && Drill==VolleyDrill.Spike)l=false;
@@ -341,7 +348,10 @@ namespace GloveBallDemo.Runtime
                         // Blocks and spikes both deflect physically; the rally scores where the ball lands.
                         {
                         var incoming = _ball.Body.linearVelocity;
-                        var velocity = ReturnForBall(_ball.Feel,incoming,joined ? JoinedHands.Velocity : hand.Velocity,normal);
+                        var handVelocity = joined ? JoinedHands.Velocity : hand.Velocity;
+                        var velocity = firstSpikeTouch && handVelocity.magnitude >= SpikeSwingSpeed
+                            ? VolleyMath.SpikeVelocity(handVelocity,SpikePower,SpikeMinimumSpeed,SpikeMaximumSpeed,SpikeMaximumRise)
+                            : ReturnForBall(_ball.Feel,incoming,handVelocity,normal);
                         if (_ball.Deflect(velocity))
                         {
                             // Incoming feeds stay calibrated; returns use per-kind gameplay drag, not floor settings.
@@ -369,7 +379,16 @@ namespace GloveBallDemo.Runtime
                                 Aerial.NoteHandNearBall(hand.Ready && hand.ContactVolume!=null && hand.ContactVolume.enabled);
                     }
                 }
-                if(_ball!=null){_previousBallPosition = _ball.Body.position; _haveBallSample = true;}
+                if(_ball!=null)
+                {
+                    _previousBallPosition = _ball.Body.position; _haveBallSample = true;
+                    if(Aerial!=null)
+                    {
+                        var sphere = _ball.GetComponent<SphereCollider>();
+                        float radius = sphere != null ? sphere.radius * Mathf.Max(_ball.transform.lossyScale.x, _ball.transform.lossyScale.y, _ball.transform.lossyScale.z) : .12f;
+                        Aerial.SampleBall(_ball.Body.position,_ball.Body.linearVelocity,radius,Time.fixedDeltaTime);
+                    }
+                }
             }
             else _haveBallSample = false; // Never sweep across an unobserved tracking gap.
             Left.EndPhysicsSample(); Right.EndPhysicsSample();
@@ -412,7 +431,6 @@ namespace GloveBallDemo.Runtime
         {
             TargetHits++;
             HapticEventRelay.PlayAudioOnly(DemoHapticEvent.TargetHit,panel.transform.position);
-            if(Aerial!=null && Aerial.IsPlayerSpike)Aerial.RegisterTargetHit();
         }
         private void OnTarget(TargetPanel panel)
         {

@@ -46,15 +46,6 @@ namespace GloveBallDemo.Runtime
         public int TargetCount => _targets != null ? _targets.Length : 0;
         public int ActiveTargetCount => _activeTargetCount;
 
-        /// <summary>Configures the single floor target lane used by the fixed-position volley rally.</summary>
-        public void ConfigureRallyFloorTargets(Vector3 netCentre)
-        {
-            _minX=netCentre.x-2.8f;_maxX=netCentre.x+2.8f;
-            _minZ=netCentre.z+1.65f;_maxZ=netCentre.z+5.4f;
-            _minHeight=.08f;_maxHeight=.14f;_minimumSpacing=1.5f;
-            _faceUp=true;RandomizeOnStart=true;AlternateHorizontalThirds=true;ZoneEdgeInset=.16f;
-        }
-
         public bool HasDistinctPositions
         {
             get

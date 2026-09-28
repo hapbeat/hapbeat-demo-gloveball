@@ -76,8 +76,9 @@ namespace GloveBallDemo.Tests
                 Assert.That(blocker.LeftHand,Is.Not.Null);Assert.That(blocker.RightHand,Is.Not.Null);
             }
             for(int i=1;i<_drill.FeedLaunchers.Length;i++)Assert.That(_drill.FeedLaunchers[i].gameObject.activeSelf,Is.False,"The pass drops from above, not from a feeder.");
-            _drill.Targets.BeginWave(0,1,1);
-            Assert.That(_drill.Targets.ActiveTargetCount,Is.EqualTo(1));
+            Assert.That(_drill.Targets.gameObject.activeSelf,Is.False,"Points come from the landing spot, not floor targets.");
+            foreach(var ghost in Object.FindObjectsByType<VolleyGhostHand>(FindObjectsInactive.Include,FindObjectsSortMode.None))
+                Assert.That(ghost.Mesh.sharedMaterial.name,Is.EqualTo("VolleySkinHand"),"Opaque skin-tone player hands.");
         }
 
         [Test]
@@ -101,18 +102,22 @@ namespace GloveBallDemo.Tests
             {
                 active++;
                 var p=_rally.Blockers[i].transform.position;
+                Assert.That(_rally.Blockers[i].gameObject.activeSelf,Is.True);
                 Assert.That(p.z-netZ,Is.EqualTo(_rally.BlockerNetDistance).Within(.01f));
-                if(previousX.HasValue)Assert.That(p.x-previousX.Value,Is.EqualTo(_rally.BlockerSpacing).Within(.01f),"Blockers form a closed wall.");
+                if(previousX.HasValue)Assert.That(p.x-previousX.Value,Is.GreaterThanOrEqualTo(_rally.BlockerMinSpacing-.001f));
                 previousX=p.x;
+                Assert.That(_rally.Blockers[i].JumpHeight,Is.InRange(_rally.BlockerJumpMin,_rally.BlockerJumpMax),"Blockers vary in reach.");
                 Assert.That(_rally.Blockers[i].GetComponentInChildren<Collider>().enabled,Is.True);
             }
-            Assert.That(active,Is.InRange(_rally.MinBlockers,_rally.MaxBlockers));
+            Assert.That(active,Is.EqualTo(3),"Three blockers every spike.");
             var dropping=(Ball)typeof(VolleyAerialSequence).GetField("_preparedBall",Private).GetValue(_rally);
             Assert.That(dropping.transform.position.y,Is.GreaterThan(_rally.Ally.ReleasePosition.y+_rally.AllyDropHeight-.05f),"The pass falls onto the setter from above.");
             Launch();
             Assert.That(Vector3.Distance(_start,_rally.Ally.ReleasePosition),Is.LessThan(.001f));
             Assert.That(_seconds,Is.EqualTo(_rally.AllyFlightSeconds));
             Assert.That(_destination.y,Is.EqualTo(_drill.Head.position.y+_jump.JumpHeight+_rally.SpikeReachAboveEye).Within(.001f));
+            Assert.That(Vector3.Dot(_destination-_drill.Head.position,Forward),Is.EqualTo(_rally.SpikeContactForward+_rally.SpikeApproachDistance).Within(.001f),
+                "The set meets the player at the end of the approach, close to the net.");
             DiscardPrepared();
             _rally.RegisterBallUnavailable();
             Assert.That(_rally.Outcome,Is.EqualTo("MISSED"));Assert.That(_rally.OpponentScore,Is.EqualTo(1));
@@ -122,7 +127,8 @@ namespace GloveBallDemo.Tests
             Assert.That(_jump.Floor.StanceOffset,Is.EqualTo(Vector3.zero));
             Assert.That(_jump.JumpHeight,Is.EqualTo(_rally.BlockJumpHeight));
             Assert.That(_rally.Opponent.transform.position,Is.EqualTo(home));
-            foreach(var blocker in _rally.Blockers)Assert.That(blocker.GetComponentInChildren<Collider>().enabled,Is.False,"Standby blockers are not solid.");
+            foreach(var blocker in _rally.Blockers)Assert.That(blocker.gameObject.activeSelf,Is.False,"Only the attacker is shown in the block turn.");
+            Assert.That(_rally.Ally.gameObject.activeSelf,Is.False);
             RunUntil(()=>_rally.Phase==Phase.OpponentSet,3f,"opponent attack starts");
             Assert.That(_announcements,Is.EqualTo(2));
         }
@@ -140,10 +146,53 @@ namespace GloveBallDemo.Tests
             RunFor(_rally.AllyFlightSeconds-_rally.SpikeJumpTime+.05f);
             Assert.That(_jump.Jumps,Is.EqualTo(1));
             Assert.That(_jump.Lift,Is.GreaterThan(_jump.JumpHeight*.95f),"The player is at the top of the jump when the set arrives.");
+            var stanceStart=-Forward*_rally.SpikeStandBackDistance;
+            Assert.That(Vector3.Dot(_jump.Floor.StanceOffset-stanceStart,Forward),Is.EqualTo(_rally.SpikeApproachDistance).Within(.01f),"Approach finished at the peak.");
             float flight=_rally.AllyFlightSeconds;
             for(int i=0;i<_rally.Blockers.Length;i++)if(_rally.ActiveBlockers[i])
                 Assert.That(_rally.BlockerJumpTimes[i]+VolleyOpponentPrototype.BlockPeakPhase*_rally.BlockerJumpSeconds,
                     Is.InRange(flight+_rally.BlockerReactionSeconds-_rally.BlockerTimingJitter-.001f,flight+_rally.BlockerReactionSeconds+_rally.BlockerTimingJitter+.001f));
+            _rally.RegisterBallUnavailable();
+            RunUntil(()=>_rally.Phase==Phase.TurnChange,4f,"quiet blink back to the approach start");
+            RunUntil(()=>_rally.Phase==Phase.AllyReceive,3f,"next spike");
+            Assert.That(_jump.Floor.StanceOffset,Is.EqualTo(stanceStart));
+            Assert.That(_announcements,Is.EqualTo(1),"The reset blink is not a new turn.");
+        }
+
+        [Test]
+        public void FastBounceBetweenSamplesStillLandsWhereTheBallTouchedDown()
+        {
+            _rally.Mode=Mode.SpikeOnly;
+            RunUntil(()=>_rally.Phase==Phase.AllyReceive,3f,"spike attempt");
+            LaunchLive();_rally.RegisterPlayerTouch();
+            var net=_drill.ReceiveNet.transform.position;
+            Vector3 won=default;_rally.PointScored+=(player,at)=>won=at;
+            // 20 ms physics steps: above the floor descending, then already rising again. Never sampled below 0.3 m.
+            _rally.SampleBall(net+new Vector3(4.3f,.35f,3f),new Vector3(0f,-12f,6f),.11f,.02f);
+            Assert.That(_rally.Phase,Is.EqualTo(Phase.PlayerSpike));
+            _rally.SampleBall(net+new Vector3(4.3f,.3f,3.12f),new Vector3(0f,8f,5f),.11f,.02f);
+            Assert.That(_rally.Outcome,Is.EqualTo("POINT!"),"Touchdown inside the sideline is in, even if the ball then rolls out.");
+            Assert.That(won.z-net.z,Is.InRange(3f,3.13f));Assert.That(won.x,Is.EqualTo(4.3f).Within(.001f));
+        }
+
+        [Test]
+        public void SwingDrivenSpikeFollowsTheSwingAndNeverClimbs()
+        {
+            var down=GloveBallDemo.Core.VolleyMath.SpikeVelocity(new Vector3(0f,-6f,8f),1.6f,10f,20f,.1f);
+            Assert.That(down.normalized,Is.EqualTo(new Vector3(0f,-.6f,.8f)).Using(Vector3EqualityComparerWithin(.001f)));
+            Assert.That(down.magnitude,Is.EqualTo(16f).Within(.001f));
+            var up=GloveBallDemo.Core.VolleyMath.SpikeVelocity(new Vector3(0f,5f,3f),1.6f,10f,20f,.1f);
+            Assert.That(up.normalized.y,Is.EqualTo(.1f).Within(.001f),"An upward swing is flattened.");
+            Assert.That(GloveBallDemo.Core.VolleyMath.SpikeVelocity(new Vector3(0f,0f,2.6f),1.6f,10f,20f,.1f).magnitude,Is.EqualTo(10f).Within(.001f));
+            Assert.That(GloveBallDemo.Core.VolleyMath.SpikeVelocity(new Vector3(0f,-20f,20f),1.6f,10f,20f,.1f).magnitude,Is.EqualTo(20f).Within(.001f));
+        }
+        static System.Collections.Generic.IEqualityComparer<Vector3> Vector3EqualityComparerWithin(float tolerance)
+            =>new VectorWithin(tolerance);
+        sealed class VectorWithin:System.Collections.Generic.IEqualityComparer<Vector3>
+        {
+            readonly float _t;public VectorWithin(float t)=>_t=t;
+            public bool Equals(Vector3 a,Vector3 b)=>Vector3.Distance(a,b)<=_t;
+            public int GetHashCode(Vector3 v)=>0;
         }
 
         [TestCase(Mode.SpikeOnly,Turn.Spike)] [TestCase(Mode.BlockOnly,Turn.Block)]

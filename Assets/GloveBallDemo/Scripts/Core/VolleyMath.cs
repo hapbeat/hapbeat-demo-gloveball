@@ -32,6 +32,22 @@ namespace GloveBallDemo.Core
             return fraction >= 0f && fraction <= 1f;
         }
 
+        /// <summary>
+        /// Spike response: the ball leaves along the swing, not along the palm-face reflection, so a fast downward swing
+        /// always drives the ball down. Upward swings are flattened to at most maxRise (sine of the climb angle).
+        /// </summary>
+        public static Vector3 SpikeVelocity(Vector3 handVelocity,float power,float minimumSpeed,float maximumSpeed,float maxRise)
+        {
+            var direction=handVelocity.sqrMagnitude>1e-6f ? handVelocity.normalized : Vector3.forward;
+            if(direction.y>maxRise)
+            {
+                var flat=new Vector3(direction.x,0f,direction.z);
+                flat=flat.sqrMagnitude>1e-6f ? flat.normalized : Vector3.forward;
+                direction=(flat*Mathf.Sqrt(1f-maxRise*maxRise)+Vector3.up*maxRise).normalized;
+            }
+            return direction*Mathf.Clamp(handVelocity.magnitude*power,minimumSpeed,maximumSpeed);
+        }
+
         public static Vector3 ServeVelocity(Vector3 start, Vector3 destination, float seconds, Vector3 gravity)
         {
             seconds = Mathf.Max(.1f, seconds);

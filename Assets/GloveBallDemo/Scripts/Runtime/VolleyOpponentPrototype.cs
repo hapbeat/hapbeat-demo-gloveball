@@ -19,6 +19,7 @@ namespace GloveBallDemo.Runtime
         public bool OverrideKit;
         public Color JerseyColour=new Color(.8f,.16f,.07f);
         public Color ShortsColour=new Color(.05f,.07f,.1f);
+        public Color SkinColour=new Color(.87f,.67f,.53f);
         static readonly int BaseColour=Shader.PropertyToID("_BaseColor");
         void OnEnable()=>ApplyKit();
         void OnValidate()=>ApplyKit();
@@ -26,6 +27,7 @@ namespace GloveBallDemo.Runtime
         {
             if(!OverrideKit)return;
             Tint(Torso,JerseyColour);Tint(LeftThigh,ShortsColour);Tint(RightThigh,ShortsColour);
+            foreach(var part in new[]{Head,LeftUpperArm,LeftForearm,RightUpperArm,RightForearm,LeftShin,RightShin})Tint(part,SkinColour);
         }
         static void Tint(Transform part,Color colour)
         {

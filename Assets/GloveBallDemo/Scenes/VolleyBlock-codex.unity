@@ -518,8 +518,8 @@ MonoBehaviour:
   ControllerRotationOffset: {x: 0, y: 0, z: 0}
   ControllerPositionOffset: {x: 0, y: 0, z: 0.07}
   ContactVolume: {fileID: 69585301}
-  MaximumTrackedSpeed: 15
-  MaximumHandSpeed: 20
+  MaximumTrackedSpeed: 30
+  MaximumHandSpeed: 25
   ReacquireDelay: 0.15
   BriefLossSeconds: 0.1
   MaximumPredictionDistance: 0.12
@@ -1800,6 +1800,7 @@ MonoBehaviour:
   OverrideKit: 1
   JerseyColour: {r: 0.8, g: 0.16, b: 0.07, a: 1}
   ShortsColour: {r: 0.05, g: 0.07, b: 0.1, a: 1}
+  SkinColour: {r: 0.87, g: 0.67, b: 0.53, a: 1}
   LeftHand: {fileID: 268363394}
   RightHand: {fileID: 1939206679}
   LeftShoe: {fileID: 0}
@@ -3924,8 +3925,8 @@ SkinnedMeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 61d033f3a51f40647a5458ea14f3b4af, type: 2}
-  - {fileID: 2100000, guid: 455ef821a5429de4baeed61fa958acbc, type: 2}
+  - {fileID: 2100000, guid: a489fc9923d255d40993c9a0cd1672fc, type: 2}
+  - {fileID: 2100000, guid: a489fc9923d255d40993c9a0cd1672fc, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -4818,6 +4819,7 @@ MonoBehaviour:
   OverrideKit: 1
   JerseyColour: {r: 0.12, g: 0.38, b: 0.92, a: 1}
   ShortsColour: {r: 0.92, g: 0.93, b: 0.95, a: 1}
+  SkinColour: {r: 0.87, g: 0.67, b: 0.53, a: 1}
   LeftHand: {fileID: 0}
   RightHand: {fileID: 0}
   LeftShoe: {fileID: 0}
@@ -7891,6 +7893,7 @@ MonoBehaviour:
   OverrideKit: 1
   JerseyColour: {r: 0.8, g: 0.16, b: 0.07, a: 1}
   ShortsColour: {r: 0.05, g: 0.07, b: 0.1, a: 1}
+  SkinColour: {r: 0.87, g: 0.67, b: 0.53, a: 1}
   LeftHand: {fileID: 0}
   RightHand: {fileID: 0}
   LeftShoe: {fileID: 0}
@@ -8705,7 +8708,12 @@ MonoBehaviour:
   MaximumReturnSpeed: 18
   RehitCooldown: 0.2
   MaximumBallAge: 6
-  TouchAssistMargin: 0.04
+  SpikeTouchAssist: 0.06
+  SpikeSwingSpeed: 2.5
+  SpikePower: 1.6
+  SpikeMinimumSpeed: 10
+  SpikeMaximumSpeed: 20
+  SpikeMaximumRise: 0.1
   NearHandDistance: 0.45
   TrackingGraceSeconds: 1.5
   LauncherWarningSeconds: 1
@@ -8767,26 +8775,30 @@ MonoBehaviour:
   MatchEndSeconds: 5
   BlockJumpHeight: 0.85
   BlockJumpSeconds: 1
-  SpikeJumpHeight: 1.3
-  SpikeJumpSeconds: 1.15
+  SpikeJumpHeight: 1.5
+  SpikeJumpSeconds: 1.4
   Ally: {fileID: 623465753}
   SpikeStandBackDistance: 1.2
   AllyNetOffset: {x: 1.4, y: -0.35}
   AllyDropHeight: 3.4
   AllyDropBehind: 0.8
   AllyDropSeconds: 1
-  AllyFlightSeconds: 1.4
+  AllyFlightSeconds: 1.5
   AllySetLateralSpread: 0.35
   SpikeContactForward: 0.3
+  SpikeApproachDistance: 0.7
+  ResetBlinkLeadSeconds: 0.3
   SpikeJumpPeakOffset: 0
   Blockers:
   - {fileID: 1349463350}
   - {fileID: 143577159}
   - {fileID: 1912360283}
-  MinBlockers: 2
+  MinBlockers: 3
   MaxBlockers: 3
-  BlockerSpacing: 0.75
-  BlockOffsetRange: 0.9
+  BlockerLateralRange: 2
+  BlockerMinSpacing: 0.8
+  BlockerJumpMin: 0.8
+  BlockerJumpMax: 1.1
   BlockerNetDistance: 0.35
   BlockerStandbyDistance: 3.2
   BlockerJumpSeconds: 0.9
@@ -8795,6 +8807,7 @@ MonoBehaviour:
   BlockerShuffleSpeed: 3.2
   CourtHalfWidth: 4.5
   CourtDepth: 9
+  LineTolerance: 0.06
   AllyJersey: {r: 0.12, g: 0.38, b: 0.92, a: 1}
   AllyShorts: {r: 0.92, g: 0.93, b: 0.95, a: 1}
   OpponentJersey: {r: 0.8, g: 0.16, b: 0.07, a: 1}
@@ -8803,10 +8816,12 @@ MonoBehaviour:
   SpikeVolume: 0.85
   WindupSeconds: 1.2
   TossFlightSeconds: 1.15
-  BlockSpeed: 9
+  BlockSpeed: 10.5
   FaceShotChance: 0.6
-  HorizontalSpread: 0.35
-  HeightSpread: 0.12
+  HorizontalSpread: 0.85
+  WideShotChance: 0.7
+  WideShotMinimum: 0.35
+  HeightSpread: 0.3
   SpikeReachAboveEye: 0.5
   BlockReachAboveEye: 0.55
   AutoJumpLeadSeconds: 0.32
@@ -8859,7 +8874,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1154938702
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8879,7 +8894,7 @@ MonoBehaviour:
   - {fileID: 1884672605}
   _player: {fileID: 1049602703}
   _layoutSeed: 20260824
-  RandomizeOnStart: 1
+  RandomizeOnStart: 0
   AlternateHorizontalThirds: 1
   ZoneEdgeInset: 0.16
   _minX: -2.8
@@ -9898,6 +9913,7 @@ MonoBehaviour:
   OverrideKit: 1
   JerseyColour: {r: 0.8, g: 0.16, b: 0.07, a: 1}
   ShortsColour: {r: 0.05, g: 0.07, b: 0.1, a: 1}
+  SkinColour: {r: 0.87, g: 0.67, b: 0.53, a: 1}
   LeftHand: {fileID: 830345035}
   RightHand: {fileID: 6859748}
   LeftShoe: {fileID: 0}
@@ -11773,8 +11789,8 @@ MonoBehaviour:
   ControllerRotationOffset: {x: 0, y: 0, z: 0}
   ControllerPositionOffset: {x: 0, y: 0, z: 0.07}
   ContactVolume: {fileID: 1638254372}
-  MaximumTrackedSpeed: 15
-  MaximumHandSpeed: 20
+  MaximumTrackedSpeed: 30
+  MaximumHandSpeed: 25
   ReacquireDelay: 0.15
   BriefLossSeconds: 0.1
   MaximumPredictionDistance: 0.12
@@ -12896,8 +12912,8 @@ SkinnedMeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 61d033f3a51f40647a5458ea14f3b4af, type: 2}
-  - {fileID: 2100000, guid: 455ef821a5429de4baeed61fa958acbc, type: 2}
+  - {fileID: 2100000, guid: a489fc9923d255d40993c9a0cd1672fc, type: 2}
+  - {fileID: 2100000, guid: a489fc9923d255d40993c9a0cd1672fc, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -13752,6 +13768,7 @@ MonoBehaviour:
   OverrideKit: 1
   JerseyColour: {r: 0.8, g: 0.16, b: 0.07, a: 1}
   ShortsColour: {r: 0.05, g: 0.07, b: 0.1, a: 1}
+  SkinColour: {r: 0.87, g: 0.67, b: 0.53, a: 1}
   LeftHand: {fileID: 375351126}
   RightHand: {fileID: 2006258777}
   LeftShoe: {fileID: 0}

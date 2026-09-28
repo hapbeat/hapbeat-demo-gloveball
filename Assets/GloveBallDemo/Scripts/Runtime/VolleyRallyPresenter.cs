@@ -114,8 +114,10 @@ namespace GloveBallDemo.Runtime
             if(Rally==null)return;
             if(_fade!=null)
             {
-                _fade.color=new Color(0f,0f,0f,Rally.FadeAlpha);
-                _fade.enabled=Rally.FadeAlpha>.001f;
+                // The menu sits behind this head-locked blink; never cover it while the menu is open.
+                float alpha=GameInputGate.IsBlocked ? 0f : Rally.FadeAlpha;
+                _fade.color=new Color(0f,0f,0f,alpha);
+                _fade.enabled=alpha>.001f;
             }
             if(Rally.OutcomeSerial!=_outcomeSerial){_outcomeSerial=Rally.OutcomeSerial;_outcomeAge=0f;}
             float dt=Time.deltaTime;

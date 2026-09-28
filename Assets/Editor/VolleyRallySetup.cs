@@ -61,43 +61,47 @@ public static class VolleyRallySetup
             aerial.Blockers[i]=blocker;
         }
 
-        foreach(var blocker in aerial.Blockers)blocker.JumpHeight=.7f;
         // Serialized scene values win over code defaults, so the tuned rally values are written explicitly.
-        aerial.AllyFlightSeconds=1.4f;       // higher set
+        aerial.AllyFlightSeconds=1.5f;       // high set, time to read it
         aerial.RallyResetSeconds=2f;         // landing ball and marker stay visible
-        aerial.SpikeJumpHeight=1.3f;aerial.SpikeJumpSeconds=1.15f;
+        aerial.SpikeJumpHeight=1.5f;aerial.SpikeJumpSeconds=1.4f;   // more hang time to strike down
         aerial.BlockJumpHeight=.85f;aerial.BlockJumpSeconds=1f;
         aerial.MatchPoints=7;
+        aerial.MinBlockers=aerial.MaxBlockers=3;
+        aerial.HorizontalSpread=.85f;aerial.HeightSpread=.3f;aerial.BlockSpeed=10.5f; // blocks need reading, not just raised hands
         // Fast overhead swings exceed 8 m/s in tracking space; the old limit flagged them as tracking jumps.
-        drill.Left.MaximumTrackedSpeed=drill.Right.MaximumTrackedSpeed=15f;
-        drill.Left.MaximumHandSpeed=drill.Right.MaximumHandSpeed=20f;
-        drill.MaximumReturnSpeed=18f;        // room for a hard downward spike
+        drill.Left.MaximumTrackedSpeed=drill.Right.MaximumTrackedSpeed=30f;
+        drill.Left.MaximumHandSpeed=drill.Right.MaximumHandSpeed=25f;
+        drill.MaximumReturnSpeed=18f;
         drill.MaximumBallAge=6f;
-        ConfigureFloorTargets(drill,net);
+        // Points are decided by landing position; the floor targets are not part of the rally.
+        drill.Targets.RandomizeOnStart=false;
+        drill.Targets.gameObject.SetActive(false);
+        ApplySkinHands(drill);
         EditorUtility.SetDirty(aerial);
         EditorSceneManager.MarkSceneDirty(scene);
         if(!EditorSceneManager.SaveScene(scene))throw new InvalidOperationException("Failed to save VolleyBlock-codex.");
     }
 
-    static void ConfigureFloorTargets(VolleyDrillController drill,Vector3 net)
+    const string SkinHandPath="Assets/GloveBallDemo/Art/UnityGhostHands/VolleySkinHand.mat";
+    /// <summary>Opaque skin-tone hands for the rally scene only; the receive scene keeps its translucent ghost hands.</summary>
+    static void ApplySkinHands(VolleyDrillController drill)
     {
-        var targets=drill.Targets;
-        targets.RandomizeOnStart=true;
-        targets.AlternateHorizontalThirds=true;
-        targets.ZoneEdgeInset=.16f;
-        var serialized=new SerializedObject(targets);
-        Set(serialized,"_minX",net.x-2.8f);Set(serialized,"_maxX",net.x+2.8f);
-        Set(serialized,"_minZ",net.z+1.65f);Set(serialized,"_maxZ",net.z+5.4f);
-        Set(serialized,"_minHeight",.08f);Set(serialized,"_maxHeight",.14f);
-        serialized.FindProperty("_minimumSpacing").floatValue=1.5f;
-        serialized.FindProperty("_faceUp").boolValue=true;
-        serialized.ApplyModifiedPropertiesWithoutUndo();
-    }
-
-    static void Set(SerializedObject serialized,string name,float value)
-    {
-        var property=serialized.FindProperty(name);
-        if(property==null)throw new InvalidOperationException("Target placement property is missing: "+name);
-        property.floatValue=value;
+        var material=AssetDatabase.LoadAssetAtPath<Material>(SkinHandPath);
+        if(material==null)
+        {
+            material=new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            material.SetColor("_BaseColor",new Color(.87f,.67f,.53f));material.SetFloat("_Smoothness",.25f);
+            AssetDatabase.CreateAsset(material,SkinHandPath);
+        }
+        int count=0;
+        foreach(var ghost in UnityEngine.Object.FindObjectsByType<VolleyGhostHand>(FindObjectsInactive.Include,FindObjectsSortMode.None))
+        {
+            if(ghost.Mesh==null)continue;
+            var materials=ghost.Mesh.sharedMaterials;
+            for(int i=0;i<materials.Length;i++)materials[i]=material;
+            ghost.Mesh.sharedMaterials=materials;count++;
+        }
+        if(count!=2)throw new InvalidOperationException("Expected two ghost hands, found "+count);
     }
 }
