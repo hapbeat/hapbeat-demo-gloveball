@@ -73,10 +73,13 @@ namespace GloveBallDemo.Runtime
         [Min(.1f)] public float BlockerJumpMax=1.1f;
         public float BlockerNetDistance=.35f;
         public float BlockerStandbyDistance=3.2f;
-        [Min(.4f)] public float BlockerJumpSeconds=.9f;
-        [Tooltip("Blockers reach their highest point this long after the set reaches the player.")]
-        public float BlockerReactionSeconds=.1f;
-        [Min(0f)] public float BlockerTimingJitter=.08f;
+        [Tooltip("Blocker airtime; the arms stay up over the net for most of it.")]
+        [Min(.4f)] public float BlockerJumpSeconds=1.3f;
+        [Tooltip("Blockers reach their highest point this long after the set reaches the player (when the spike crosses the net).")]
+        public float BlockerReactionSeconds=.05f;
+        [Min(0f)] public float BlockerTimingJitter=.05f;
+        [Tooltip("One blocker reads the set and lines up within this distance of the contact point; the others are random.")]
+        [Min(0f)] public float ReadingBlockerRange=.5f;
         [Min(.5f)] public float BlockerShuffleSpeed=3.2f;
         [Header("Spike landing")]
         public float CourtHalfWidth=4.5f;
@@ -97,14 +100,19 @@ namespace GloveBallDemo.Runtime
         [Min(.5f)] public float TossFlightSeconds=1.15f;
         [Min(1f)] public float BlockSpeed=9f;
         [Range(0,1)] public float FaceShotChance=.25f;
-        [Tooltip("Opponent spike lateral spread at the player's block (either side).")]
+        [Tooltip("Jump-spike scene only: toss lateral spread.")]
         [Min(0)] public float HorizontalSpread=.85f;
-        [Tooltip("Share of opponent spikes aimed wide (at least WideShotMinimum to the side) instead of at the player's front.")]
-        [Range(0,1)] public float WideShotChance=.7f;
-        [Min(0)] public float WideShotMinimum=.35f;
-        [Min(0)] public float HeightSpread=.3f;
+        [Header("Opponent attack tell (block turn)")]
+        [Tooltip("The attacker turns its body up to this many degrees toward the shot at the start of the attack, so the direction can be read.")]
+        [Range(0f,30f)] public float AttackBodyYaw=15f;
+        [Tooltip("The shot leaves within this many degrees of the body direction.")]
+        [Range(0f,20f)] public float AttackShotDeviation=5f;
+        [Tooltip("Shots never go further to the side than this at the player's block: always reachable.")]
+        [Min(0f)] public float BlockLateralLimit=.7f;
+        [Min(0)] public float HeightSpread=.15f;
         public float SpikeReachAboveEye=.50f;
-        public float BlockReachAboveEye=.55f;
+        [Tooltip("Block shot height above the eyes at the top of the jump (± HeightSpread); keep within arm reach.")]
+        public float BlockReachAboveEye=.45f;
         [Header("Beginner automatic jump")]
         [Min(0f)] public float AutoJumpLeadSeconds=.32f;
         [Range(0f,.1f)] public float AutoJumpTimingJitter=.03f;
@@ -156,6 +164,9 @@ namespace GloveBallDemo.Runtime
         public bool AttackStarted=>_windup>=0f;
         Ball _preparedBall;
         Vector3 _tossStart, _tossEnd;
+        float _attackYaw;
+        /// <summary>Body yaw (degrees) the attacker shows for the current attack.</summary>
+        public float AttackYaw=>_attackYaw;
 
         Vector3 Forward=>Vector3.ProjectOnPlane(Drill.CourtFrame.forward,Vector3.up).normalized;
         Vector3 Right=>Vector3.Cross(Vector3.up,Forward);
@@ -188,6 +199,13 @@ namespace GloveBallDemo.Runtime
         {
             if(_preparedBall!=null)return true;
             if(TossLauncher==null || Opponent==null)return false;
+            if(Drill.Drill==VolleyDrill.Block)
+            {
+                // Tell: the attacker squares up toward the shot for the whole wind-up.
+                CaptureHome();
+                _attackYaw=Random.Range(-AttackBodyYaw,AttackBodyYaw);
+                Opponent.transform.rotation=_opponentHomeRotation*Quaternion.Euler(0f,_attackYaw,0f);
+            }
             _tossEnd=Opponent.ReleasePosition;
             var aim=TossLauncher.GetComponent<VolleyFeederAim>();
             if(aim!=null)aim.AimForShot(_tossEnd,WindupSeconds);
@@ -472,6 +490,7 @@ namespace GloveBallDemo.Runtime
             float contact=Vector3.Dot(GroundedEye-NetCentre,Right)+_allyLateral;
             float limit=Drill.ReceiveNet!=null ? Mathf.Max(.5f,Drill.ReceiveNet.bounds.extents.x-.5f) : CourtHalfWidth;
             var placed=new List<float>();
+            if(wanted>0)placed.Add(Mathf.Clamp(contact+Random.Range(-ReadingBlockerRange,ReadingBlockerRange),-limit,limit));
             for(int attempt=0;attempt<300 && placed.Count<wanted;attempt++)
             {
                 float x=Mathf.Clamp(contact+Random.Range(-BlockerLateralRange,BlockerLateralRange),-limit,limit);
@@ -681,6 +700,16 @@ namespace GloveBallDemo.Runtime
             if(Phase==RallyPhase.OpponentSpike || Phase==RallyPhase.PlayerSpike)Resolve(_lastBallPosition);
         }
 
+        /// <summary>Lateral offset (from the player's eyes) where a shot along the attacker's body direction ± deviation crosses the block plane.</summary>
+        public float AttackLateral(Vector3 release)
+        {
+            float angle=_attackYaw+Random.Range(-AttackShotDeviation,AttackShotDeviation);
+            var direction=Quaternion.AngleAxis(angle,Vector3.up)*-Forward;
+            var eye=GroundedEye;
+            float along=Vector3.Dot(release-(eye+Forward*Drill.ContactForwardDistance),Forward);
+            float lateral=Vector3.Dot(release-eye,Right)+Vector3.Dot(direction,Right)/Mathf.Max(.2f,Vector3.Dot(direction,-Forward))*along;
+            return Mathf.Clamp(lateral,-BlockLateralLimit,BlockLateralLimit);
+        }
         public Vector3 GroundedEye=>Drill.Head.position-Vector3.up*Jump.Floor.VirtualLift;
         public float SolveBlockShot(Vector3 start,ref Vector3 destination)
         {
@@ -733,19 +762,17 @@ namespace GloveBallDemo.Runtime
             if(block)Opponent.PreviewPhase=Mathf.Min(.52f,_windup/WindupSeconds*.52f);
             if(_windup<WindupSeconds)return false;
             LastWasFaceShot=block&&Random.value<FaceShotChance;
-            float lateral=Random.value<WideShotChance
-                ? (Random.value<.5f ? -1f : 1f)*Random.Range(Mathf.Min(WideShotMinimum,HorizontalSpread),HorizontalSpread)
-                : Random.Range(-WideShotMinimum,WideShotMinimum);
-            destination=Destination(LastWasFaceShot ? 0f : lateral,Random.Range(-HeightSpread,HeightSpread),LastWasFaceShot);
             if(block)
             {
                 Opponent.Pose(.52f);start=Opponent.ReleasePosition;
+                destination=Destination(AttackLateral(start),Random.Range(-HeightSpread,HeightSpread),LastWasFaceShot);
                 seconds=SolveBlockShot(start,ref destination);
                 PlaySpikeAudio(start);
                 _follow=0;
             }
             else
             {
+                destination=Destination(Random.Range(-HorizontalSpread,HorizontalSpread),Random.Range(-HeightSpread,HeightSpread),false);
                 seconds=TossFlightSeconds;
                 var aim=TossLauncher.GetComponent<VolleyFeederAim>();
                 aim.AimForShot(destination,seconds);start=TossLauncher.MuzzlePosition;

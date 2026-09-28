@@ -78,7 +78,10 @@ namespace GloveBallDemo.Tests
             for(int i=1;i<_drill.FeedLaunchers.Length;i++)Assert.That(_drill.FeedLaunchers[i].gameObject.activeSelf,Is.False,"The pass drops from above, not from a feeder.");
             Assert.That(_drill.Targets.gameObject.activeSelf,Is.False,"Points come from the landing spot, not floor targets.");
             foreach(var ghost in Object.FindObjectsByType<VolleyGhostHand>(FindObjectsInactive.Include,FindObjectsSortMode.None))
-                Assert.That(ghost.Mesh.sharedMaterial.name,Is.EqualTo("VolleySkinHand"),"Opaque skin-tone player hands.");
+            {
+                Assert.That(ghost.Mesh.sharedMaterial.name,Is.EqualTo("VolleySkinHand"),"Skin-tone player hands.");
+                Assert.That(ghost.Mesh.sharedMaterial.HasProperty("_FadeCenter"),Is.True,"Built on the ghost-hand shader so the wrist fades out.");
+            }
         }
 
         [Test]
@@ -118,6 +121,10 @@ namespace GloveBallDemo.Tests
             Assert.That(_destination.y,Is.EqualTo(_drill.Head.position.y+_jump.JumpHeight+_rally.SpikeReachAboveEye).Within(.001f));
             Assert.That(Vector3.Dot(_destination-_drill.Head.position,Forward),Is.EqualTo(_rally.SpikeContactForward+_rally.SpikeApproachDistance).Within(.001f),
                 "The set meets the player at the end of the approach, close to the net.");
+            float nearest=float.MaxValue;
+            for(int i=0;i<_rally.Blockers.Length;i++)if(_rally.ActiveBlockers[i])
+                nearest=Mathf.Min(nearest,Mathf.Abs(_rally.Blockers[i].transform.position.x-_destination.x));
+            Assert.That(nearest,Is.LessThanOrEqualTo(_rally.ReadingBlockerRange+.001f),"One blocker reads the set.");
             DiscardPrepared();
             _rally.RegisterBallUnavailable();
             Assert.That(_rally.Outcome,Is.EqualTo("MISSED"));Assert.That(_rally.OpponentScore,Is.EqualTo(1));
@@ -157,6 +164,41 @@ namespace GloveBallDemo.Tests
             RunUntil(()=>_rally.Phase==Phase.AllyReceive,3f,"next spike");
             Assert.That(_jump.Floor.StanceOffset,Is.EqualTo(stanceStart));
             Assert.That(_announcements,Is.EqualTo(1),"The reset blink is not a new turn.");
+        }
+
+        [Test]
+        public void AttackerBodyTurnTellsTheShotDirectionAndShotsStayReachable()
+        {
+            _rally.Mode=Mode.BlockOnly;_rally.AttackShotDeviation=0f;
+            var home=_rally.Opponent.transform.rotation;
+            for(int i=0;i<6;i++)
+            {
+                RunUntil(()=>_rally.Phase==Phase.OpponentSet,5f,"attack "+i);
+                float shown=Quaternion.Angle(home,_rally.Opponent.transform.rotation);
+                Assert.That(shown,Is.EqualTo(Mathf.Abs(_rally.AttackYaw)).Within(.01f),"The body turn is visible during the wind-up.");
+                Launch();DiscardPrepared();
+                var body=Quaternion.AngleAxis(_rally.AttackYaw,Vector3.up)*-Forward;
+                var shot=Vector3.ProjectOnPlane(_destination-_start,Vector3.up).normalized;
+                Assert.That(Vector3.Angle(body,shot),Is.LessThan(.5f),"With no deviation the shot follows the body.");
+                _rally.RegisterBallUnavailable();
+            }
+            _rally.AttackShotDeviation=20f;
+            var far=_drill.Head.position+Forward*3f+Vector3.right*3f;
+            for(int i=0;i<40;i++)Assert.That(Mathf.Abs(_rally.AttackLateral(far)),Is.LessThanOrEqualTo(_rally.BlockLateralLimit+.0001f),"Never out of reach.");
+        }
+
+        [Test]
+        public void BlockerHangsNearTheTopWithArmsUp()
+        {
+            var blocker=_rally.Blockers[0];blocker.gameObject.SetActive(true);
+            blocker.Pose(0f);float rest=blocker.Torso.localPosition.y;
+            blocker.Pose(VolleyOpponentPrototype.BlockPeakPhase);float peak=blocker.Torso.localPosition.y-rest;
+            foreach(float phase in new[]{.42f,.75f})
+            {
+                blocker.Pose(phase);
+                Assert.That(blocker.Torso.localPosition.y-rest,Is.GreaterThan(peak*.9f),"Still near the top at phase "+phase);
+                Assert.That(blocker.RightHand.localPosition.y,Is.GreaterThan(2.1f),"Arms stay up over the net.");
+            }
         }
 
         [Test]

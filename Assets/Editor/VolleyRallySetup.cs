@@ -68,7 +68,8 @@ public static class VolleyRallySetup
         aerial.BlockJumpHeight=.85f;aerial.BlockJumpSeconds=1f;
         aerial.MatchPoints=7;
         aerial.MinBlockers=aerial.MaxBlockers=3;
-        aerial.HorizontalSpread=.85f;aerial.HeightSpread=.3f;aerial.BlockSpeed=10.5f; // blocks need reading, not just raised hands
+        aerial.HeightSpread=.15f;aerial.BlockReachAboveEye=.45f;aerial.BlockSpeed=10.5f; // readable from the body turn, always reachable
+        aerial.BlockerJumpSeconds=1.3f;aerial.BlockerReactionSeconds=.05f;aerial.BlockerTimingJitter=.05f;
         // Fast overhead swings exceed 8 m/s in tracking space; the old limit flagged them as tracking jumps.
         drill.Left.MaximumTrackedSpeed=drill.Right.MaximumTrackedSpeed=30f;
         drill.Left.MaximumHandSpeed=drill.Right.MaximumHandSpeed=25f;
@@ -84,16 +85,22 @@ public static class VolleyRallySetup
     }
 
     const string SkinHandPath="Assets/GloveBallDemo/Art/UnityGhostHands/VolleySkinHand.mat";
-    /// <summary>Opaque skin-tone hands for the rally scene only; the receive scene keeps its translucent ghost hands.</summary>
+    const string GhostHandPath="Assets/GloveBallDemo/Art/UnityGhostHands/Materials/Unity_Hand_Medium.mat";
+    /// <summary>
+    /// Skin-tone hands for the rally scene only. Built from the ghost-hand material so the wrist keeps its gradual fade
+    /// (no hard cut edge); the receive scene keeps the grey ghost hands.
+    /// </summary>
     static void ApplySkinHands(VolleyDrillController drill)
     {
+        var source=AssetDatabase.LoadAssetAtPath<Material>(GhostHandPath);
+        if(source==null)throw new InvalidOperationException("Ghost hand material is missing: "+GhostHandPath);
         var material=AssetDatabase.LoadAssetAtPath<Material>(SkinHandPath);
-        if(material==null)
-        {
-            material=new Material(Shader.Find("Universal Render Pipeline/Lit"));
-            material.SetColor("_BaseColor",new Color(.87f,.67f,.53f));material.SetFloat("_Smoothness",.25f);
-            AssetDatabase.CreateAsset(material,SkinHandPath);
-        }
+        if(material==null){material=new Material(source);AssetDatabase.CreateAsset(material,SkinHandPath);}
+        material.shader=source.shader;material.CopyPropertiesFromMaterial(source);
+        material.SetColor("_MainColor",new Color(.87f,.67f,.53f,.95f));
+        material.SetColor("_EdgeColor",new Color(1f,.88f,.78f,.6f));
+        material.SetFloat("_FadeStart",.07f);material.SetFloat("_FadeSize",.09f); // gradual fade over the back of the hand, no visible cut
+        EditorUtility.SetDirty(material);
         int count=0;
         foreach(var ghost in UnityEngine.Object.FindObjectsByType<VolleyGhostHand>(FindObjectsInactive.Include,FindObjectsSortMode.None))
         {

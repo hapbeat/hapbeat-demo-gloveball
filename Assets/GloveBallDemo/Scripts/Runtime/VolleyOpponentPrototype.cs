@@ -219,9 +219,9 @@ namespace GloveBallDemo.Runtime
         static readonly Key[] BlockKeys={
             new Key(0f,0f,new Vector3(.3f,1.3f,.12f),new Vector3(.22f,1.62f,.2f)),         // ready, hands at shoulders
             new Key(.25f,-.15f,new Vector3(.31f,1.26f,.14f),new Vector3(.23f,1.56f,.22f)),  // dip
-            new Key(.45f,.6f,new Vector3(.19f,1.84f,.22f),new Vector3(.16f,2.14f,.42f)),    // arms penetrate over the net
-            new Key(.72f,.6f,new Vector3(.19f,1.84f,.22f),new Vector3(.16f,2.14f,.42f)),
-            new Key(.88f,0f,new Vector3(.3f,1.3f,.12f),new Vector3(.22f,1.62f,.2f)),
+            new Key(.4f,0f,new Vector3(.19f,1.84f,.22f),new Vector3(.16f,2.14f,.42f)),      // arms penetrate over the net
+            new Key(.78f,0f,new Vector3(.19f,1.84f,.22f),new Vector3(.16f,2.14f,.42f)),     // ...and stay there through the hang
+            new Key(.92f,0f,new Vector3(.3f,1.3f,.12f),new Vector3(.22f,1.62f,.2f)),
             new Key(1f,0f,new Vector3(.3f,1.3f,.12f),new Vector3(.22f,1.62f,.2f))};
         /// <summary>Normalised phase where a blocker's hands are highest.</summary>
         public const float BlockPeakPhase=.585f;
@@ -232,7 +232,9 @@ namespace GloveBallDemo.Runtime
             var key=Sample(BlockKeys,phase);
             // Keys carry the arm shape; the jump arc itself scales with this actor's JumpHeight.
             float dip=phase<.3f ? -.15f*Mathf.Sin(phase/.3f*Mathf.PI) : 0f;
-            float air=phase>.25f && phase<.88f ? JumpHeight*Mathf.Sin(Mathf.InverseLerp(.25f,.88f,phase)*Mathf.PI) : 0f;
+            // Flat-topped arc: a blocker hangs near the top (>= 90% height for ~55% of the airtime).
+            float u=Mathf.InverseLerp(.25f,.92f,phase);
+            float air=phase>.25f && phase<.92f ? JumpHeight*(1f-Mathf.Pow(2f*u-1f,4f)) : 0f;
             key.Body=dip+air;
             PoseSymmetric(key,0f,key.Body<0f ? -key.Body*1.1f : 0f);
             if (Status != null) Status.text = "BLOCK";
