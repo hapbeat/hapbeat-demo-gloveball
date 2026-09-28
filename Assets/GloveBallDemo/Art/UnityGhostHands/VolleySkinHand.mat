@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: VolleySkinHand
-  m_Shader: {fileID: -6465566751694194690, guid: 89a6790c28795dd4987bb267c3d05338, type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: bd11349dc99f3fd4083ef2f86cee9c1f, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
@@ -92,8 +92,8 @@ Material:
     - _DstBlend: 10
     - _DstBlendAlpha: 10
     - _EdgeHighlightPower: 5
-    - _FadeSize: 0.09
-    - _FadeStart: 0.07
+    - _FadeSize: 0.11
+    - _FadeStart: 0.06
     - _Float: 0.33
     - _Float_1: 0.71
     - _Fragments: 0.71
@@ -138,10 +138,10 @@ Material:
     - Vector4_a181cf55d95248cd8de84bc8794fab43: {r: 0, g: 0, b: 0, a: 0}
     - Vector4_b4ecd630827d4a4eb3f21c6ac3664540: {r: 1, g: 1, b: 1, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 0.78039217}
-    - _ColorBottom: {r: 0.12156857, g: 0.12549016, b: 0.12941167, a: 1}
-    - _ColorTop: {r: 0.19607836, g: 0.20392147, b: 0.21176466, a: 1}
+    - _ColorBottom: {r: 0.87, g: 0.67, b: 0.53, a: 1}
+    - _ColorTop: {r: 0.87, g: 0.67, b: 0.53, a: 1}
     - _Color_1: {r: 0, g: 0, b: 0, a: 0.5803922}
-    - _EdgeColor: {r: 1, g: 0.88, b: 0.78, a: 0.6}
+    - _EdgeColor: {r: 0.87, g: 0.67, b: 0.53, a: 0}
     - _FadeCenter: {r: 0, g: 0, b: 0.15, a: 0}
     - _FadeCenter_1: {r: 1, g: 4, b: 1, a: 0}
     - _FadeScale: {r: 1, g: 4, b: 1, a: 0}
@@ -150,7 +150,7 @@ Material:
     - _FingerColor_3: {r: 1, g: 1, b: 1, a: 0}
     - _FingerColor_4: {r: 1, g: 1, b: 1, a: 0}
     - _FingerGlowColor: {r: 1, g: 1, b: 1, a: 1}
-    - _MainColor: {r: 0.87, g: 0.67, b: 0.53, a: 0.95}
+    - _MainColor: {r: 0.87, g: 0.67, b: 0.53, a: 1}
     - _OutlineColor: {r: 0.53773576, g: 0.53773576, b: 0.53773576, a: 1}
     - _OutlineGlowColor: {r: 1, g: 1, b: 1, a: 1}
     - _PinchColor: {r: 0.95, g: 0.95, b: 0.95, a: 1}

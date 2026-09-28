@@ -12,6 +12,7 @@ public static class VolleyRallySetup
     const string ScenePath="Assets/GloveBallDemo/Scenes/VolleyBlock-codex.unity";
     const string AllyName="Rally friendly setter";
     const string BlockerPrefix="Opponent blocker ";
+    const string DefenderPrefix="Opponent defender ";
 
     [MenuItem("Hapbeat/Volley/Apply spike + block turn rally")]
     public static void Apply()
@@ -61,6 +62,15 @@ public static class VolleyRallySetup
             aerial.Blockers[i]=blocker;
         }
 
+        aerial.Defenders=new VolleyOpponentPrototype[3];
+        for(int i=0;i<aerial.Defenders.Length;i++)
+        {
+            var defender=actors.FirstOrDefault(a=>a.gameObject.name==DefenderPrefix+(i+1));
+            if(defender==null)defender=VolleyAerialSequence.CreateDefender(opponent,i,aerial.OpponentJersey,aerial.OpponentShorts);
+            else VolleyAerialSequence.ConfigureActor(defender,VolleyOpponentPrototype.MotionRole.Dig,aerial.OpponentJersey,aerial.OpponentShorts);
+            defender.transform.SetPositionAndRotation(net+forward*aerial.DefenderDepth+right*((i-1)*aerial.DefenderSpacing),Quaternion.LookRotation(-forward,Vector3.up));
+            aerial.Defenders[i]=defender;
+        }
         // Serialized scene values win over code defaults, so the tuned rally values are written explicitly.
         aerial.AllyFlightSeconds=1.5f;       // high set, time to read it
         aerial.RallyResetSeconds=2f;         // landing ball and marker stay visible
@@ -74,6 +84,11 @@ public static class VolleyRallySetup
         drill.Left.MaximumTrackedSpeed=drill.Right.MaximumTrackedSpeed=30f;
         drill.Left.MaximumHandSpeed=drill.Right.MaximumHandSpeed=25f;
         drill.MaximumReturnSpeed=18f;
+        // Hit area = the visible hand: the box is refitted to all hand joints every tracked frame.
+        drill.Left.FitContactToHand=drill.Right.FitContactToHand=true;
+        // Hard swings lose hand tracking mid-stroke: carry the hand along its swing for up to 0.22 s / 0.6 m.
+        foreach(var hand in new[]{drill.Left,drill.Right}){hand.FastSwingSpeed=3f;hand.FastSwingLossSeconds=.22f;hand.FastSwingPredictionDistance=.6f;}
+        drill.SpikeTouchAssist=.03f;
         drill.MaximumBallAge=6f;
         // Points are decided by landing position; the floor targets are not part of the rally.
         drill.Targets.RandomizeOnStart=false;
@@ -86,6 +101,8 @@ public static class VolleyRallySetup
 
     const string SkinHandPath="Assets/GloveBallDemo/Art/UnityGhostHands/VolleySkinHand.mat";
     const string GhostHandPath="Assets/GloveBallDemo/Art/UnityGhostHands/Materials/Unity_Hand_Medium.mat";
+    const string DepthOnlyPath="Assets/GloveBallDemo/Art/UnityGhostHands/Materials/DepthOnly.mat";
+    const string SmoothHandShaderPath="Assets/GloveBallDemo/Art/UnityGhostHands/Shaders/Unity_Hand.shadergraph";
     /// <summary>
     /// Skin-tone hands for the rally scene only. Built from the ghost-hand material so the wrist keeps its gradual fade
     /// (no hard cut edge); the receive scene keeps the grey ghost hands.
@@ -96,18 +113,25 @@ public static class VolleyRallySetup
         if(source==null)throw new InvalidOperationException("Ghost hand material is missing: "+GhostHandPath);
         var material=AssetDatabase.LoadAssetAtPath<Material>(SkinHandPath);
         if(material==null){material=new Material(source);AssetDatabase.CreateAsset(material,SkinHandPath);}
-        material.shader=source.shader;material.CopyPropertiesFromMaterial(source);
-        material.SetColor("_MainColor",new Color(.87f,.67f,.53f,.95f));
-        material.SetColor("_EdgeColor",new Color(1f,.88f,.78f,.6f));
-        material.SetFloat("_FadeStart",.07f);material.SetFloat("_FadeSize",.09f); // gradual fade over the back of the hand, no visible cut
+        // Smooth (non-dithered) ghost shader: the wrist fades as a gradient instead of speckle.
+        var smooth=AssetDatabase.LoadAssetAtPath<Shader>(SmoothHandShaderPath);
+        if(smooth==null)throw new InvalidOperationException("Hand shader is missing: "+SmoothHandShaderPath);
+        material.shader=smooth;material.CopyPropertiesFromMaterial(source);
+        var skin=new Color(.87f,.67f,.53f,1f);
+        material.SetColor("_MainColor",skin);
+        material.SetColor("_ColorTop",skin);material.SetColor("_ColorBottom",skin); // the grey gradient darkened the fade band
+        material.SetColor("_EdgeColor",new Color(.87f,.67f,.53f,0f)); // no rim light: it read as an outline
+        material.SetFloat("_FadeStart",.06f);material.SetFloat("_FadeSize",.11f); // long gradual fade toward the wrist, opaque fingers
         EditorUtility.SetDirty(material);
+        // Keep the ghost setup's depth-only second pass: without it the transparent hand shows its own fingers
+        // through the palm and UI canvases draw over it.
+        var depth=AssetDatabase.LoadAssetAtPath<Material>(DepthOnlyPath);
+        if(depth==null)throw new InvalidOperationException("Depth-only material is missing: "+DepthOnlyPath);
         int count=0;
         foreach(var ghost in UnityEngine.Object.FindObjectsByType<VolleyGhostHand>(FindObjectsInactive.Include,FindObjectsSortMode.None))
         {
             if(ghost.Mesh==null)continue;
-            var materials=ghost.Mesh.sharedMaterials;
-            for(int i=0;i<materials.Length;i++)materials[i]=material;
-            ghost.Mesh.sharedMaterials=materials;count++;
+            ghost.Mesh.sharedMaterials=new[]{material,depth};count++;
         }
         if(count!=2)throw new InvalidOperationException("Expected two ghost hands, found "+count);
     }

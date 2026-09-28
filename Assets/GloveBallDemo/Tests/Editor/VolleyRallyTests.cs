@@ -81,7 +81,12 @@ namespace GloveBallDemo.Tests
             {
                 Assert.That(ghost.Mesh.sharedMaterial.name,Is.EqualTo("VolleySkinHand"),"Skin-tone player hands.");
                 Assert.That(ghost.Mesh.sharedMaterial.HasProperty("_FadeCenter"),Is.True,"Built on the ghost-hand shader so the wrist fades out.");
+                Assert.That(ghost.Mesh.sharedMaterials,Has.Length.EqualTo(2));
+                Assert.That(ghost.Mesh.sharedMaterials[1].name,Is.EqualTo("DepthOnly"),"Depth pass keeps fingers and UI from showing through.");
             }
+            Assert.That(_drill.Left.FitContactToHand && _drill.Right.FitContactToHand,Is.True,"Hit area follows the visible hand.");
+            Assert.That(_rally.Defenders,Has.Length.EqualTo(3));
+            foreach(var defender in _rally.Defenders)Assert.That(defender.Role,Is.EqualTo(VolleyOpponentPrototype.MotionRole.Dig));
         }
 
         [Test]
@@ -95,7 +100,7 @@ namespace GloveBallDemo.Tests
             RunUntil(()=>_rally.TurnStarted,1f,"spike turn applied");
             Assert.That(_rally.FadeAlpha,Is.EqualTo(1f));Assert.That(_rally.CurrentTurn,Is.EqualTo(Turn.Spike));
             Assert.That(Vector3.Dot(_drill.Head.position-eye,Forward),Is.EqualTo(-_rally.SpikeStandBackDistance).Within(.001f),"Spike stance is further from the net.");
-            Assert.That(Vector3.Distance(_rally.Opponent.transform.position,home),Is.GreaterThan(1f),"The attacker waits in the back row.");
+            Assert.That(_rally.Opponent.gameObject.activeSelf,Is.False,"Spike turn: three blockers and three defenders; the attacker is off.");
             Assert.That(_jump.JumpHeight,Is.EqualTo(_rally.SpikeJumpHeight));Assert.That(_jump.Duration,Is.EqualTo(_rally.SpikeJumpSeconds));
             RunUntil(()=>_rally.Phase==Phase.AllyReceive,3f,"first spike attempt");
             Assert.That(_rally.FadeAlpha,Is.Zero);
@@ -134,8 +139,15 @@ namespace GloveBallDemo.Tests
             Assert.That(_jump.Floor.StanceOffset,Is.EqualTo(Vector3.zero));
             Assert.That(_jump.JumpHeight,Is.EqualTo(_rally.BlockJumpHeight));
             Assert.That(_rally.Opponent.transform.position,Is.EqualTo(home));
-            foreach(var blocker in _rally.Blockers)Assert.That(blocker.gameObject.activeSelf,Is.False,"Only the attacker is shown in the block turn.");
+            // Six opponents: attacker, setter, idle middle and three defenders; our setter is off court.
+            Assert.That(_rally.Opponent.gameObject.activeSelf,Is.True);
+            Assert.That(_rally.Blockers[0].Role,Is.EqualTo(VolleyOpponentPrototype.MotionRole.Set));
+            Assert.That(_rally.Blockers[0].gameObject.activeSelf && _rally.Blockers[1].gameObject.activeSelf,Is.True);
+            Assert.That(_rally.Blockers[2].gameObject.activeSelf,Is.False);
+            foreach(var defender in _rally.Defenders)Assert.That(defender.gameObject.activeSelf,Is.True);
+            foreach(var blocker in _rally.Blockers)Assert.That(blocker.GetComponentInChildren<Collider>(true).enabled,Is.False,"Nobody is solid in the block turn.");
             Assert.That(_rally.Ally.gameObject.activeSelf,Is.False);
+            RunUntil(()=>_rally.Phase==Phase.OpponentReceive,3f,"opponent setter receives the pass");
             RunUntil(()=>_rally.Phase==Phase.OpponentSet,3f,"opponent attack starts");
             Assert.That(_announcements,Is.EqualTo(2));
         }
@@ -199,6 +211,67 @@ namespace GloveBallDemo.Tests
                 Assert.That(blocker.Torso.localPosition.y-rest,Is.GreaterThan(peak*.9f),"Still near the top at phase "+phase);
                 Assert.That(blocker.RightHand.localPosition.y,Is.GreaterThan(2.1f),"Arms stay up over the net.");
             }
+        }
+
+        /// <summary>Integrates a free flight and feeds it to SampleBall at physics rate until the rally decides the point.</summary>
+        void Fly(Vector3 position,Vector3 velocity)
+        {
+            for(int i=0;i<300 && _rally.Phase==Phase.PlayerSpike;i++)
+            {
+                if(_rally.SampleBall(position,velocity,.11f,.02f))velocity=_rally.DigVelocity;
+                velocity+=Physics.gravity*.02f;position+=velocity*.02f;
+                if(position.y<.11f){position.y=.11f;velocity.y=-velocity.y*.6f;}
+            }
+        }
+
+        [Test]
+        public void DefendersDigSlowShotsButNotHardSpikesAwayFromThem()
+        {
+            _rally.Mode=Mode.SpikeOnly;
+            RunUntil(()=>_rally.Phase==Phase.AllyReceive,3f,"spike attempt");
+            var net=_drill.ReceiveNet.transform.position;
+            LaunchLive();_rally.RegisterPlayerTouch();
+            // Soft push toward the middle defender (depth 6): about a second in the air.
+            Fly(net+new Vector3(0f,3f,-.3f),new Vector3(0f,3.4f,5.4f));
+            Assert.That(_rally.Outcome,Is.EqualTo("DUG"));Assert.That(_rally.OpponentScore,Is.EqualTo(1));
+            RunUntil(()=>_rally.Phase==Phase.AllyReceive,6f,"next spike");
+
+            LaunchLive();_rally.RegisterPlayerTouch();
+            // Hard, steep spike into the gap in front of the defenders: ~0.3 s flight, nobody can get there.
+            Fly(net+new Vector3(-1.4f,3.2f,-.3f),new Vector3(0f,-9f,13f));
+            Assert.That(_rally.Outcome,Is.EqualTo("POINT!"));Assert.That(_rally.PlayerScore,Is.EqualTo(1));
+        }
+
+        [Test]
+        public void FastSwingDropoutIsBridgedAlongTheSwingAndStaysCollidable()
+        {
+            foreach(var hand in new[]{_drill.Left,_drill.Right})
+                Assert.That(hand.FastSwingLossSeconds,Is.GreaterThan(hand.BriefLossSeconds),"Rally hands bridge longer dropouts.");
+            var go=new GameObject("swing");
+            try
+            {
+                var hand=go.AddComponent<VolleyTrackedHand>();hand.FastSwingLossSeconds=.22f;hand.FastSwingPredictionDistance=.6f;
+                var flags=BindingFlags.Instance|BindingFlags.NonPublic;
+                typeof(VolleyTrackedHand).GetField("_haveSample",flags).SetValue(hand,true);
+                typeof(VolleyTrackedHand).GetField("_lastSampleTime",flags).SetValue(hand,1f);
+                typeof(VolleyTrackedHand).GetField("<Ready>k__BackingField",flags).SetValue(hand,true);
+                typeof(VolleyTrackedHand).GetField("<Velocity>k__BackingField",flags).SetValue(hand,new Vector3(0f,-4f,6f));
+                Assert.That(hand.ContinueBriefLoss(1.18f),Is.True,"0.18 s dropout during a hard swing is bridged.");
+                Assert.That(hand.Ready,Is.True);
+                Assert.That(Vector3.Angle(hand.transform.position,new Vector3(0f,-4f,6f)),Is.LessThan(.1f),"Continues along the swing.");
+                Assert.That(hand.transform.position.magnitude,Is.LessThanOrEqualTo(.6001f));
+                Assert.That(hand.ContinueBriefLoss(1.3f),Is.False);
+            }
+            finally{Object.DestroyImmediate(go);}
+        }
+
+        [Test]
+        public void ImpactFeedbackScalesWithRelativeSpeed()
+        {
+            Assert.That(_drill.ImpactGain(2f),Is.LessThan(_drill.ImpactGain(8f)));
+            Assert.That(_drill.ImpactGain(8f),Is.EqualTo(1f).Within(.001f));
+            Assert.That(_drill.ImpactGain(.1f),Is.EqualTo(_drill.MinimumImpactGain));
+            Assert.That(_drill.ImpactGain(40f),Is.EqualTo(_drill.MaximumImpactGain));
         }
 
         [Test]

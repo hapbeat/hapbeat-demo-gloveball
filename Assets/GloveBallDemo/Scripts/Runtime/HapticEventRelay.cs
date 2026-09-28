@@ -120,20 +120,24 @@ namespace GloveBallDemo.Runtime
         }
 
         public static void ReportBallImpact(Ball ball, DemoHapticEvent surface, Vector3 position)
+            => ReportBallImpact(ball, surface, position, 1f);
+
+        /// <summary>Impact whose haptic gain and sound volume follow how hard this contact was (1 = nominal).</summary>
+        public static void ReportBallImpact(Ball ball, DemoHapticEvent surface, Vector3 position, float strength)
         {
             if (Instance != null && ball.Feel != null && ball.Feel.ImpactClip != null)
             {
-                Instance.AudioRequested?.Invoke(ball.ImpactEvent(surface), position, ball.Feel.ImpactVolume);
+                Instance.AudioRequested?.Invoke(ball.ImpactEvent(surface), position, ball.Feel.ImpactVolume * strength);
                 if (Instance._audioSource != null)
                 {
-                    Instance.PlayBallSound(ball.Feel, position);
+                    Instance.PlayBallSound(ball.Feel, position, strength);
                 }
             }
-            else PlayAudioOnly(surface, position);
-            ReportHapticOnly(ball.ImpactEvent(surface), position);
+            else PlayAudioOnly(surface, position, strength);
+            ReportHapticOnly(ball.ImpactEvent(surface), position, strength);
         }
 
-        private void PlayBallSound(BallFeel feel, Vector3 position)
+        private void PlayBallSound(BallFeel feel, Vector3 position, float strength = 1f)
         {
             // Independent voices: a new impact must not retune a sound already playing.
             int index = _nextImpactVoice;
@@ -164,7 +168,7 @@ namespace GloveBallDemo.Runtime
             voice.transform.position = position;
             voice.clip = feel.ImpactClip;
             voice.pitch = BallFeel.SampleRange(feel.ImpactPitchRange, UnityEngine.Random.value, .1f, 3f);
-            voice.volume = Mathf.Clamp01(_audioSource.volume * feel.ImpactVolume *
+            voice.volume = Mathf.Clamp01(_audioSource.volume * feel.ImpactVolume * strength *
                 BallFeel.SampleRange(feel.ImpactVolumeRange, UnityEngine.Random.value, 0f, 1f));
             voice.Play();
         }

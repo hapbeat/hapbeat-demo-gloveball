@@ -73,6 +73,11 @@ namespace GloveBallDemo.Runtime
         [Min(1f)] public float SpikeMaximumSpeed = 20f;
         [Tooltip("Largest upward component (sine) allowed for a swing-driven spike.")]
         [Range(-1f,1f)] public float SpikeMaximumRise = .1f;
+        [Header("Impact feedback")]
+        [Tooltip("Relative normal speed (m/s) that gives nominal haptic gain and volume; slower touches are softer.")]
+        [Min(.5f)] public float ImpactReferenceSpeed = 8f;
+        [Min(0f)] public float MinimumImpactGain = .2f;
+        [Min(.1f)] public float MaximumImpactGain = 1.5f;
         [Tooltip("Rally only: a hand within this distance of an untouched ball is reported for the missed-hit hint.")]
         [Min(0f)] public float NearHandDistance = .45f;
         public int Returns { get; private set; }
@@ -326,7 +331,9 @@ namespace GloveBallDemo.Runtime
             {
                 Vector3 current = _ball.Body.position;
                 Vector3 previous = _haveBallSample ? _previousBallPosition : current;
-                if (Time.time - _lastContact >= RehitCooldown)
+                // Rally: one player touch per attack. A block that rebounds off the net drops instead of being hit back again.
+                bool touchLocked = Aerial != null && Aerial.PlayerTouched;
+                if (!touchLocked && Time.time - _lastContact >= RehitCooldown)
                 {
                     var sphere = _ball.GetComponent<SphereCollider>();
                     float radius = sphere != null ? sphere.radius * Mathf.Max(_ball.transform.lossyScale.x, _ball.transform.lossyScale.y, _ball.transform.lossyScale.z) : .12f;
@@ -365,7 +372,8 @@ namespace GloveBallDemo.Runtime
                             for (int axis = 0; axis < 3; axis++)
                                 if (Mathf.Abs(localNormal[axis]) > .5f) localHit[axis] = Mathf.Sign(localNormal[axis]) * half[axis];
                             _ball.Body.position = volume.transform.TransformPoint(volume.center + localHit) + normal * (radius + .01f);
-                            ReportHandImpact(_ball,hand,joined);
+                            float relative = Mathf.Abs(Vector3.Dot(incoming - handVelocity, normal));
+                            ReportHandImpactScaled(_ball,hand,joined,ImpactGain(relative));
                             _lastContact = Time.time; Returns++;
                             if(Aerial!=null)Aerial.RegisterPlayerTouch();
                         }
@@ -386,7 +394,8 @@ namespace GloveBallDemo.Runtime
                     {
                         var sphere = _ball.GetComponent<SphereCollider>();
                         float radius = sphere != null ? sphere.radius * Mathf.Max(_ball.transform.lossyScale.x, _ball.transform.lossyScale.y, _ball.transform.lossyScale.z) : .12f;
-                        Aerial.SampleBall(_ball.Body.position,_ball.Body.linearVelocity,radius,Time.fixedDeltaTime);
+                        if(Aerial.SampleBall(_ball.Body.position,_ball.Body.linearVelocity,radius,Time.fixedDeltaTime,_ball.Body.linearDamping))
+                            _ball.Body.linearVelocity=Aerial.DigVelocity; // a defender dug it: visible pop-up, no floor contact
                     }
                 }
             }
@@ -417,15 +426,19 @@ namespace GloveBallDemo.Runtime
             BodyHits++;
             HapticEventRelay.ReportBallImpact(ball, DemoHapticEvent.BodyCollide, point);
         }
-        private void ReportHandImpact(Ball ball,VolleyTrackedHand hand,bool joined)
+        private void ReportHandImpact(Ball ball,VolleyTrackedHand hand,bool joined)=>ReportHandImpactScaled(ball,hand,joined,1f);
+        /// <summary>Haptic gain and impact volume follow the relative speed along the contact normal.</summary>
+        public float ImpactGain(float relativeNormalSpeed)
+            =>Mathf.Clamp(relativeNormalSpeed/ImpactReferenceSpeed,MinimumImpactGain,MaximumImpactGain);
+        private void ReportHandImpactScaled(Ball ball,VolleyTrackedHand hand,bool joined,float strength)
         {
             if(joined)
             {
                 // One audible impact, two explicitly sided haptic events, independent of which box side was hit.
-                HapticEventRelay.ReportBallImpact(ball,DemoHapticEvent.LeftArmCollide,Left.transform.position);
-                HapticEventRelay.ReportHapticOnly(ball.ImpactEvent(DemoHapticEvent.RightArmCollide),Right.transform.position);
+                HapticEventRelay.ReportBallImpact(ball,DemoHapticEvent.LeftArmCollide,Left.transform.position,strength);
+                HapticEventRelay.ReportHapticOnly(ball.ImpactEvent(DemoHapticEvent.RightArmCollide),Right.transform.position,strength);
             }
-            else HapticEventRelay.ReportBallImpact(ball,hand.Side==GloveSide.Left ? DemoHapticEvent.LeftArmCollide : DemoHapticEvent.RightArmCollide,hand.transform.position);
+            else HapticEventRelay.ReportBallImpact(ball,hand.Side==GloveSide.Left ? DemoHapticEvent.LeftArmCollide : DemoHapticEvent.RightArmCollide,hand.transform.position,strength);
         }
         private void OnTargetContact(TargetPanel panel,Ball ball)
         {

@@ -28,6 +28,16 @@ namespace GloveBallDemo.Runtime
         [Min(.05f)] public float ReacquireDelay = .15f;
         [Range(0f,.15f)] public float BriefLossSeconds=.10f;
         [Min(0f)] public float MaximumPredictionDistance=.12f;
+        [Header("Fast swing: bridge tracking loss")]
+        [Tooltip("When the hand was moving at least this fast, a tracking dropout is bridged along the last velocity (still collidable). 0 s = off.")]
+        [Min(0f)] public float FastSwingSpeed=3f;
+        [Range(0f,.4f)] public float FastSwingLossSeconds;
+        [Min(0f)] public float FastSwingPredictionDistance;
+        [Header("Contact volume")]
+        [Tooltip("Resize ContactVolume every tracked frame to the box around all hand joints (fingers included), so the hit area matches the visible hand.")]
+        public bool FitContactToHand;
+        [Min(0f)] public float FingerPadding=.012f;
+        [Min(.005f)] public float MinimumThickness=.035f;
         [Min(0f)] public float VisualHoldSeconds=1.5f;
         [Header("Quest standalone Wide Motion Mode")]
         public bool EnableWideMotion = true;
@@ -41,6 +51,10 @@ namespace GloveBallDemo.Runtime
         public Quaternion PreviousPhysicsRotation { get; private set; }
         public Vector3 Normal => transform.up;
         private readonly List<XRHandSubsystem> _subsystems = new List<XRHandSubsystem>();
+        private XRHand _trackedHand;
+        bool FastSwing=>Velocity.magnitude>=FastSwingSpeed;
+        float LossBridgeSeconds=>FastSwing ? Mathf.Max(BriefLossSeconds,FastSwingLossSeconds) : BriefLossSeconds;
+        float LossBridgeDistance=>FastSwing ? Mathf.Max(MaximumPredictionDistance,FastSwingPredictionDistance) : MaximumPredictionDistance;
         private Vector3 _lastPosition;
         private Vector3 _lastLocalPosition;
         private float _lastSampleTime;
@@ -59,7 +73,7 @@ namespace GloveBallDemo.Runtime
             if(EnableWideMotion && InputMode!=VolleyInputMode.ControllersOnly && source!="controller" && wide!=null)
             {
                 wide.Prepare();
-                if(!valid && (!Ready || now-_lastSampleTime>BriefLossSeconds) && TrackingSpace!=null && wide.TryGetVisual(Side==GloveSide.Left,out var estimated))
+                if(!valid && (!Ready || now-_lastSampleTime>LossBridgeSeconds) && TrackingSpace!=null && wide.TryGetVisual(Side==GloveSide.Left,out var estimated))
                 {ApplyWidePose(estimated,now);return;}
             }
             IsEstimated=false;
@@ -93,6 +107,7 @@ namespace GloveBallDemo.Runtime
             else Velocity = Vector3.ClampMagnitude((position - _lastPosition) / dt, MaximumHandSpeed);
             transform.SetPositionAndRotation(position, rotation);
             Source = source; _lastSource = source; _lastPosition = position; _lastLocalPosition = pose.position; _lastSampleTime = now;
+            if (FitContactToHand && source == "hands") FitVolumeToJoints(_trackedHand);
             _haveSample = true;
             Ready = now - _stableSince >= ReacquireDelay;
             if (Visual != null) Visual.gameObject.SetActive(true);
@@ -113,8 +128,9 @@ namespace GloveBallDemo.Runtime
         public bool ContinueBriefLoss(float now)
         {
             float gap=now-_lastSampleTime;
-            if(!_haveSample || !Ready || gap<0f || gap>BriefLossSeconds)return false;
-            transform.position=_lastPosition+Vector3.ClampMagnitude(Velocity*gap,MaximumPredictionDistance);
+            if(!_haveSample || !Ready || gap<0f || gap>LossBridgeSeconds)return false;
+            // A fast swing usually loses tracking mid-stroke; continue it so the strike still lands.
+            transform.position=_lastPosition+Vector3.ClampMagnitude(Velocity*gap,LossBridgeDistance);
             Source="brief-loss";return true;
         }
 
@@ -130,6 +146,7 @@ namespace GloveBallDemo.Runtime
                     var hand = Side == GloveSide.Left ? subsystem.leftHand : subsystem.rightHand;
                     if (hand.isTracked && hand.GetJoint(XRHandJointID.Wrist).TryGetPose(out pose))
                     {
+                        _trackedHand = hand;
                         // The fixed box and ghost skeleton share the wrist's rigid frame.
                         // Finger articulation must never rotate, resize or translate this volume.
                         source = "hands"; return true;
@@ -145,6 +162,28 @@ namespace GloveBallDemo.Runtime
             if ((device.characteristics & InputDeviceCharacteristics.Controller) == 0) return false;
             pose = new Pose(p + r * ControllerPositionOffset, r * Quaternion.Euler(ControllerRotationOffset));
             source = "controller"; return true;
+        }
+
+        /// <summary>Axis-aligned box (in the contact volume's own frame) around every tracked joint, padded for finger thickness.</summary>
+        void FitVolumeToJoints(XRHand hand)
+        {
+            if (ContactVolume == null) return;
+            var box = ContactVolume.transform;
+            Vector3 min = Vector3.positiveInfinity, max = Vector3.negativeInfinity;
+            int count = 0;
+            for (int i = XRHandJointID.BeginMarker.ToIndex(); i < XRHandJointID.EndMarker.ToIndex(); i++)
+            {
+                if (!hand.GetJoint(XRHandJointIDUtility.FromIndex(i)).TryGetPose(out var joint)) continue;
+                var local = box.InverseTransformPoint(TrackingSpace.TransformPoint(joint.position));
+                min = Vector3.Min(min, local); max = Vector3.Max(max, local); count++;
+            }
+            if (count < 6) return;
+            var size = max - min + Vector3.one * (2f * FingerPadding);
+            var scale = box.lossyScale;
+            float thickness = MinimumThickness / Mathf.Max(1e-4f, Mathf.Abs(scale.y));
+            if (size.y < thickness) size.y = thickness;
+            ContactVolume.center = (min + max) * .5f;
+            ContactVolume.size = size;
         }
 
         public void BeginPhysicsSample()

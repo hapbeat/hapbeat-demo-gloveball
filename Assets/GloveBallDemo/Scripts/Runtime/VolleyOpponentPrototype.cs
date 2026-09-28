@@ -10,7 +10,7 @@ namespace GloveBallDemo.Runtime
         public Transform Target;
         public TextMesh Status;
         public enum MotionVariant { A_Readable, B_FastArm, C_PowerTwist }
-        public enum MotionRole { Spike, Set, Block }
+        public enum MotionRole { Spike, Set, Block, Dig }
         public MotionVariant Variant;
         [Tooltip("Spike is the opposing attacker. Set is the friendly teammate that presents a high ball to the player. Block is an opposing net blocker.")]
         public MotionRole Role;
@@ -111,6 +111,11 @@ namespace GloveBallDemo.Runtime
             if (Role == MotionRole.Block)
             {
                 PoseBlock(phase);
+                return;
+            }
+            if (Role == MotionRole.Dig)
+            {
+                PoseDig(phase);
                 return;
             }
             var jump=Jump(phase);
@@ -223,6 +228,17 @@ namespace GloveBallDemo.Runtime
             new Key(.78f,0f,new Vector3(.19f,1.84f,.22f),new Vector3(.16f,2.14f,.42f)),     // ...and stay there through the hang
             new Key(.92f,0f,new Vector3(.3f,1.3f,.12f),new Vector3(.22f,1.62f,.2f)),
             new Key(1f,0f,new Vector3(.3f,1.3f,.12f),new Vector3(.22f,1.62f,.2f))};
+        static readonly Key[] DigKeys={
+            new Key(0f,-.1f,new Vector3(.27f,1.16f,.16f),new Vector3(.2f,1.02f,.34f)),    // back-row ready: knees bent, hands low in front
+            new Key(1f,-.32f,new Vector3(.2f,1.02f,.3f),new Vector3(.06f,.84f,.52f))};     // dig: deep, arms joined into a platform
+        /// <summary>Back-row defence: 0 = ready, 1 = low platform dig.</summary>
+        void PoseDig(float phase)
+        {
+            var key=Sample(DigKeys,Mathf.Clamp01(phase));
+            PoseSymmetric(key,12f*Mathf.Clamp01(phase),-key.Body*1.1f);
+            if (Status != null) Status.text = "DIG";
+        }
+
         /// <summary>Normalised phase where a blocker's hands are highest.</summary>
         public const float BlockPeakPhase=.585f;
 
