@@ -51,7 +51,7 @@ The following are the former CC0 sources (only Basketball remains active). The o
 4. [Basketball bounce — toddcircle](https://freesound.org/people/toddcircle/sounds/451642/): basketball bounced on carpet.
 5. [Drop (plastic ball) — lori.mortimer](https://freesound.org/people/lori.mortimer/sounds/723791/): processed pickleball dropped in a bathtub.
 
-Final timbre/volume should be auditioned in the HMD. The agent's verification is muted and never sends live haptics.
+Final timbre/volume should be auditioned in the HMD. Automated verification is muted and never sends live haptics.
 
 ## Incoming trajectory tuning
 

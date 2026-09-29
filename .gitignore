@@ -44,10 +44,14 @@ __pycache__/
 # Internal dev notes / agent metadata stay in the private workspace
 dev-notes/
 
-# Unity XR Hands sample meshes: Unity Package Distribution License allows
-# distribution only as binaries in a built app, not as raw source assets.
-# Kept locally (and in the private hapbeat-demo-assets repo), never committed.
-Assets/GloveBallDemo/Art/UnityGhostHands/Models/LeftHand.fbx
-Assets/GloveBallDemo/Art/UnityGhostHands/Models/LeftHand.fbx.meta
-Assets/GloveBallDemo/Art/UnityGhostHands/Models/RightHand.fbx
-Assets/GloveBallDemo/Art/UnityGhostHands/Models/RightHand.fbx.meta
+# Workspace-only links created by tools/link-workspace.ps1 (directory junctions).
+# Private assets: Unity XR Hands sample meshes (Unity Package Distribution License allows
+# distribution only as binaries in a built app, not as raw source assets). Public clones
+# use the placeholder hands in Assets/GloveBallDemo/Art/FallbackHands instead.
+/Assets/HapbeatPrivate
+/Assets/HapbeatPrivate.meta
+# Embedded packages that override the pinned Git URLs in Packages/manifest.json.
+/Packages/com.hapbeat.sdk
+/Packages/com.hapbeat.demo-switch
+# Resolved per checkout (embedded packages vs Git URLs).
+/Packages/packages-lock.json

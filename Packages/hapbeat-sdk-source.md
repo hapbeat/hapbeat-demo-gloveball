@@ -1,26 +1,27 @@
-# Why `com.hapbeat.sdk` is pinned to a Git commit
+# Where the Hapbeat packages come from
 
-`manifest.json` pins the Hapbeat Unity SDK to the exact commit that contains the
-Unity 6000.0 compatibility fix:
+`manifest.json` pins both Hapbeat packages to public Git sources, so a plain clone
+restores them without any neighbouring checkout:
 
 ```json
-"com.hapbeat.sdk": "https://github.com/hapbeat/hapbeat-unity-sdk.git#21e56fe3875f942d8230e91bffbaaf5aa963803c"
+"com.hapbeat.sdk": "https://github.com/hapbeat/hapbeat-unity-sdk.git#v0.5.0",
+"com.hapbeat.demo-switch": "https://github.com/hapbeat/hapbeat-demos.git?path=unity/packages/com.hapbeat.demo-switch#75eb51687e35bd88af61cc181fa6bd5dcd0b4753"
 ```
 
-The published `v0.4.0` tag cannot be used here. Its editor assembly calls
-`EditorUtility.EntityIdToObject`, an API that **does not exist in Unity 6000.0 LTS** —
-the version this project is pinned to for Ultimate Glove Ball asset compatibility.
-The symbol is absent from `6000.0.59f2/Editor/Data/Managed/UnityEditor.dll` and present
-in `6000.3.12f1`'s. On 6000.0 it fails as:
+- `com.hapbeat.sdk` uses the release tag `v0.5.0`, the newest published tag this project compiles and
+  passes its tests with on Unity 6000.0.59f2. Tags before `v0.5.0` are not usable: `v0.4.0`'s editor assembly
+  calls `EditorUtility.EntityIdToObject`, which does not exist in Unity 6000.0 LTS; `v0.5.0` routes it through
+  the version-guarded `HapbeatEditorCompat` helper.
+- `com.hapbeat.demo-switch` has no release of its own; it is pinned to an immutable commit of the
+  `hapbeat-demos` repository.
 
-```
-Editor\HapbeatEventMapPlaySnapshot.cs(88,41): error CS0117:
-'EditorUtility' does not contain a definition for 'EntityIdToObject'
-```
+`packages-lock.json` is not committed: it records whichever source a checkout resolved (Git URL or an
+embedded package below), so it differs between a plain clone and a workspace checkout.
 
-`Hapbeat.Editor` failing takes the whole project's compilation with it, so referencing
-only the SDK runtime is not a workaround either.
+## Live sources in the Hapbeat workspace
 
-The fixed commit uses the version-guarded `HapbeatEditorCompat.IdToObject` helper.
-Pinning its immutable commit ID lets a standalone clone restore the package without a
-neighbouring SDK checkout while keeping the Unity version compatibility reproducible.
+`tools/link-workspace.ps1` creates directory junctions `Packages/com.hapbeat.sdk` and
+`Packages/com.hapbeat.demo-switch` pointing at the workspace checkouts. Unity treats a package folder
+inside `Packages/` as an embedded package, which overrides the Git URL above, so SDK changes are picked up
+without editing the manifest. Both junctions are git-ignored. Embedded packages are testable, so the SDK's
+own EditMode tests also run in that setup.
