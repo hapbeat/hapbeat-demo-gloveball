@@ -31,6 +31,8 @@ GloveBall は `Resources/HapbeatDemoSwitchSettings.asset` が存在するため�
    git lfs pull
    ```
 
+   Windows では短いパス（例: `C:\dev\hapbeat-demo-gloveball`）に clone する。深い階層に置くと、Unity の package・shader import が Windows のパス長上限（260 文字）を超えて失敗することがある。
+
 2. Unity Hub でこのディレクトリを Unity 6000.0.59f2 のプロジェクトとして開き、package import と script compilation の完了を待つ。Hapbeat SDK（`com.hapbeat.sdk`）と Demo Switch（`com.hapbeat.demo-switch`）は `Packages/manifest.json` に固定した公開 Git URL から自動で取得される（詳細は [Packages/hapbeat-sdk-source.md](Packages/hapbeat-sdk-source.md)）。
 3. Project Settings > Player > Other Settings > Active Input Handling が **Input System Package (New)** のみになっていることを確認する。Both と Input Manager (Old) は使用しない。
 4. Android を active build target にし、Project Settings > XR Plug-in Management > Android で OpenXR が有効であることを確認する。Quest Pro 向け eye tracking requirement は有効化しない。
