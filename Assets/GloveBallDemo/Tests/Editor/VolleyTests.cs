@@ -209,7 +209,8 @@ namespace GloveBallDemo.Tests
             var scene=EditorSceneManager.NewPreviewScene();
             try
             {
-                var model=UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(art+"Models/"+name+".fbx");
+                // Public placeholder; the private XR Hands model is covered by VolleyHandModelTests when linked.
+                var model=UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/GloveBallDemo/Art/FallbackHands/"+name+"Placeholder.prefab");
                 Assert.That(model,Is.Not.Null);
                 var instance=Object.Instantiate(model); SceneManager.MoveGameObjectToScene(instance,scene);
                 var mesh=instance.GetComponentInChildren<SkinnedMeshRenderer>();
@@ -349,6 +350,7 @@ namespace GloveBallDemo.Tests
                     Assert.That(hand.ContactVolume.center.z+hand.ContactVolume.size.z*.5f,Is.EqualTo(.18f).Within(.001f),"Keep fingertip edge unchanged");
                     var ghost=hand.Visual.GetComponent<VolleyGhostHand>();
                     Assert.That(ghost,Is.Not.Null);
+                    Assert.That(hand.Visual.GetComponent<VolleyHandModelResolver>().Resolve(),Is.True,"Hand mesh is instantiated at runtime.");
                     Assert.That(ghost.Hand,Is.EqualTo(hand));
                     Assert.That(ghost.Skeleton.jointTransformReferences.Count,Is.EqualTo(26));
                     Assert.That(ghost.Skeleton.handTrackingEvents.handedness,Is.EqualTo(

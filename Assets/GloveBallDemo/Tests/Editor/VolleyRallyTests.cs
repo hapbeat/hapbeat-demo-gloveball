@@ -79,6 +79,7 @@ namespace GloveBallDemo.Tests
             Assert.That(_drill.Targets.gameObject.activeSelf,Is.False,"Points come from the landing spot, not floor targets.");
             foreach(var ghost in Object.FindObjectsByType<VolleyGhostHand>(FindObjectsInactive.Include,FindObjectsSortMode.None))
             {
+                Assert.That(ghost.GetComponent<VolleyHandModelResolver>().Resolve(),Is.True,"Hand mesh is instantiated at runtime.");
                 Assert.That(ghost.Mesh.sharedMaterial.name,Is.EqualTo("VolleySkinHand"),"Skin-tone player hands.");
                 Assert.That(ghost.Mesh.sharedMaterial.HasProperty("_FadeCenter"),Is.True,"Built on the ghost-hand shader so the wrist fades out.");
                 Assert.That(ghost.Mesh.sharedMaterials,Has.Length.EqualTo(2));

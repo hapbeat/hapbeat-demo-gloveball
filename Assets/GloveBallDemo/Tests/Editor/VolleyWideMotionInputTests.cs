@@ -36,6 +36,7 @@ namespace GloveBallDemo.Tests
             Assert.That(ghosts.Length,Is.GreaterThanOrEqualTo(2));
             foreach(var ghost in ghosts)if(ghost.Hand==d.Left)
             {
+                Assert.That(ghost.GetComponent<VolleyHandModelResolver>().Resolve(),Is.True);
                 ghost.UpdateVisual();Assert.That(ghost.Mesh.enabled,Is.True);Assert.That(ghost.Skeleton.enabled,Is.False);
                 Assert.That(ghost.Skeleton.rootTransform.position,Is.EqualTo(d.Left.transform.position));
             }

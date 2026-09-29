@@ -128,10 +128,10 @@ public static class VolleyRallySetup
         var depth=AssetDatabase.LoadAssetAtPath<Material>(DepthOnlyPath);
         if(depth==null)throw new InvalidOperationException("Depth-only material is missing: "+DepthOnlyPath);
         int count=0;
-        foreach(var ghost in UnityEngine.Object.FindObjectsByType<VolleyGhostHand>(FindObjectsInactive.Include,FindObjectsSortMode.None))
+        // The hand mesh is instantiated at runtime (private or placeholder model); the resolver applies these materials.
+        foreach(var resolver in UnityEngine.Object.FindObjectsByType<VolleyHandModelResolver>(FindObjectsInactive.Include,FindObjectsSortMode.None))
         {
-            if(ghost.Mesh==null)continue;
-            ghost.Mesh.sharedMaterials=new[]{material,depth};count++;
+            resolver.Materials=new[]{material,depth};EditorUtility.SetDirty(resolver);count++;
         }
         if(count!=2)throw new InvalidOperationException("Expected two ghost hands, found "+count);
     }

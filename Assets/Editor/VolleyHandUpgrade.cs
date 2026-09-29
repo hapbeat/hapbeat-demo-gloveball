@@ -170,29 +170,10 @@ public static class VolleyHandUpgrade
                 }
                 if (hand.Visual != null && hand.Visual.GetComponent<VolleyGhostHand>() != null) continue;
                 if (hand.Visual != null) hand.Visual.gameObject.SetActive(false); // Preserve old proxy, hidden.
-                var model = AssetDatabase.LoadAssetAtPath<GameObject>(Art + "Models/" + (hand.Side == GloveSide.Left ? "LeftHand" : "RightHand") + ".fbx");
-                if (model == null) throw new InvalidOperationException("Hand model missing.");
-                var visual = UnityEngine.Object.Instantiate(model, hand.TrackingSpace);
-                visual.name = "Volley " + hand.Side + " Ghost Hand";
-                visual.transform.localPosition = Vector3.zero;
-                visual.transform.localRotation = Quaternion.identity;
-                var mesh = visual.GetComponentInChildren<SkinnedMeshRenderer>();
-                mesh.sharedMaterials = new[] {
+                InstallGhostHand(hand, new[] {
                     AssetDatabase.LoadAssetAtPath<Material>(Art+"Materials/Unity_Hand_Medium.mat"),
-                    AssetDatabase.LoadAssetAtPath<Material>(Art+"Materials/DepthOnly.mat") };
-                mesh.updateWhenOffscreen = true;
-                var events = visual.AddComponent<XRHandTrackingEvents>();
-                events.handedness = hand.Side == GloveSide.Left ? Handedness.Left : Handedness.Right;
-                events.updateType = XRHandTrackingEvents.UpdateTypes.Dynamic | XRHandTrackingEvents.UpdateTypes.BeforeRender;
-                var skeleton = visual.AddComponent<XRHandSkeletonDriver>();
-                skeleton.jointTransformReferences = new List<JointToTransformReference>();
-                skeleton.handTrackingEvents = events;
-                skeleton.rootTransform = visual.GetComponentsInChildren<Transform>().First(x => x.name.IndexOf("wrist", StringComparison.OrdinalIgnoreCase) >= 0);
-                var missing = new List<string>(); skeleton.FindJointsFromRoot(missing);
-                if (missing.Count != 0) throw new InvalidOperationException("Unmapped joints: " + string.Join(",", missing));
-                skeleton.InitializeFromSerializedReferences();
-                var driver = visual.AddComponent<VolleyGhostHand>(); driver.Hand=hand; driver.Skeleton=skeleton; driver.Mesh=mesh;
-                hand.Visual=visual.transform;
+                    AssetDatabase.LoadAssetAtPath<Material>(Art+"Materials/DepthOnly.mat") },
+                    XRHandTrackingEvents.UpdateTypes.Dynamic | XRHandTrackingEvents.UpdateTypes.BeforeRender);
                 EditorUtility.SetDirty(hand);
             }
             var drill=All<VolleyDrillController>(scene).Single();
@@ -211,5 +192,92 @@ public static class VolleyHandUpgrade
         EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");
         Debug.Log("[VolleyUpgrade] Existing scenes updated in place; original Demo scene untouched.");
     }
+    public static readonly string[] VolleyScenes = { "VolleyReceive-codex", "VolleySpike-codex", "VolleyJumpSpike-codex", "VolleyBlock-codex" };
+
+    /// <summary>
+    /// Replaces mesh copies baked into the Volley scenes with a <see cref="VolleyHandModelResolver"/> root that
+    /// instantiates the hand at runtime (private XR Hands model when linked, public placeholder otherwise).
+    /// Idempotent: resolver roots are only refreshed. Materials, handedness and update types are carried over.
+    /// </summary>
+    [MenuItem("GloveBall Demo/Volley/Install Hand Model Resolver (all Volley scenes)")]
+    public static void InstallHandModelResolver()
+    {
+        if (EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play Mode first.");
+        for (int i=0;i<SceneManager.sceneCount;i++)
+            if (SceneManager.GetSceneAt(i).isDirty) throw new InvalidOperationException("Save manual scene edits first.");
+        foreach (var name in VolleyScenes)
+        {
+            var scene = EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/" + name + ".unity");
+            foreach (var hand in All<VolleyTrackedHand>(scene))
+            {
+                var old = hand.Visual != null ? hand.Visual.GetComponent<VolleyGhostHand>() : null;
+                if (old == null) throw new InvalidOperationException(name + ": " + hand.name + " has no ghost hand to migrate.");
+                var resolver = old.GetComponent<VolleyHandModelResolver>();
+                if (resolver != null) { ConfigureResolver(resolver, hand.Side, resolver.Materials); continue; }
+                var events = old.GetComponent<XRHandTrackingEvents>();
+                var materials = old.Mesh != null ? old.Mesh.sharedMaterials : new Material[0];
+                var oldRoot = old.gameObject;
+                var owned = new HashSet<UnityEngine.Object>(oldRoot.GetComponentsInChildren<Component>(true).Concat<UnityEngine.Object>(oldRoot.GetComponentsInChildren<Transform>(true).Select(t => t.gameObject)));
+                var outside = All<Component>(scene).Where(c => c != null && !owned.Contains(c) && c != hand && c != oldRoot.transform.parent)
+                    .Where(c => { var p = new SerializedObject(c).GetIterator(); while (p.Next(true)) if (p.propertyType == SerializedPropertyType.ObjectReference && p.objectReferenceValue != null && owned.Contains(p.objectReferenceValue)) return true; return false; })
+                    .Select(c => c.GetType().Name + " on " + c.name).ToArray();
+                if (outside.Length != 0) throw new InvalidOperationException(name + ": other components reference " + oldRoot.name + ": " + string.Join(", ", outside));
+                var extra = oldRoot.GetComponentsInChildren<MonoBehaviour>(true).Where(b => !(b is XRHandTrackingEvents || b is XRHandSkeletonDriver || b is VolleyGhostHand)).Select(b => b == null ? "missing script" : b.GetType().Name + " on " + b.name).ToArray();
+                if (extra.Length != 0) throw new InvalidOperationException(name + ": " + oldRoot.name + " carries extra components: " + string.Join(", ", extra));
+                var sibling = oldRoot.transform.GetSiblingIndex();
+                bool active = oldRoot.activeSelf;
+                var ghost = InstallGhostHand(hand, materials, events != null ? events.updateType : XRHandTrackingEvents.UpdateTypes.Dynamic | XRHandTrackingEvents.UpdateTypes.BeforeRender);
+                ghost.transform.SetSiblingIndex(sibling);
+                ghost.gameObject.SetActive(active);
+                UnityEngine.Object.DestroyImmediate(oldRoot);
+            }
+            EditorSceneManager.MarkSceneDirty(scene);
+            if (!EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException("Scene save failed.");
+        }
+        Debug.Log("[VolleyUpgrade] Hand model resolver installed in " + string.Join(", ", VolleyScenes) + ".");
+    }
+
+    public const string PrivateHandResourceFolder = "HapbeatPrivate/UnityHands/";
+    public const string FallbackHandFolder = "Assets/GloveBallDemo/Art/FallbackHands/";
+
+    /// <summary>Scene side of a ghost hand: tracking events, a disabled skeleton driver, the visual driver and the model resolver. No mesh.</summary>
+    static VolleyGhostHand InstallGhostHand(VolleyTrackedHand hand, Material[] materials, XRHandTrackingEvents.UpdateTypes updateType)
+    {
+        var visual = new GameObject("Volley " + hand.Side + " Ghost Hand");
+        visual.transform.SetParent(hand.TrackingSpace, false);
+        var events = visual.AddComponent<XRHandTrackingEvents>();
+        events.handedness = hand.Side == GloveSide.Left ? Handedness.Left : Handedness.Right;
+        events.updateType = updateType;
+        var skeleton = visual.AddComponent<XRHandSkeletonDriver>();
+        skeleton.jointTransformReferences = new List<JointToTransformReference>();
+        skeleton.handTrackingEvents = events;
+        skeleton.enabled = false; // Joints are wired by the resolver; VolleyGhostHand enables it while hands are tracked.
+        var driver = visual.AddComponent<VolleyGhostHand>(); driver.Hand = hand; driver.Skeleton = skeleton;
+        var resolver = visual.AddComponent<VolleyHandModelResolver>();
+        resolver.Ghost = driver; resolver.Skeleton = skeleton;
+        ConfigureResolver(resolver, hand.Side, materials);
+        hand.Visual = visual.transform;
+        EditorUtility.SetDirty(hand);
+        return driver;
+    }
+
+    static void ConfigureResolver(VolleyHandModelResolver resolver, GloveSide side, Material[] materials)
+    {
+        var model = side == GloveSide.Left ? "LeftHand" : "RightHand";
+        resolver.PrivateResourcePath = PrivateHandResourceFolder + model;
+        resolver.FallbackPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(FallbackHandFolder + model + "Placeholder.prefab");
+        if (resolver.FallbackPrefab == null) throw new InvalidOperationException("Build the placeholder hands first (GloveBall Demo/Volley/Build Placeholder Hands).");
+        if (materials == null || materials.Length != 2 || materials.Any(m => m == null)) throw new InvalidOperationException("Ghost hand needs its hand and depth-only materials.");
+        resolver.Materials = materials;
+        EditorUtility.SetDirty(resolver);
+        // Placeholder root until the resolver points the driver at the model's wrist. XR Hands compares rootTransform
+        // in OnAfterDeserialize on the loading thread; an unassigned (editor fake-null) reference throws there.
+        if (resolver.Skeleton != null && resolver.Skeleton.rootTransform == null)
+        {
+            resolver.Skeleton.rootTransform = resolver.transform;
+            EditorUtility.SetDirty(resolver.Skeleton);
+        }
+    }
+
     static T[] All<T>(Scene s) where T:Component => s.GetRootGameObjects().SelectMany(x=>x.GetComponentsInChildren<T>(true)).ToArray();
 }
