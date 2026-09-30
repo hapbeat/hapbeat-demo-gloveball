@@ -4,11 +4,11 @@ using UnityEngine;
 namespace GloveBallDemo.Runtime
 {
     /// <summary>Feed choreography only; pooled balls and contacts remain owned by VolleyDrillController.</summary>
-    public sealed class VolleyAerialSequence : MonoBehaviour
+    public sealed partial class VolleyAerialSequence : MonoBehaviour
     {
-        public enum RallyPhase { Disabled, Idle, TurnChange, OpponentReceive, OpponentSet, OpponentSpike, AllyReceive, PlayerSpike, Recovery, MatchOver }
+        public enum RallyPhase { Disabled, Idle, TurnChange, OpponentReceive, OpponentSet, OpponentSpike, AllyReceive, PlayerSpike, Recovery, MatchOver, MatchPlay, PlayerServe, PlayerReceive, PlayerSet }
         public enum RallyTurn { Block, Spike }
-        public enum RallyMode { Alternate, SpikeOnly, BlockOnly }
+        public enum RallyMode { Alternate, SpikeOnly, BlockOnly, Match }
         public VolleyDrillController Drill;
         public VolleyArmJump Jump;
         public VolleyOpponentPrototype Opponent;
@@ -155,7 +155,7 @@ namespace GloveBallDemo.Runtime
         public event System.Action<bool> MatchEnded;
         public bool PlayerTouched=>_playerTouched;
         public bool BlockerTouched=>_blockerTouched;
-        public bool AwaitingPlayerTouch=>(IsOpponentSpike || IsPlayerSpike) && !_playerTouched;
+        public bool AwaitingPlayerTouch=>CurrentPlayerTouch!=PlayerTouch.None && !_playerTouched;
         public int OutcomeSerial { get; private set; }
         /// <summary>Seconds after the set leaves the setter's hands when the automatic spike jump starts.</summary>
         public float SpikeJumpTime { get; private set; }
@@ -172,6 +172,8 @@ namespace GloveBallDemo.Runtime
         bool _blockerTouched, _handLostNear, _handReadyNear, _silentBlink, _havePhysicsSample;
         Vector3 _lastBallPosition, _previousBallPosition, _previousBallVelocity;
         Vector3 SpikeStance=>-Forward*SpikeStandBackDistance;
+        /// <summary>Stance the spike approach glides from: fixed in the turn modes, the current embodiment in a match.</summary>
+        Vector3 ApproachBase=>Mode==RallyMode.Match ? _approachBase : SpikeStance;
         Vector3 _opponentHome; Quaternion _opponentHomeRotation;
         float[] _blockerJumpAt=new float[0];
         bool[] _blockerActive=new bool[0];
@@ -313,6 +315,11 @@ namespace GloveBallDemo.Runtime
             if(TossLauncher!=null){TossLauncher.enabled=false;TossLauncher.gameObject.SetActive(false);}
             if(Opponent==null)return;
             if(Ally==null)Ally=CreateAlly(Opponent,AllyJersey,AllyShorts);
+            if(Teammates==null || Teammates.Length==0)
+            {
+                Teammates=new VolleyOpponentPrototype[5];
+                for(int i=0;i<Teammates.Length;i++)Teammates[i]=CreateTeammate(Opponent,i,AllyJersey,AllyShorts);
+            }
             if(Blockers==null || Blockers.Length==0)
             {
                 Blockers=new VolleyOpponentPrototype[3];
@@ -374,6 +381,7 @@ namespace GloveBallDemo.Runtime
             if(!RallyActive || dt<=0f)return false;
             CaptureHome();
             if(Phase==RallyPhase.Disabled)Phase=RallyPhase.Idle;
+            if(Mode==RallyMode.Match)return TickMatch(dt,ballInPlay,out start,out destination,out seconds);
             TickCast(dt);
             switch(Phase)
             {
@@ -468,6 +476,7 @@ namespace GloveBallDemo.Runtime
             // Six opponents always. Spike turn: three blockers + three back-row defenders.
             // Block turn: attacker, setter (blocker 1), idle middle (blocker 2) + the same three defenders.
             bool spikeTurn=turn==RallyTurn.Spike;
+            if(Teammates!=null)foreach(var mate in Teammates)if(mate!=null)mate.gameObject.SetActive(false); // match-only players
             if(Opponent!=null)
             {
                 Opponent.gameObject.SetActive(!spikeTurn);
@@ -573,12 +582,12 @@ namespace GloveBallDemo.Runtime
         }
 
         /// <summary>Picks where the set goes and places the blockers at random along the net around it, each with its own reach.</summary>
-        void PlanSpike()
+        void PlanSpike(float? contactLateral=null)
         {
-            _allyLateral=Random.Range(-AllySetLateralSpread,AllySetLateralSpread);
+            if(contactLateral==null)_allyLateral=Random.Range(-AllySetLateralSpread,AllySetLateralSpread);
             if(Blockers==null || Blockers.Length==0)return;
             int wanted=Mathf.Clamp(Random.Range(Mathf.Min(MinBlockers,MaxBlockers),Mathf.Max(MinBlockers,MaxBlockers)+1),0,Blockers.Length);
-            float contact=Vector3.Dot(GroundedEye-NetCentre,Right)+_allyLateral;
+            float contact=contactLateral ?? Vector3.Dot(GroundedEye-NetCentre,Right)+_allyLateral;
             float limit=Drill.ReceiveNet!=null ? Mathf.Max(.5f,Drill.ReceiveNet.bounds.extents.x-.5f) : CourtHalfWidth;
             var placed=new List<float>();
             if(wanted>0)placed.Add(Mathf.Clamp(contact+Random.Range(-ReadingBlockerRange,ReadingBlockerRange),-limit,limit));
@@ -639,7 +648,7 @@ namespace GloveBallDemo.Runtime
         {
             if(CurrentTurn!=RallyTurn.Spike || Jump==null || Jump.Floor==null || !Jump.Airborne || SpikeApproachDistance<=0f)return;
             float glide=SpikeApproachDistance*Mathf.SmoothStep(0f,1f,Mathf.Clamp01(Jump.Progress/.5f));
-            var target=SpikeStance+Forward*glide;
+            var target=ApproachBase+Forward*glide;
             // Never glide back within a jump (the stance only moves forward here).
             if(Vector3.Dot(target-Jump.Floor.StanceOffset,Forward)>0f)Jump.Floor.SetStanceOffset(target);
         }
@@ -657,28 +666,33 @@ namespace GloveBallDemo.Runtime
         /// <returns>True when a defender dug the ball; the drill then applies <see cref="DigVelocity"/>.</returns>
         public bool SampleBall(Vector3 position,Vector3 velocity,float radius,float step,float damping=0f)
         {
+            if(Mode==RallyMode.Match)return SampleMatch(position,velocity,radius,step,damping);
             if(Phase!=RallyPhase.OpponentSpike && Phase!=RallyPhase.PlayerSpike)return false;
-            float floor=Drill.CourtFrame.position.y;
             if(_playerTouched)
             {
                 _sinceTouch+=step;
                 PlanDig(position,velocity,damping);
                 if(TryDig(position))return true;
             }
+            if(DetectLanding(position,velocity,radius,step,out var landing)){_lastBallPosition=landing;Resolve(landing);}
+            return false;
+        }
+        /// <summary>First floor contact, including a bounce that happened between two samples (touchdown extrapolated).</summary>
+        bool DetectLanding(Vector3 position,Vector3 velocity,float radius,float step,out Vector3 landing)
+        {
+            float floor=Drill.CourtFrame.position.y;
+            landing=position;
             bool touching=position.y-floor<=radius+.03f;
             bool bounced=_havePhysicsSample && _previousBallVelocity.y<-.5f && velocity.y>-.1f && position.y-floor<radius+.45f;
             if(touching || bounced)
             {
-                var landing=position;
                 if(_havePhysicsSample && _previousBallVelocity.y<-.01f)
                 {
                     float t=Mathf.Clamp((_previousBallPosition.y-floor-radius)/-_previousBallVelocity.y,0f,step*1.5f);
                     landing=_previousBallPosition+_previousBallVelocity*t;
                 }
                 landing.y=floor;
-                _lastBallPosition=landing;
-                Resolve(landing);
-                return false;
+                return true;
             }
             _previousBallPosition=position;_previousBallVelocity=velocity;_havePhysicsSample=true;_lastBallPosition=position;
             return false;
@@ -842,7 +856,7 @@ namespace GloveBallDemo.Runtime
         Vector3 SpikeContactPoint(float lateral)
         {
             // Measured from the approach start: the player reaches it after gliding SpikeApproachDistance.
-            var start=GroundedEye-Vector3.ProjectOnPlane(Jump.Floor.StanceOffset-SpikeStance,Vector3.up);
+            var start=GroundedEye-Vector3.ProjectOnPlane(Jump.Floor.StanceOffset-ApproachBase,Vector3.up);
             var point=start+Forward*(SpikeContactForward+SpikeApproachDistance)+Right*lateral;
             point.y=GroundedEye.y+Jump.JumpHeight+SpikeReachAboveEye;
             return point;
@@ -851,8 +865,9 @@ namespace GloveBallDemo.Runtime
         /// <summary>The player's hand deflected the rally ball (block or spike). The point is decided where it lands.</summary>
         public void RegisterPlayerTouch()
         {
-            if(!IsOpponentSpike && !IsPlayerSpike)return;
+            if(CurrentPlayerTouch==PlayerTouch.None)return;
             _playerTouched=true;_sinceTouch=0f;
+            if(Mode==RallyMode.Match){OnMatchPlayerTouch();return;}
             Cue=IsPlayerSpike ? "SPIKE!" : "TOUCHED — IS IT GOING BACK?";
         }
         /// <summary>Called by a solid opposing blocker. The ball rebounds physically; its landing decides the point.</summary>
@@ -860,6 +875,8 @@ namespace GloveBallDemo.Runtime
         {
             if(!IsPlayerSpike || !_playerTouched || _blockerTouched || ball==null || ball!=Drill.ActiveBall)return false;
             _blockerTouched=true;
+            // After a block the attacking side has three touches again; the blocking side touched it last.
+            _lastTouchTeam=Team.Them;_touches[0]=0;
             PlaySpikeAudio(point);
             Cue="BLOCKER TOUCH!";
             return true;
@@ -867,6 +884,12 @@ namespace GloveBallDemo.Runtime
         /// <summary>The ball vanished (target flash, timeout) before touching the floor: decide from its last position.</summary>
         public void RegisterBallUnavailable()
         {
+            if(Mode==RallyMode.Match)
+            {
+                if(Phase==RallyPhase.OpponentSpike || Phase==RallyPhase.PlayerSpike || Phase==RallyPhase.PlayerServe
+                    || Phase==RallyPhase.PlayerReceive || Phase==RallyPhase.PlayerSet)ResolveMatch(_lastBallPosition);
+                return;
+            }
             if(Phase==RallyPhase.OpponentSpike || Phase==RallyPhase.PlayerSpike)Resolve(_lastBallPosition);
         }
 
@@ -968,6 +991,7 @@ namespace GloveBallDemo.Runtime
         }
         public void CancelFeed()
         {
+            if(Mode==RallyMode.Match)CancelMatch();
             _windup=-1;
             var ball=TakePreparedBall();
             if(ball!=null && Drill!=null && Drill.Pool!=null)Drill.Pool.Return(ball,"cancelled volley toss");
@@ -989,6 +1013,7 @@ namespace GloveBallDemo.Runtime
         /// <summary>Changing the mode restarts with a blinked turn change so the new first turn is announced.</summary>
         public void SetMode(RallyMode mode)
         {
+            CancelMatch();_embodied=null;_roleTouch=PlayerTouch.None;_serving=Team.Us;
             Mode=mode;TurnStarted=false;_attemptsInTurn=0;PlayerScore=OpponentScore=0;
             Jump.ResetJump();
             Drill.ResetCurrentAttempt();

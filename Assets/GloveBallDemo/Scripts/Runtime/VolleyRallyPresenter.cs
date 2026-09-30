@@ -150,7 +150,7 @@ namespace GloveBallDemo.Runtime
             {
                 bool spike=Rally.CurrentTurn==VolleyAerialSequence.RallyTurn.Spike;
                 _banner.color=spike ? SpikeColour : BlockColour;
-                _title.text=spike ? "SPIKE TURN" : "BLOCK TURN";
+                _title.text=Rally.BannerTitle;
                 if(_outcomeAge>=0f)
                 {
                     _subtitle.text=(Rally.OutcomeGood ? "+1 YOU: " : "+1 OPP: ")+Rally.Outcome;
@@ -159,8 +159,7 @@ namespace GloveBallDemo.Runtime
                 else
                 {
                     _subtitle.color=Color.white;
-                    _subtitle.text="FIRST TO "+Rally.MatchPoints+"  /  "+(Rally.Mode==VolleyAerialSequence.RallyMode.Alternate ? "ALTERNATING"
-                        : Rally.Mode==VolleyAerialSequence.RallyMode.SpikeOnly ? "SPIKE ONLY" : "BLOCK ONLY");
+                    _subtitle.text=Rally.ModeLabel;
                 }
             }
             float scale=_pulse>=0f ? 1f+.35f*Mathf.Sin(Mathf.Clamp01(_pulse/.6f)*Mathf.PI) : 1f;

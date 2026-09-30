@@ -198,7 +198,7 @@ namespace GloveBallDemo.Runtime
                 string state = !TrackingReady ? "Show hands / pick up controllers" : _trackingStable < ReadySeconds ? "READY " + Mathf.CeilToInt(ReadySeconds - _trackingStable) : action;
                 StatusText.text = state;
             }
-            if (ScoreText != null) ScoreText.text = rally ? $"YOU {Aerial.PlayerScore} - {Aerial.OpponentScore} OPP   FIRST TO {Aerial.MatchPoints}   {(Aerial.CurrentTurn==VolleyAerialSequence.RallyTurn.Spike?"SPIKE":"BLOCK")} TURN"
+            if (ScoreText != null) ScoreText.text = rally ? $"YOU {Aerial.PlayerScore} - {Aerial.OpponentScore} OPP   FIRST TO {Aerial.MatchPoints}   {Aerial.BannerTitle}"
                 : Drill==VolleyDrill.Block ? $"BLOCKS {Returns}   BODY {BodyHits}"
                 : $"{Drill.ToString().ToUpperInvariant()}   TARGET {TargetHits}   RETURNS {Returns}   BODY {BodyHits}";
         }
@@ -266,6 +266,12 @@ namespace GloveBallDemo.Runtime
         }
         /// <summary>The ball currently owned by the drill (in flight or rebounding), if any.</summary>
         public Ball ActiveBall=>_ball;
+        /// <summary>Hands the rally ball to a scripted NPC play without killing it.</summary>
+        public Ball ReleaseActiveBall()
+        {
+            var ball=_ball;_ball=null;_haveBallSample=false;
+            return ball;
+        }
         /// <summary>Rally reset: a blocked or bouncing ball is removed before the next attempt starts.</summary>
         public void RetireRallyBall()
         {
@@ -359,6 +365,7 @@ namespace GloveBallDemo.Runtime
                         var velocity = firstSpikeTouch && handVelocity.magnitude >= SpikeSwingSpeed
                             ? VolleyMath.SpikeVelocity(handVelocity,SpikePower,SpikeMinimumSpeed,SpikeMaximumSpeed,SpikeMaximumRise)
                             : ReturnForBall(_ball.Feel,incoming,handVelocity,normal);
+                        if(Aerial!=null && Aerial.OverrideTouchVelocity(handVelocity,_ball.Body.position,out var modelled))velocity=modelled; // serve / assisted set
                         if (_ball.Deflect(velocity))
                         {
                             // Incoming feeds stay calibrated; returns use per-kind gameplay drag, not floor settings.
@@ -394,7 +401,7 @@ namespace GloveBallDemo.Runtime
                     {
                         var sphere = _ball.GetComponent<SphereCollider>();
                         float radius = sphere != null ? sphere.radius * Mathf.Max(_ball.transform.lossyScale.x, _ball.transform.lossyScale.y, _ball.transform.lossyScale.z) : .12f;
-                        if(Aerial.SampleBall(_ball.Body.position,_ball.Body.linearVelocity,radius,Time.fixedDeltaTime,_ball.Body.linearDamping))
+                        if(Aerial.SampleBall(_ball.Body.position,_ball.Body.linearVelocity,radius,Time.fixedDeltaTime,_ball.Body.linearDamping) && _ball!=null)
                             _ball.Body.linearVelocity=Aerial.DigVelocity; // a defender dug it: visible pop-up, no floor contact
                     }
                 }

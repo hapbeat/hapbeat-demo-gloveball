@@ -54,6 +54,18 @@ namespace GloveBallDemo.Runtime
                 return transform.TransformPoint(shoulder+rotation*new Vector3(.25f,.56f,.22f));
             }
         }
+        /// <summary>Ball contact point in actor space for the current role (Set: forehead window; otherwise the spike hand at the hit).</summary>
+        public Vector3 LocalRelease
+        {
+            get
+            {
+                if (Role == MotionRole.Set) return new Vector3(0f, 1.82f, .30f);
+                var shoulder=Shoulder(.52f,Jump(.52f),out var rotation);
+                return shoulder+rotation*new Vector3(.25f,.56f,.22f);
+            }
+        }
+        /// <summary>Where the ball will be played once this actor stands at <paramref name="position"/> facing <paramref name="rotation"/>.</summary>
+        public Vector3 ReleasePositionAt(Vector3 position,Quaternion rotation)=>position+rotation*Vector3.Scale(transform.lossyScale,LocalRelease);
         void Update() { if(Animate) PreviewPhase=(Time.time*PlaybackSpeed%CycleSeconds)/CycleSeconds; Pose(PreviewPhase); }
         static Vector3 Mix(Vector3 a,Vector3 b,float t)=>Vector3.Lerp(a,b,Mathf.SmoothStep(0,1,t));
         void Limb(Transform limb,Vector3 a,Vector3 b,float width)

@@ -13,6 +13,7 @@ public static class VolleyRallySetup
     const string AllyName="Rally friendly setter";
     const string BlockerPrefix="Opponent blocker ";
     const string DefenderPrefix="Opponent defender ";
+    const string TeammatePrefix="Rally teammate ";
 
     [MenuItem("Hapbeat/Volley/Apply spike + block turn rally")]
     public static void Apply()
@@ -71,6 +72,21 @@ public static class VolleyRallySetup
             defender.transform.SetPositionAndRotation(net+forward*aerial.DefenderDepth+right*((i-1)*aerial.DefenderSpacing),Quaternion.LookRotation(-forward,Vector3.up));
             aerial.Defenders[i]=defender;
         }
+        // Match: five more blue players (middle, outside, three back row), inactive outside the match.
+        aerial.Teammates=new VolleyOpponentPrototype[5];
+        for(int i=0;i<aerial.Teammates.Length;i++)
+        {
+            var mate=actors.FirstOrDefault(a=>a.gameObject.name==TeammatePrefix+(i+1));
+            if(mate==null)mate=VolleyAerialSequence.CreateTeammate(opponent,i,aerial.AllyJersey,aerial.AllyShorts);
+            else VolleyAerialSequence.ConfigureActor(mate,VolleyOpponentPrototype.MotionRole.Dig,aerial.AllyJersey,aerial.AllyShorts);
+            mate.transform.SetPositionAndRotation(net-forward*(i<2 ? 1.3f : 6f)+right*((i%3-1)*2.6f),Quaternion.LookRotation(forward,Vector3.up));
+            aerial.Teammates[i]=mate;
+        }
+        // The forearm platform comes back only while the player receives a serve (level 2+).
+        aerial.ReceiveVolume=UnityEngine.Object.FindFirstObjectByType<VolleyJoinedHands>(FindObjectsInactive.Include);
+        if(aerial.ReceiveVolume==null)throw new InvalidOperationException("The joined-hands receive platform is missing from the scene.");
+        aerial.Mode=VolleyAerialSequence.RallyMode.Match;
+        aerial.PlayerInvolvement=VolleyAerialSequence.Involvement.SpikeBlock;
         // Serialized scene values win over code defaults, so the tuned rally values are written explicitly.
         aerial.AllyFlightSeconds=1.5f;       // high set, time to read it
         aerial.RallyResetSeconds=2f;         // landing ball and marker stay visible

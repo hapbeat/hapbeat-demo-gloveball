@@ -50,7 +50,7 @@ namespace GloveBallDemo.Runtime
             _font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             var go=new GameObject("Volley hand menu",typeof(RectTransform),typeof(Canvas));go.transform.SetParent(transform,false);
             _canvas=go.GetComponent<Canvas>();_canvas.renderMode=RenderMode.WorldSpace;_canvas.sortingOrder=100;
-            int rows=Drill.Drill==VolleyDrill.Block?10:8;
+            int rows=Drill.Drill==VolleyDrill.Block?11:8;
             float height=250+rows*72, top=height*.5f;
             var rect=go.GetComponent<RectTransform>();rect.sizeDelta=new Vector2(620,height);rect.localScale=Vector3.one*.0016f;
             go.AddComponent<Image>().color=new Color(.025f,.04f,.065f,.97f);
@@ -197,7 +197,8 @@ namespace GloveBallDemo.Runtime
                 case 6:LoadDrill("VolleyReceive-codex");break;
                 case 7:LoadDrill("VolleyBlock-codex");break;
                 case 8:if(Drill.Aerial!=null)Drill.Aerial.SetBeginnerBlock(!Drill.Aerial.BeginnerBlock);break;
-                case 9:if(Drill.Aerial!=null)Drill.Aerial.SetMode((VolleyAerialSequence.RallyMode)(((int)Drill.Aerial.Mode+1)%3));break;
+                case 9:if(Drill.Aerial!=null)Drill.Aerial.SetMode((VolleyAerialSequence.RallyMode)(((int)Drill.Aerial.Mode+1)%4));break;
+                case 10:if(Drill.Aerial!=null)Drill.Aerial.SetInvolvement((VolleyAerialSequence.Involvement)(((int)Drill.Aerial.PlayerInvolvement+1)%3));break;
             }
             Refresh();
         }
@@ -209,7 +210,9 @@ namespace GloveBallDemo.Runtime
             {
                 names.Add(Drill.Aerial.BeginnerBlock?"JUMP: BEGINNER (AUTO JUMP)":"JUMP: ADVANCED (HAND JUMP)");
                 var mode=Drill.Aerial.Mode;
-                names.Add("TURNS: "+(mode==VolleyAerialSequence.RallyMode.Alternate?"ALTERNATE SPIKE / BLOCK":mode==VolleyAerialSequence.RallyMode.SpikeOnly?"SPIKE ONLY":"BLOCK ONLY"));
+                names.Add("MODE: "+(mode==VolleyAerialSequence.RallyMode.Match?"MATCH 6 v 6":mode==VolleyAerialSequence.RallyMode.Alternate?"ALTERNATE SPIKE / BLOCK":mode==VolleyAerialSequence.RallyMode.SpikeOnly?"SPIKE ONLY":"BLOCK ONLY"));
+                var level=Drill.Aerial.PlayerInvolvement;
+                names.Add("YOU PLAY: "+(level==VolleyAerialSequence.Involvement.SpikeBlock?"SPIKE + BLOCK":level==VolleyAerialSequence.Involvement.AddReceiveServe?"+ RECEIVE + SERVE":"+ SET TOO"));
             }
             for(int i=0;i<names.Count;i++)_labels[i].text=names[i];
         }
