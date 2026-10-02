@@ -8,7 +8,10 @@
         "Unity.XR.Hands",
         "Unity.XR.OpenXR",
         "Unity.XR.OpenXR.Editor",
-        "Hapbeat.Runtime"
+        "Hapbeat.Runtime",
+        "Unity.XR.Management",
+        "Unity.XR.Management.Editor",
+        "Unity.XR.OpenXR.Features.MetaQuestSupport"
     ],
     "includePlatforms": [
         "Editor"
