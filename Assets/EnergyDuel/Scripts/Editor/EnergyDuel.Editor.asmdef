@@ -1,0 +1,24 @@
+{
+    "name": "EnergyDuel.Editor",
+    "rootNamespace": "EnergyDuel.Editor",
+    "references": [
+        "EnergyDuel.Core",
+        "EnergyDuel.Runtime",
+        "Unity.InputSystem",
+        "Unity.XR.Hands",
+        "Unity.XR.OpenXR",
+        "Unity.XR.OpenXR.Editor",
+        "Hapbeat.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

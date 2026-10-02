@@ -1,0 +1,20 @@
+{
+    "name": "EnergyDuel.Runtime",
+    "rootNamespace": "EnergyDuel.Runtime",
+    "references": [
+        "EnergyDuel.Core",
+        "Unity.InputSystem",
+        "Unity.XR.Hands",
+        "Unity.XR.CoreUtils",
+        "Hapbeat.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

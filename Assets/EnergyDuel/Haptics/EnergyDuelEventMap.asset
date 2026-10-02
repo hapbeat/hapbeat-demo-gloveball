@@ -1,0 +1,254 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bf9c34b08ac7b8c4f954b03abe0affb3, type: 3}
+  m_Name: EnergyDuelEventMap
+  m_EditorClassIdentifier: 
+  entries:
+  - _id: 6ab75e08de8643ecbfa9adb13d4d22e9
+    mode: 1
+    displayName: Left Charge Loop
+    category: energy-duel
+    eventName: l_charge_loop
+    streamClip: {fileID: 8300000, guid: a499f73e50cd0964d9e887bfc5fd2e66, type: 3}
+    loop: 1
+    bindings: []
+    gain: 0.4
+    target: '*/pos_l_wrist'
+    delayOffsetSeconds: 0
+    notes: Left fist charging; gain follows the charge.
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: 8cd97cc73ace454a8f25e81cedbcd53f
+    mode: 1
+    displayName: Right Charge Loop
+    category: energy-duel
+    eventName: r_charge_loop
+    streamClip: {fileID: 8300000, guid: a499f73e50cd0964d9e887bfc5fd2e66, type: 3}
+    loop: 1
+    bindings: []
+    gain: 0.4
+    target: '*/pos_r_wrist'
+    delayOffsetSeconds: 0
+    notes: Right fist charging; gain follows the charge.
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: 7afea27a92f349538ee18692609ac15e
+    mode: 1
+    displayName: Left Charge Full
+    category: energy-duel
+    eventName: l_charge_full
+    streamClip: {fileID: 8300000, guid: a33071c8d4215a34bb16d15b46eb849b, type: 3}
+    loop: 0
+    bindings: []
+    gain: 0.7
+    target: '*/pos_l_wrist'
+    delayOffsetSeconds: 0
+    notes: Left charge reached full.
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: caee7df5c4704ff296732c752cb9b43a
+    mode: 1
+    displayName: Right Charge Full
+    category: energy-duel
+    eventName: r_charge_full
+    streamClip: {fileID: 8300000, guid: a33071c8d4215a34bb16d15b46eb849b, type: 3}
+    loop: 0
+    bindings: []
+    gain: 0.7
+    target: '*/pos_r_wrist'
+    delayOffsetSeconds: 0
+    notes: Right charge reached full.
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: df9b95fbd5a74908b85d1236fb46924a
+    mode: 1
+    displayName: Left Release
+    category: energy-duel
+    eventName: l_release
+    streamClip: {fileID: 8300000, guid: b5c631a9d5854464185cda24d6bce1ab, type: 3}
+    loop: 0
+    bindings: []
+    gain: 0.5
+    target: '*/pos_l_wrist'
+    delayOffsetSeconds: 0
+    notes: Left shot fired.
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: 4a6ebf2ee3e44f798bd5ffee3fd58cb3
+    mode: 1
+    displayName: Right Release
+    category: energy-duel
+    eventName: r_release
+    streamClip: {fileID: 8300000, guid: b5c631a9d5854464185cda24d6bce1ab, type: 3}
+    loop: 0
+    bindings: []
+    gain: 0.5
+    target: '*/pos_r_wrist'
+    delayOffsetSeconds: 0
+    notes: Right shot fired.
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: ae7abc49265e403ca212d123102de48c
+    mode: 1
+    displayName: Left Shield Up
+    category: energy-duel
+    eventName: l_shield_up
+    streamClip: {fileID: 8300000, guid: e29fbc2e6a330534f9871bc0f141763d, type: 3}
+    loop: 0
+    bindings: []
+    gain: 0.4
+    target: '*/pos_l_wrist'
+    delayOffsetSeconds: 0
+    notes: Left shield raised (light).
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: 3692e71818644224877932b8100452f7
+    mode: 1
+    displayName: Right Shield Up
+    category: energy-duel
+    eventName: r_shield_up
+    streamClip: {fileID: 8300000, guid: e29fbc2e6a330534f9871bc0f141763d, type: 3}
+    loop: 0
+    bindings: []
+    gain: 0.4
+    target: '*/pos_r_wrist'
+    delayOffsetSeconds: 0
+    notes: Right shield raised (light).
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: 846a675a57d14923a1d74906802b9200
+    mode: 1
+    displayName: Left Shield Block
+    category: energy-duel
+    eventName: l_shield_block
+    streamClip: {fileID: 8300000, guid: c2b5c595d2b1d7545b3ff1d374116884, type: 3}
+    loop: 0
+    bindings: []
+    gain: 0.4
+    target: '*/pos_l_wrist'
+    delayOffsetSeconds: 0
+    notes: Left shield stopped a shot (gentle).
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: c76a01be0927406c8af5b5c715b582ec
+    mode: 1
+    displayName: Right Shield Block
+    category: energy-duel
+    eventName: r_shield_block
+    streamClip: {fileID: 8300000, guid: c2b5c595d2b1d7545b3ff1d374116884, type: 3}
+    loop: 0
+    bindings: []
+    gain: 0.4
+    target: '*/pos_r_wrist'
+    delayOffsetSeconds: 0
+    notes: Right shield stopped a shot (gentle).
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: b8eb1e53020147d9a127e98cd79e87e6
+    mode: 1
+    displayName: Left Shield Break
+    category: energy-duel
+    eventName: l_shield_break
+    streamClip: {fileID: 8300000, guid: fbed084fd3098a449a4f8d381b2ed01f, type: 3}
+    loop: 0
+    bindings: []
+    gain: 1
+    target: '*/pos_l_wrist'
+    delayOffsetSeconds: 0
+    notes: Left shield shattered (hard).
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: f322e817ce8c412ea61d003a0df01ea7
+    mode: 1
+    displayName: Right Shield Break
+    category: energy-duel
+    eventName: r_shield_break
+    streamClip: {fileID: 8300000, guid: fbed084fd3098a449a4f8d381b2ed01f, type: 3}
+    loop: 0
+    bindings: []
+    gain: 1
+    target: '*/pos_r_wrist'
+    delayOffsetSeconds: 0
+    notes: Right shield shattered (hard).
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: 4741687c2cbd446891529f912be02011
+    mode: 1
+    displayName: Shield Break Neck
+    category: energy-duel
+    eventName: shield_break_neck
+    streamClip: {fileID: 8300000, guid: fbed084fd3098a449a4f8d381b2ed01f, type: 3}
+    loop: 0
+    bindings: []
+    gain: 1
+    target: '*/pos_neck'
+    delayOffsetSeconds: 0
+    notes: 'A shield shattered: the neck feels it too.'
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: 12281c2288d04f339b35b791f4875d2a
+    mode: 1
+    displayName: Left Arm Collide
+    category: energy-duel
+    eventName: l_arm_collide
+    streamClip: {fileID: 8300000, guid: c2b5c595d2b1d7545b3ff1d374116884, type: 3}
+    loop: 0
+    bindings: []
+    gain: 0.7
+    target: '*/pos_l_wrist'
+    delayOffsetSeconds: 0
+    notes: Shot hit the unguarded left arm.
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: da246c38671442568fbd688992cd73c6
+    mode: 1
+    displayName: Right Arm Collide
+    category: energy-duel
+    eventName: r_arm_collide
+    streamClip: {fileID: 8300000, guid: c2b5c595d2b1d7545b3ff1d374116884, type: 3}
+    loop: 0
+    bindings: []
+    gain: 0.7
+    target: '*/pos_r_wrist'
+    delayOffsetSeconds: 0
+    notes: Shot hit the unguarded right arm.
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: 14c073d1e7bb45b9ba0e61c2f1011674
+    mode: 1
+    displayName: Body Collide
+    category: energy-duel
+    eventName: body_collide
+    streamClip: {fileID: 8300000, guid: fbed084fd3098a449a4f8d381b2ed01f, type: 3}
+    loop: 0
+    bindings: []
+    gain: 1
+    target: '*/pos_neck'
+    delayOffsetSeconds: 0
+    notes: Shot hit the body or head (hard).
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  - _id: 2869d498604a4bf686fa4f9249c9ed9c
+    mode: 1
+    displayName: Target Hit
+    category: energy-duel
+    eventName: target_hit
+    streamClip: {fileID: 8300000, guid: 2d83358a7df901b4cb744873c4a1d285, type: 3}
+    loop: 0
+    bindings: []
+    gain: 0.6
+    target: '*/pos_neck'
+    delayOffsetSeconds: 0
+    notes: Player shot hit the opponent / target; gain follows the charge.
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
+  revertPlayModeChanges: 0
