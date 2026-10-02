@@ -74,6 +74,22 @@ namespace GloveBallDemo.Runtime
         [SerializeField] private HapbeatLoopBinding[] _loopBindings = Array.Empty<HapbeatLoopBinding>();
 
         public static HapticEventRelay Instance { get; private set; }
+
+        /// <summary>
+        /// Participant/operator haptics switch (Demo Session). Off suppresses every Hapbeat send from
+        /// this relay; sound and the diagnostic event stream are unchanged.
+        /// </summary>
+        public static bool HapticsEnabled { get; private set; } = true;
+
+        /// <summary>Turning off also stops whatever is already playing, including held-ball loops.</summary>
+        public static void SetHapticsEnabled(bool enabled)
+        {
+            HapticsEnabled = enabled;
+            if (!enabled && DemoHapticsGate.LiveSendEnabled)
+            {
+                HapbeatManager.Instance?.StopAll();
+            }
+        }
         private BallImpactBindings _ballImpactBindings;
         private readonly AudioSource[] _impactVoices = new AudioSource[8];
         private int _nextImpactVoice;
@@ -217,7 +233,7 @@ namespace GloveBallDemo.Runtime
         {
             // Batch verification runs report and count events but must not put them on the wire;
             // see DemoHapticsGate.
-            if (!DemoHapticsGate.LiveSendEnabled)
+            if (!DemoHapticsGate.LiveSendEnabled || !HapticsEnabled)
             {
                 return;
             }
@@ -295,7 +311,7 @@ namespace GloveBallDemo.Runtime
 
         private void StartLoopHaptic(DemoHapticEvent evt, float gain)
         {
-            if (!DemoHapticsGate.LiveSendEnabled)
+            if (!DemoHapticsGate.LiveSendEnabled || !HapticsEnabled)
             {
                 return;
             }
@@ -318,7 +334,8 @@ namespace GloveBallDemo.Runtime
             }
 
             var trigger = Instance.FindLoopTrigger(evt);
-            if (trigger != null && DemoHapticsGate.LiveSendEnabled)
+            // While off, StopAll already ended the loop; nothing more is sent.
+            if (trigger != null && DemoHapticsGate.LiveSendEnabled && HapticsEnabled)
             {
                 trigger.Stop();
             }

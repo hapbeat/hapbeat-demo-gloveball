@@ -208,7 +208,7 @@ namespace GloveBallDemo.Runtime
                     return false;
                 case RallyPhase.MatchOver:
                     _rallyTimer+=dt;
-                    if(_rallyTimer>=MatchEndSeconds)ResetMatch();
+                    if(!HoldAtMatchEnd && _rallyTimer>=MatchEndSeconds)ResetMatch();
                     return false;
                 case RallyPhase.PlayerSpike:
                     _rallyTimer+=dt;

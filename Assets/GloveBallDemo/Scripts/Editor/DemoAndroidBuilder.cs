@@ -329,7 +329,13 @@ namespace GloveBallDemo.Editor
                 options = BuildOptions.None,
             };
 
-            var report = BuildPipeline.BuildPlayer(options);
+            // Same StreamingAssets as the Volley APK: swap in the GloveBall descriptor for this build only.
+            BuildReport report;
+            using (DemoSessionDescriptors.Use(DemoSessionDescriptors.GloveBallSource, DemoSessionDescriptors.GloveBallDemoId))
+            {
+                report = BuildPipeline.BuildPlayer(options);
+            }
+
             var summary = report.summary;
 
             Debug.Log($"[Android] BuildReport: result={summary.result} " +

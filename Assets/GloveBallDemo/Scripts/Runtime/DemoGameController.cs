@@ -69,6 +69,12 @@ namespace GloveBallDemo.Runtime
         public int TargetHitCount { get; private set; }
         public int LauncherHitCount { get; private set; }
 
+        /// <summary>Demo Session: stay on the result instead of starting a new run after it.</summary>
+        public bool HoldAtResult { get; set; }
+
+        /// <summary>Raised when the wave run reaches its result.</summary>
+        public event System.Action RunCompleted;
+
         public GamePhaseMachine Phase => _phase;
         public ScoreModel Score => _score;
         public BallPool Pool => _pool;
@@ -128,7 +134,11 @@ namespace GloveBallDemo.Runtime
             var dt = Time.deltaTime;
             if (_playMode == DemoPlayMode.Waves)
             {
-                _phase.Tick(dt);
+                if (!(HoldAtResult && _phase.Phase == GamePhase.Result))
+                {
+                    _phase.Tick(dt);
+                }
+
                 if (_phase.Phase == GamePhase.Wave)
                 {
                     TickWave(dt);
@@ -257,6 +267,7 @@ namespace GloveBallDemo.Runtime
                 case GamePhase.Result:
                     HapticEventRelay.Report(DemoHapticEvent.GameOver, PlayerPosition);
                     ClearCourt("result");
+                    RunCompleted?.Invoke();
                     break;
             }
 

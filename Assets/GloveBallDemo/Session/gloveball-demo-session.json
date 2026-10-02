@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "demo_id": "gloveball_v2",
+  "title": {
+    "ja": "グローブボール",
+    "en": "Glove Ball"
+  },
+  "minutes": 2,
+  "supports": {
+    "haptics_toggle": true
+  },
+  "options": []
+}

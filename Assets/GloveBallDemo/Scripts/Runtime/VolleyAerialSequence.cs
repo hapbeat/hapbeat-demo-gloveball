@@ -32,6 +32,8 @@ namespace GloveBallDemo.Runtime
         [Tooltip("First side to this many points wins; the match then restarts automatically.")]
         [Min(1)] public int MatchPoints=7;
         [Min(1f)] public float MatchEndSeconds=5f;
+        [Tooltip("Demo Session: keep the final score instead of restarting after MatchEndSeconds.")]
+        public bool HoldAtMatchEnd;
         [Header("Jump per turn (virtual lift)")]
         [Min(.1f)] public float BlockJumpHeight=.85f;
         [Min(.4f)] public float BlockJumpSeconds=1f;
@@ -431,7 +433,7 @@ namespace GloveBallDemo.Runtime
                     return false;
                 case RallyPhase.MatchOver:
                     _rallyTimer+=dt;
-                    if(_rallyTimer>=MatchEndSeconds)ResetMatch();
+                    if(!HoldAtMatchEnd && _rallyTimer>=MatchEndSeconds)ResetMatch();
                     return false;
             }
             return false;
@@ -788,6 +790,12 @@ namespace GloveBallDemo.Runtime
         {
             if(!AwaitingPlayerTouch)return;
             if(collidable)_handReadyNear=true;else _handLostNear=true;
+        }
+        /// <summary>Demo Session retry: a new match from 0 - 0 in the current mode.</summary>
+        public void RestartMatch()
+        {
+            SetMode(Mode);
+            ResetMatch();
         }
         void ResetMatch()
         {

@@ -84,6 +84,11 @@ namespace GloveBallDemo.Runtime
         public int TargetHits { get; private set; }
         public int BodyHits { get; private set; }
         public int Serves { get; private set; }
+        [Tooltip("Demo Session: stop serving after this many balls (0 = endless drill).")]
+        [Min(0)] public int ServeLimit;
+        /// <summary>Raised once when ServeLimit balls have been served and the last one is finished.</summary>
+        public event System.Action ServesCompleted;
+        bool _servesCompleted;
         [Min(0f)] public float TrackingGraceSeconds=1.5f;
         public bool TrackingSuspended { get; private set; }
         public bool TrackingReady => _trackingSeen && !TrackingSuspended && HeadIsTracked();
@@ -173,6 +178,11 @@ namespace GloveBallDemo.Runtime
                     _ball = null;
                 }
             }
+            if(ServeLimit>0 && !_servesCompleted && Serves>=ServeLimit && _ball==null)
+            {
+                _servesCompleted=true;
+                ServesCompleted?.Invoke();
+            }
             bool continuingAttack=!rally && Drill==VolleyDrill.Block && Aerial!=null && Aerial.AttackStarted && _ball==null;
             if(continuingAttack)Serve();
             if (!TrackingReady)
@@ -205,6 +215,7 @@ namespace GloveBallDemo.Runtime
 
         private void Serve()
         {
+            if(ServeLimit>0 && Serves>=ServeLimit)return;
             if(Aerial==null && FeedLaunchers!=null && FeedLaunchers.Length>0)
             {
                 if(_pendingLauncher==null)
@@ -277,6 +288,13 @@ namespace GloveBallDemo.Runtime
         {
             if(_ball!=null){_ball.Kill("rally reset");_ball=null;}
             _haveBallSample=false;
+        }
+        /// <summary>Demo Session retry: counters from zero and a fresh serve sequence.</summary>
+        public void RestartServes()
+        {
+            ResetCurrentAttempt();
+            Serves=Returns=TargetHits=BodyHits=0;
+            _servesCompleted=false;
         }
         public void ResetCurrentAttempt()
         {

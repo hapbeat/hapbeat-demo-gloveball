@@ -20,6 +20,8 @@ public static class VolleyQuestBuilder
         string identifier=PlayerSettings.GetApplicationIdentifier(NamedBuildTarget.Android);
         var settings=AssetDatabase.LoadAssetAtPath<UnityEngine.Object>("Assets/Resources/HapbeatDemoSwitchSettings.asset");
         var serialized=new SerializedObject(settings);var id=serialized.FindProperty("_currentDemoId");string oldId=id.stringValue;
+        // The checked-in StreamingAssets descriptor is Volley's (demo_id volley); verify it before building.
+        using(DemoSessionDescriptors.Use(null,DemoSessionDescriptors.VolleyDemoId))
         try
         {
             PlayerSettings.productName="Hapbeat Volley";
