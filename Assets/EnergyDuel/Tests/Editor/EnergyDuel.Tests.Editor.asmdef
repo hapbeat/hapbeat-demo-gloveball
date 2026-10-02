@@ -1,0 +1,29 @@
+{
+    "name": "EnergyDuel.Tests.Editor",
+    "rootNamespace": "EnergyDuel.Tests",
+    "references": [
+        "EnergyDuel.Core",
+        "EnergyDuel.Runtime",
+        "EnergyDuel.Editor",
+        "Unity.InputSystem",
+        "Unity.XR.Hands",
+        "Hapbeat.Runtime",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
