@@ -24,7 +24,7 @@ public static class VolleyQuestBuilder
         using(DemoSessionDescriptors.Use(null,DemoSessionDescriptors.VolleyDemoId))
         try
         {
-            PlayerSettings.productName="Hapbeat Volley";
+            PlayerSettings.productName="Volley";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android,"jp.hapbeat.volley");
             id.stringValue="volley";serialized.ApplyModifiedPropertiesWithoutUndo();AssetDatabase.SaveAssets();
             var scenes=SceneNames.Select(n=>"Assets/GloveBallDemo/Scenes/"+n+".unity").ToArray();

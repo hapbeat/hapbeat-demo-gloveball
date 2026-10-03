@@ -28,7 +28,7 @@ namespace GloveBallDemo.Editor
     /// </summary>
     public static class DemoAndroidBuilder
     {
-        public const string ProductName = "gloveball_v2";
+        public const string ProductName = "GloveBall";
         public const string ApplicationIdentifier = "jp.hapbeat.gloveballdemo.v2";
 
         /// <summary>Where the general XR settings asset is created when the project has none yet.</summary>
