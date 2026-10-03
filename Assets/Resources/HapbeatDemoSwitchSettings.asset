@@ -28,3 +28,7 @@ MonoBehaviour:
   - _demoId: gloveball
     _packageName: jp.hapbeat.gloveballdemo
     _activityName: com.unity3d.player.UnityPlayerGameActivity
+  _hands: 0
+  _handStyle: 0
+  _pauseMenu: 0
+  _pauseGesture: 0
