@@ -34,8 +34,9 @@ namespace GloveBallDemo.Runtime
     /// <summary>
     /// Volley Demo Session adapter. `scene` picks Block or Receive once per process; Block plays a
     /// match to `points` and holds the final score; Receive serves `balls` balls (hit or missed).
+    /// 視線をリセット (button and CONTROL `recenter`) is the menu's REPOSITION TO START.
     /// </summary>
-    public sealed class VolleySessionHost : MonoBehaviour, IDemoSessionHost
+    public sealed class VolleySessionHost : MonoBehaviour, IDemoSessionHost, IDemoSessionRecenter
     {
         public const string BlockScene = "VolleyBlock-codex";
         public const string ReceiveScene = "VolleyReceive-codex";
@@ -111,6 +112,17 @@ namespace GloveBallDemo.Runtime
 
         public void SetHapticsEnabled(bool enabled) => HapticEventRelay.SetHapticsEnabled(enabled);
 
+        public void RecenterToStart()
+        {
+            var menu = FindAnyObjectByType<VolleyHandMenu>();
+            if (menu != null) menu.RepositionToStart();
+            else
+            {
+                var floor = FindAnyObjectByType<VolleyFloorTracking>();
+                if (floor != null) floor.Recenter();
+            }
+        }
+
         public void SetGameplayPaused(bool paused)
         {
             _drill.SetMenuPaused(paused);
@@ -121,6 +133,7 @@ namespace GloveBallDemo.Runtime
     /// <summary>
     /// GloveBall (Demo.unity) Demo Session adapter. The wave run (3 rounds) is the natural end; the
     /// result is held instead of starting a new run, and retry starts a fresh wave run.
+    /// 視線をリセット uses the package default: the scene's XrStartAlignment aligns again.
     /// </summary>
     public sealed class GloveBallSessionHost : MonoBehaviour, IDemoSessionHost
     {

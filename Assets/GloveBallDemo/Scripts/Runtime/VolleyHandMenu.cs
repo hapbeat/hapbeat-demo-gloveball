@@ -193,7 +193,7 @@ namespace GloveBallDemo.Runtime
                     SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
 #endif
                     break;
-                case 5:ResetAutomaticAttempt();Floor.Recenter();SetOpen(false);break;
+                case 5:RepositionToStart();break;
                 case 6:LoadDrill("VolleyReceive-codex");break;
                 case 7:LoadDrill("VolleyBlock-codex");break;
                 case 8:if(Drill.Aerial!=null)Drill.Aerial.SetBeginnerBlock(!Drill.Aerial.BeginnerBlock);break;
@@ -217,9 +217,11 @@ namespace GloveBallDemo.Runtime
             for(int i=0;i<names.Count;i++)_labels[i].text=names[i];
         }
         void ResetAutomaticAttempt(){if(Drill.Aerial!=null && Drill.Aerial.BeginnerBlock)Drill.Aerial.SetBeginnerBlock(true);}
+        /// <summary>REPOSITION TO START, also the shared 視線をリセット (VolleySessionHost).</summary>
+        public void RepositionToStart(){ResetAutomaticAttempt();Floor.Recenter();SetOpen(false);}
         void OnDisable(){if(IsOpen)SetOpen(false);}
         public bool CanExecuteControl(string action,string sceneId) =>
-            action=="menu_open" || action=="menu_close" || action=="recenter" || action=="restart"
+            action=="menu_open" || action=="menu_close" || action=="restart"
             || (action=="scene" && SceneName(sceneId)!=null);
         static string SceneName(string id) => id=="receive" ? "VolleyReceive-codex"
             : id=="block" ? "VolleyBlock-codex" : null;
@@ -228,7 +230,6 @@ namespace GloveBallDemo.Runtime
             if(!CanExecuteControl(action,sceneId))throw new System.InvalidOperationException("Unsupported control.");
             if(action=="menu_open"){SetOpen(true);yield break;}
             if(action=="menu_close"){SetOpen(false);yield break;}
-            if(action=="recenter"){ResetAutomaticAttempt();Floor.Recenter();SetOpen(false);yield break;}
             string scene=action=="restart" ? SceneManager.GetActiveScene().name : SceneName(sceneId);
             LoadDrill(scene);
             yield return null;
