@@ -53,7 +53,17 @@ namespace GloveBallDemo.Runtime
         public const float BesidePauseYaw=40f;
         static bool SharedPause=>DemoPause.IsEnabled;
 
-        void Start(){if(_canvas==null)Build();}
+        /// <summary>Rally mode a CONTROL scene change asks for; applied once the reloaded Block scene has started.</summary>
+        static VolleyAerialSequence.RallyMode? s_pendingMode;
+
+        void Start(){if(_canvas==null)Build();if(s_pendingMode.HasValue)StartCoroutine(ApplyPendingMode());}
+        System.Collections.IEnumerator ApplyPendingMode()
+        {
+            yield return null; // let the drill and aerial sequence finish their own Start first
+            var mode=s_pendingMode;s_pendingMode=null;
+            if(mode.HasValue && Drill!=null && Drill.Drill==VolleyDrill.Block && Drill.Aerial!=null && Drill.Aerial.Mode!=mode.Value)
+                Drill.Aerial.SetMode(mode.Value);
+        }
         void OnEnable()=>DemoPause.PausedChanged+=OnSharedPauseChanged;
         void OnSharedPauseChanged(bool paused)=>Show(paused,true);
         void Build()
@@ -247,14 +257,18 @@ namespace GloveBallDemo.Runtime
         public bool CanExecuteControl(string action,string sceneId) =>
             action=="menu_open" || action=="menu_close" || action=="restart"
             || (action=="scene" && SceneName(sceneId)!=null);
+        // Scene IDs match the descriptor's `scene` option: block (spike / block turns) and match (6 v 6) share the Block scene.
         static string SceneName(string id) => id=="receive" ? "VolleyReceive-codex"
-            : id=="block" ? "VolleyBlock-codex" : null;
+            : id=="block" || id=="match" ? "VolleyBlock-codex" : null;
+        static VolleyAerialSequence.RallyMode? SceneMode(string id) => id=="match" ? VolleyAerialSequence.RallyMode.Match
+            : id=="block" ? VolleyAerialSequence.RallyMode.Alternate : (VolleyAerialSequence.RallyMode?)null;
         public System.Collections.IEnumerator ExecuteControl(string action,string sceneId)
         {
             if(!CanExecuteControl(action,sceneId))throw new System.InvalidOperationException("Unsupported control.");
             if(action=="menu_open"){SetOpen(true);yield break;}
             if(action=="menu_close"){SetOpen(false);yield break;}
             string scene=action=="restart" ? SceneManager.GetActiveScene().name : SceneName(sceneId);
+            if(action=="scene")s_pendingMode=SceneMode(sceneId);
             LoadDrill(scene);
             yield return null;
             if(SceneManager.GetActiveScene().name!=scene)throw new System.InvalidOperationException("Scene transition did not complete.");
