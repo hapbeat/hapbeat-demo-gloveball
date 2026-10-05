@@ -4,10 +4,16 @@ using UnityEngine.UI;
 using UnityEngine.XR;
 using UnityEngine.XR.Hands;
 using UnityEngine.SceneManagement;
+using Hapbeat.DemoSwitch;
 
 namespace GloveBallDemo.Runtime
 {
-    /// <summary>Volley-only paused menu. Meta hand menu gesture opens it; aim rays and pinch edges select rows.</summary>
+    /// <summary>
+    /// Volley-only paused menu. Meta hand menu gesture opens it; aim rays and pinch edges select rows.
+    /// With the shared pause (Demo Switch Pause Menu, on in the Volley APK) the shared input owns the same
+    /// gesture and the ≡ button: this menu then opens and closes with the 一時停止 panel, beside it, and its
+    /// own open / close (RESUME, row actions, CONTROL menu_open / menu_close) go through <see cref="DemoPause"/>.
+    /// </summary>
     public sealed class VolleyHandMenu : MonoBehaviour, Hapbeat.DemoSwitch.IDemoAppControls
     {
         public VolleyDrillController Drill;
@@ -43,8 +49,13 @@ namespace GloveBallDemo.Runtime
         Canvas _canvas; Text _heightText; Material _rayMaterial; Font _font;
         float _lastToggle=-10f, _gestureStart=-1f;
         bool _menuPressed, _gestureUsed;
+        /// <summary>Yaw right of the head's heading for this menu beside the shared pause panel (0.55 m ahead, about 0.44 m wide).</summary>
+        public const float BesidePauseYaw=40f;
+        static bool SharedPause=>DemoPause.IsEnabled;
 
         void Start(){if(_canvas==null)Build();}
+        void OnEnable()=>DemoPause.PausedChanged+=OnSharedPauseChanged;
+        void OnSharedPauseChanged(bool paused)=>Show(paused,true);
         void Build()
         {
             _font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -85,7 +96,8 @@ namespace GloveBallDemo.Runtime
             controller.TryGetFeatureValue(CommonUsages.menuButton,out bool controllerMenu);
             bool pressed=(flags&MetaAimFlags.MenuPressed)!=0 || controllerMenu;
             bool fallback=LeftPalmPinch(flags);
-            ProcessMenuGesture(Time.unscaledTime,pressed,fallback);
+            // The shared pause input reads the same gesture and button; a second toggle here would close it again.
+            if(!SharedPause)ProcessMenuGesture(Time.unscaledTime,pressed,fallback);
             UpdatePointers();
         }
         public void ProcessMenuGesture(float now,bool pressed,bool fallback)
@@ -169,9 +181,21 @@ namespace GloveBallDemo.Runtime
         }
         public void SetOpen(bool open)
         {
+            if(SharedPause)
+            {
+                // The shared pause owns pause, audio and haptics; PausedChanged shows or hides this menu beside it.
+                if(open)DemoPause.Pause();else DemoPause.Resume();
+                Show(open && DemoPause.IsPaused,true);
+                return;
+            }
+            Show(open,false);
+        }
+        void Show(bool open,bool besidePause)
+        {
             if(_canvas==null)Build();if(IsOpen==open)return;IsOpen=open;
             foreach(var smoother in _handRays)smoother.Reset();
             if(open){var jump=Floor.GetComponent<VolleyArmJump>();if(jump!=null && !jump.AutomaticJump)jump.ResetJump();var forward=Vector3.ProjectOnPlane(Drill.Head.forward,Vector3.up).normalized;
+                if(besidePause)forward=Quaternion.AngleAxis(BesidePauseYaw,Vector3.up)*forward;
                 _canvas.transform.position=Drill.Head.position+forward*1.25f;_canvas.transform.rotation=Quaternion.LookRotation(forward);_pinched[0]=_pinched[1]=true;}
             Drill.SetMenuPaused(open);
             _canvas.gameObject.SetActive(open);GameInputGate.SetBlocked(open);foreach(var ray in _rays)ray.enabled=false;
@@ -219,7 +243,7 @@ namespace GloveBallDemo.Runtime
         void ResetAutomaticAttempt(){if(Drill.Aerial!=null && Drill.Aerial.BeginnerBlock)Drill.Aerial.SetBeginnerBlock(true);}
         /// <summary>REPOSITION TO START, also the shared 視線をリセット (VolleySessionHost).</summary>
         public void RepositionToStart(){ResetAutomaticAttempt();Floor.Recenter();SetOpen(false);}
-        void OnDisable(){if(IsOpen)SetOpen(false);}
+        void OnDisable(){DemoPause.PausedChanged-=OnSharedPauseChanged;if(IsOpen)SetOpen(false);}
         public bool CanExecuteControl(string action,string sceneId) =>
             action=="menu_open" || action=="menu_close" || action=="restart"
             || (action=="scene" && SceneName(sceneId)!=null);

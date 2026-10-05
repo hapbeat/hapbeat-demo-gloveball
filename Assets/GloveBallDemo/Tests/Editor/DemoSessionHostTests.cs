@@ -46,6 +46,8 @@ namespace GloveBallDemo.Tests
         [TearDown]
         public void TearDown()
         {
+            DemoPause.ResetForTests();
+            AudioListener.pause = false;
             DemoSession.ResetForTests();
             HapticEventRelay.SetHapticsEnabled(true);
             GameInputGate.SetBlocked(false);
@@ -99,6 +101,48 @@ namespace GloveBallDemo.Tests
             Assert.That(GameInputGate.IsBlocked, Is.False);
             Assert.That(aerial.PlayerScore + aerial.OpponentScore, Is.Zero);
             Assert.That(aerial.Phase, Is.EqualTo(VolleyAerialSequence.RallyPhase.Idle));
+        }
+
+        [Test]
+        public void SharedPauseOpensTheVolleyMenuBesideItPausesEverythingAndRestarts()
+        {
+            EditorSceneManager.OpenScene(Folder + "VolleyBlock-codex.unity");
+            var drill = UnityEngine.Object.FindFirstObjectByType<VolleyDrillController>();
+            var menu = UnityEngine.Object.FindFirstObjectByType<VolleyHandMenu>();
+            var aerial = drill.Aerial;
+            var host = drill.gameObject.AddComponent<VolleySessionHost>();
+            typeof(VolleySessionHost).GetMethod("Start", Private).Invoke(host, null); // registers, as at runtime
+            DemoPause.Configure(null);
+            try
+            {
+                typeof(VolleyAerialSequence).GetProperty("PlayerScore").SetValue(aerial, 2);
+                menu.SetOpen(true);
+                Assert.That(DemoPause.IsPaused, Is.True, "The Volley menu input opens the shared pause.");
+                Assert.That(menu.IsOpen, Is.True, "Participant settings stay reachable beside the pause panel.");
+                Assert.That(Time.timeScale, Is.Zero);
+                Assert.That(GameInputGate.IsBlocked, Is.True);
+                Assert.That(HapticEventRelay.HapticsEnabled, Is.False);
+                Assert.That(AudioListener.pause, Is.True);
+                var heading = Vector3.ProjectOnPlane(drill.Head.forward, Vector3.up);
+                var toMenu = Vector3.ProjectOnPlane(menu.transform.Find("Volley hand menu").position - drill.Head.position, Vector3.up);
+                Assert.That(Vector3.SignedAngle(heading, toMenu, Vector3.up), Is.EqualTo(VolleyHandMenu.BesidePauseYaw).Within(.5f));
+
+                menu.Activate(0); // RESUME
+                Assert.That(DemoPause.IsPaused, Is.False);
+                Assert.That(menu.IsOpen, Is.False);
+                Assert.That(Time.timeScale, Is.EqualTo(_timeScale));
+                Assert.That(GameInputGate.IsBlocked, Is.False);
+                Assert.That(HapticEventRelay.HapticsEnabled, Is.True);
+                Assert.That(AudioListener.pause, Is.False);
+
+                Assert.That(DemoPause.Pause(), Is.True);
+                DemoPause.RestartFromPause(); // 最初からやり直す
+                Assert.That(DemoPause.IsPaused, Is.False);
+                Assert.That(Time.timeScale, Is.EqualTo(_timeScale));
+                Assert.That(aerial.PlayerScore + aerial.OpponentScore, Is.Zero);
+                Assert.That(aerial.Mode, Is.EqualTo(VolleyAerialSequence.RallyMode.Alternate));
+            }
+            finally { menu.SetOpen(false); UnityEngine.Object.DestroyImmediate(menu); }
         }
 
         [Test]
