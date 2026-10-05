@@ -1,6 +1,6 @@
 # Where the Hapbeat packages come from
 
-`manifest.json` pins both Hapbeat packages to public Git sources, so a plain clone
+`manifest.json` is meant to pin both Hapbeat packages to public Git sources, so a plain clone
 restores them without any neighbouring checkout:
 
 ```json
@@ -8,12 +8,14 @@ restores them without any neighbouring checkout:
 "com.hapbeat.demo-switch": "https://github.com/hapbeat/hapbeat-demos.git?path=unity/packages/com.hapbeat.demo-switch#75eb51687e35bd88af61cc181fa6bd5dcd0b4753"
 ```
 
-- `com.hapbeat.sdk` uses the release tag `v0.5.0`, the newest published tag this project compiles and
-  passes its tests with on Unity 6000.0.59f2. Tags before `v0.5.0` are not usable: `v0.4.0`'s editor assembly
-  calls `EditorUtility.EntityIdToObject`, which does not exist in Unity 6000.0 LTS; `v0.5.0` routes it through
-  the version-guarded `HapbeatEditorCompat` helper.
-- `com.hapbeat.demo-switch` has no release of its own; it is pinned to an immutable commit of the
-  `hapbeat-demos` repository.
+- `com.hapbeat.sdk` currently points at the workspace checkout instead
+  (`"file:../../../../repos-sdk/hapbeat-unity-sdk"`, as Boxing and Energy Duel do): the devices run firmware
+  that accepts only the v2 stream (DEC-074), and v2 support with the per-device legacy fallback (DEC-075) is not
+  in any released tag yet (`v0.5.0` sends the pre-v2 stream, which that firmware ignores). Pin it back to a
+  release tag once the SDK with the v2 stream (0.6.0) is released. Tags before `v0.5.0` are not usable:
+  `v0.4.0`'s editor assembly calls `EditorUtility.EntityIdToObject`, which does not exist in Unity 6000.0 LTS.
+- `com.hapbeat.demo-switch` has no release of its own; it is meant to be pinned to an immutable commit of the
+  `hapbeat-demos` repository (currently `file:../../packages/com.hapbeat.demo-switch`).
 
 `packages-lock.json` is not committed: it records whichever source a checkout resolved (Git URL or an
 embedded package below), so it differs between a plain clone and a workspace checkout.
