@@ -11561,7 +11561,7 @@ MonoBehaviour:
   Opponent: {fileID: 1011802256}
   TossLauncher: {fileID: 1739308276}
   RallyEnabled: 1
-  Mode: 3
+  Mode: 0
   FirstTurn: 1
   AttemptsPerTurn: 1
   BlinkOutSeconds: 0.2

@@ -60,6 +60,8 @@ namespace GloveBallDemo.Tests
             Assert.That(volley.SupportsHapticsToggle, Is.True);
             Assert.That(volley.Options.Count, Is.EqualTo(3));
             Assert.That(volley.FindOption("points").WhenOptionId, Is.EqualTo("scene"));
+            Assert.That(volley.FindOption("scene").Default, Is.EqualTo("block"), "Spike + Block turns are the default.");
+            Assert.That(volley.FindOption("scene").Values.Count, Is.EqualTo(3));
             Assert.That(volley.FindOption("points").Values.Count, Is.EqualTo(3));
             Assert.That(volley.FindOption("balls").Default, Is.EqualTo("10"));
             Assert.That(volley.Title.Ja, Is.EqualTo("バレーボール"));
@@ -72,18 +74,19 @@ namespace GloveBallDemo.Tests
             Assert.That(gloveball.Options, Is.Empty, "The wave run ends naturally.");
         }
 
-        [Test]
-        public void BlockSessionPlaysToPointsHoldsTheScoreAndRetriesFromZero()
+        [TestCase("block", VolleyAerialSequence.RallyMode.Alternate)]
+        [TestCase("match", VolleyAerialSequence.RallyMode.Match)]
+        public void BlockSessionPlaysToPointsHoldsTheScoreAndRetriesFromZero(string scene, VolleyAerialSequence.RallyMode mode)
         {
             EditorSceneManager.OpenScene(Folder + "VolleyBlock-codex.unity");
             var drill = UnityEngine.Object.FindFirstObjectByType<VolleyDrillController>();
             var aerial = drill.Aerial;
-            Assert.That(DemoSession.TryBegin(Ticket("volley", "{\"scene\":\"block\",\"points\":\"3\"}"), "volley",
+            Assert.That(DemoSession.TryBegin(Ticket("volley", "{\"scene\":\"" + scene + "\",\"points\":\"3\"}"), "volley",
                 Load("Assets/StreamingAssets/hapbeat-demo-session.json"), out var error), Is.True, error);
             var host = drill.gameObject.AddComponent<VolleySessionHost>();
             DemoSession.RegisterHost(host);
             Assert.That(aerial.MatchPoints, Is.EqualTo(3));
-            Assert.That(aerial.Mode, Is.EqualTo(VolleyAerialSequence.RallyMode.Match));
+            Assert.That(aerial.Mode, Is.EqualTo(mode));
             Assert.That(aerial.HoldAtMatchEnd, Is.True, "No automatic rematch in session mode.");
 
             Raise(aerial, "MatchEnded", true);

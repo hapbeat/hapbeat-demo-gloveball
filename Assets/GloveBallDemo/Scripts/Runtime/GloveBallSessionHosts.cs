@@ -32,9 +32,12 @@ namespace GloveBallDemo.Runtime
     }
 
     /// <summary>
-    /// Volley Demo Session adapter. `scene` picks Block or Receive once per process; Block plays a
-    /// match to `points` and holds the final score; Receive serves `balls` balls (hit or missed).
+    /// Volley Demo Session adapter. `scene` picks the Block scene or Receive once per process: `block` plays
+    /// the spike / block turns (Alternate) and `match` the 6 v 6 match, both to `points`, holding the final
+    /// score; `receive` serves `balls` balls (hit or missed).
     /// 視線をリセット (button and CONTROL `recenter`) is the menu's REPOSITION TO START.
+    /// The shared pause (Volley APK) pauses through <see cref="SetGameplayPaused"/> and restarts through
+    /// <see cref="Restart"/>; <see cref="VolleyHandMenu"/> opens beside its panel.
     /// </summary>
     public sealed class VolleySessionHost : MonoBehaviour, IDemoSessionHost, IDemoSessionRecenter
     {
@@ -67,6 +70,7 @@ namespace GloveBallDemo.Runtime
             if (_drill == null) _drill = GetComponent<VolleyDrillController>();
             options.TryGetValue("scene", out var scene);
             var target = scene == "receive" ? ReceiveScene : BlockScene;
+            var mode = scene == "match" ? VolleyAerialSequence.RallyMode.Match : VolleyAerialSequence.RallyMode.Alternate;
             if (!_sceneOptionApplied)
             {
                 _sceneOptionApplied = true;
@@ -81,8 +85,7 @@ namespace GloveBallDemo.Runtime
             {
                 if (options.TryGetValue("points", out var points) && int.TryParse(points, out var value) && value > 0)
                     _drill.Aerial.MatchPoints = value;
-                if (_drill.Aerial.Mode != VolleyAerialSequence.RallyMode.Match)
-                    _drill.Aerial.SetMode(VolleyAerialSequence.RallyMode.Match);
+                if (_drill.Aerial.Mode != mode) _drill.Aerial.SetMode(mode);
                 _drill.Aerial.HoldAtMatchEnd = true;
                 if (!_completionWired) _drill.Aerial.MatchEnded += OnMatchEnded;
             }

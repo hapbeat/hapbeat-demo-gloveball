@@ -90,9 +90,9 @@ namespace GloveBallDemo.Tests
         void PerfectOurDefence(){_rally.OurDigSuccess=1f;_rally.OurDigReaction=0f;_rally.OurDigSpeed=20f;_rally.OurDigReach=3f;}
 
         [Test]
-        public void SceneStartsInTheMatchWithSixBluePlayers()
+        public void SceneStartsInSpikeBlockTurnsWithTheMatchTeamReady()
         {
-            Assert.That(_sceneMode,Is.EqualTo(Mode.Match),"The Volley APK opens in the match.");
+            Assert.That(_sceneMode,Is.EqualTo(Mode.Alternate),"The Volley APK opens in the spike / block turns; the 6 v 6 match is an option.");
             Assert.That(_rally.Teammates,Has.Length.EqualTo(5));
             foreach(var mate in _rally.Teammates)Assert.That(mate.JerseyColour,Is.EqualTo(_rally.Ally.JerseyColour));
             Assert.That(_rally.ReceiveVolume,Is.Not.Null);
