@@ -85,7 +85,7 @@ public static class VolleyRallySetup
         // The forearm platform comes back only while the player receives a serve (level 2+).
         aerial.ReceiveVolume=UnityEngine.Object.FindFirstObjectByType<VolleyJoinedHands>(FindObjectsInactive.Include);
         if(aerial.ReceiveVolume==null)throw new InvalidOperationException("The joined-hands receive platform is missing from the scene.");
-        aerial.Mode=VolleyAerialSequence.RallyMode.Alternate; // default board: spike / block turns; the 6 v 6 match is a menu or session option
+        aerial.Mode=VolleyAerialSequence.RallyMode.Match; // default board: the 6 v 6 match; the spike / block turns stay a menu or session option
         aerial.PlayerInvolvement=VolleyAerialSequence.Involvement.SpikeBlock;
         // Serialized scene values win over code defaults, so the tuned rally values are written explicitly.
         aerial.AllyFlightSeconds=1.5f;       // high set, time to read it

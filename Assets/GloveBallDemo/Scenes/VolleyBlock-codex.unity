@@ -11513,6 +11513,7 @@ MonoBehaviour:
   MinimumImpactGain: 0.2
   MaximumImpactGain: 1.5
   NearHandDistance: 0.45
+  ServeLimit: 0
   TrackingGraceSeconds: 1.5
   LauncherWarningSeconds: 1
 --- !u!4 &1137378106
@@ -11561,7 +11562,7 @@ MonoBehaviour:
   Opponent: {fileID: 1011802256}
   TossLauncher: {fileID: 1739308276}
   RallyEnabled: 1
-  Mode: 0
+  Mode: 3
   FirstTurn: 1
   AttemptsPerTurn: 1
   BlinkOutSeconds: 0.2
@@ -11571,6 +11572,7 @@ MonoBehaviour:
   RallyResetSeconds: 2
   MatchPoints: 7
   MatchEndSeconds: 5
+  HoldAtMatchEnd: 0
   BlockJumpHeight: 0.85
   BlockJumpSeconds: 1
   SpikeJumpHeight: 1.5
@@ -11647,9 +11649,15 @@ MonoBehaviour:
   - {fileID: 1590459782}
   ReceiveVolume: {fileID: 2059489942}
   SlowMotionScale: 0.35
-  EmbodyBlinkOut: 0.18
-  EmbodyBlinkHold: 0.08
-  EmbodyBlinkIn: 0.22
+  GlideSpeed: 4
+  GlideMinSeconds: 0.25
+  GlideMaxSeconds: 1.2
+  VignetteInSeconds: 0.12
+  VignetteOutSeconds: 0.3
+  PlayerStartSlot: 2
+  PlayerBlockShift: 2.5
+  BackRowAttackDepth: 4
+  SetHandOffSeconds: 0.25
   ServeDelaySeconds: 1
   PassSeconds: 1.15
   ServeSeconds: 1.5

@@ -11,7 +11,7 @@ using Level=GloveBallDemo.Runtime.VolleyAerialSequence.Involvement;
 
 namespace GloveBallDemo.Tests
 {
-    /// <summary>6 v 6 match: scripted NPC play, physical player touches, embodiment switches and landing-decided points.</summary>
+    /// <summary>6 v 6 match: scripted NPC play, physical player touches, rotation, vignetted glides and landing-decided points.</summary>
     public class VolleyMatchTests
     {
         const string Scene="Assets/GloveBallDemo/Scenes/VolleyBlock-codex.unity";
@@ -47,6 +47,14 @@ namespace GloveBallDemo.Tests
         }
 
         void Serve(Team team)=>typeof(VolleyAerialSequence).GetField("_serving",Private).SetValue(_rally,team);
+        void Slot(int slot)=>typeof(VolleyAerialSequence).GetField("_playerSlot",Private).SetValue(_rally,slot);
+        /// <summary>This rally's spot of the player's own (hidden) teammate.</summary>
+        Vector3 PlayerHome()
+        {
+            var actor=typeof(VolleyAerialSequence).GetField("_embodied",Private).GetValue(_rally);
+            return (Vector3)actor.GetType().GetField("Home").GetValue(actor);
+        }
+        static float FlatDistance(Vector3 a,Vector3 b){a.y=b.y=0f;return Vector3.Distance(a,b);}
         /// <summary>One 10 ms frame. A launch toward the player is handed to the drill, as the real drill does.</summary>
         void Frame()
         {
@@ -63,7 +71,8 @@ namespace GloveBallDemo.Tests
         void Launch(Phase phase,float limit=40f)
         {
             _launched=false;
-            RunUntil(()=>_launched && _rally.Phase==phase,limit,"launch toward the player as "+phase);
+            for(float t=0f;t<limit && !(_launched && _rally.Phase==phase);t+=.01f)Frame();
+            Assert.That(_launched && _rally.Phase==phase,Is.True,"launch toward the player as "+phase+" (now "+_rally.Phase+", "+_rally.Outcome+", "+_rally.PlayerScore+"-"+_rally.OpponentScore+")");
         }
         bool InPhysicsWindow=>_rally.Phase==Phase.PlayerSpike || _rally.Phase==Phase.OpponentSpike || _rally.Phase==Phase.PlayerServe
             || _rally.Phase==Phase.PlayerReceive || _rally.Phase==Phase.PlayerSet;
@@ -90,9 +99,9 @@ namespace GloveBallDemo.Tests
         void PerfectOurDefence(){_rally.OurDigSuccess=1f;_rally.OurDigReaction=0f;_rally.OurDigSpeed=20f;_rally.OurDigReach=3f;}
 
         [Test]
-        public void SceneStartsInSpikeBlockTurnsWithTheMatchTeamReady()
+        public void SceneStartsInTheMatchWithSixBluePlayers()
         {
-            Assert.That(_sceneMode,Is.EqualTo(Mode.Alternate),"The Volley APK opens in the spike / block turns; the 6 v 6 match is an option.");
+            Assert.That(_sceneMode,Is.EqualTo(Mode.Match),"The Volley APK opens in the 6 v 6 match; the spike / block turns are an option.");
             Assert.That(_rally.Teammates,Has.Length.EqualTo(5));
             foreach(var mate in _rally.Teammates)Assert.That(mate.JerseyColour,Is.EqualTo(_rally.Ally.JerseyColour));
             Assert.That(_rally.ReceiveVolume,Is.Not.Null);
@@ -104,7 +113,9 @@ namespace GloveBallDemo.Tests
             _launched=false;
             RunUntil(()=>_launched,40f,"a physical touch for the player");
             Assert.That(_rally.Phase,Is.EqualTo(Phase.PlayerSpike).Or.EqualTo(Phase.OpponentSpike),"Level 1: the player only spikes or blocks.");
-            Assert.That(_rally.Embodied,Is.Not.Null);Assert.That(_rally.Embodied.gameObject.activeSelf,Is.False,"The embodied teammate is hidden.");
+            Assert.That(_rally.Embodied,Is.SameAs(_rally.Teammates[1]),"The player is the front-left teammate.");
+            Assert.That(_rally.Embodied.gameObject.activeSelf,Is.False,"The player's own teammate is hidden.");
+            Assert.That(_rally.FadeAlpha,Is.Zero,"The match never blanks the view.");
             int onCourt=0;foreach(var actor in Everyone())if(actor.gameObject.activeSelf)onCourt++;
             Assert.That(onCourt,Is.EqualTo(11));
             Assert.That(_rally.Opponent.gameObject.activeSelf,Is.False,"The turn-mode attacker is not part of the match.");
@@ -174,8 +185,9 @@ namespace GloveBallDemo.Tests
         [Test]
         public void LevelTwoPlayerServeFollowsTheSwing()
         {
-            _rally.PlayerInvolvement=Level.AddReceiveServe;Serve(Team.Us);
+            _rally.PlayerInvolvement=Level.AddReceiveServe;Serve(Team.Us);Slot(5);
             Launch(Phase.PlayerServe);
+            Assert.That(FlatDistance(_rally.GroundedEye,PlayerHome()),Is.LessThan(.05f),"Serving from the player's own spot behind the line.");
             Assert.That(_rally.RoleTouch,Is.EqualTo(Touch.Serve));
             Assert.That(_rally.OverrideTouchVelocity(new Vector3(0f,-1f,9f),_destination,out var serve),Is.True);
             Assert.That(serve.normalized.y,Is.LessThanOrEqualTo(_rally.ServeMaximumRise+.001f));
@@ -184,38 +196,76 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
-        public void LevelThreePlayerPassesSetsWithAssistAndThenSpikes()
+        public void LevelThreePlayerPassThenSpikesAndADugBallIsSetByThePlayer()
         {
-            _rally.PlayerInvolvement=Level.AddSet;Serve(Team.Them);PerfectOurDefence();
+            _rally.PlayerInvolvement=Level.AddSet;Serve(Team.Them);Slot(0);PerfectOurDefence();PerfectTheirDefence();
             Launch(Phase.PlayerReceive);
             _rally.RegisterPlayerTouch();
             Assert.That(_rally.Touches(Team.Us),Is.EqualTo(1));
-            // A good pass rises in front of the player; the player is moved under it as the setter.
-            Fly(_destination,new Vector3(0f,6f,1f),()=>_rally.Phase==Phase.PlayerSet);
-            Assert.That(_rally.Phase,Is.EqualTo(Phase.PlayerSet));Assert.That(_rally.RoleTouch,Is.EqualTo(Touch.Set));
+            // After the player's own pass our setter plays the second ball, to the player.
+            Fly(_destination,new Vector3(0f,6f,-1.5f)); // the player stands near the net: pass back into our court
+            Launch(Phase.PlayerSpike,15f);
+            Assert.That(_rally.RoleTouch,Is.EqualTo(Touch.Spike));
+
+            // Their attack gets past the block, our back row digs it and the player glides in to set.
+            _rally.RegisterPlayerTouch();
+            Fly(_destination,new Vector3(0f,3f,4f));
+            Launch(Phase.OpponentSpike,15f);
+            Fly(_start,GloveBallDemo.Core.VolleyMath.ServeVelocity(_start,_destination,_seconds,Physics.gravity));
+            Launch(Phase.PlayerSet,15f);
+            Assert.That(_rally.RoleTouch,Is.EqualTo(Touch.Set));
             var ball=_rally.GroundedEye+Forward*.25f+Vector3.up*.3f;
             Assert.That(_rally.OverrideTouchVelocity(new Vector3(-2f,3f,0f),ball,out var set),Is.True,"Push to the left: outside hitter.");
-            _rally.RegisterPlayerTouch();
-            Assert.That(_rally.Phase,Is.EqualTo(Phase.PlayerSpike));Assert.That(_rally.AwaitingPlayerTouch,Is.True);
-            Assert.That(_rally.Touches(Team.Us),Is.EqualTo(2));
             float t=_rally.AllyFlightSeconds;
             var arrival=ball+set*t+.5f*Physics.gravity*t*t;
-            Assert.That(arrival.x-_drill.ReceiveNet.transform.position.x,Is.EqualTo(-2.4f).Within(.01f),"The set reaches the outside hitter's lane.");
-            RunUntil(()=>!_rally.Embodying,3f,"switch to the hitter");
-            Assert.That(_rally.RoleTouch,Is.EqualTo(Touch.Spike));
+            Assert.That(arrival.x-_drill.ReceiveNet.transform.position.x,Is.EqualTo(-2.4f).Within(.01f),"The set heads for the outside hitter's lane.");
+            _rally.RegisterPlayerTouch();
+            Fly(ball,set);
+            Assert.That(_rally.Phase,Is.EqualTo(Phase.MatchPlay),"The outside hitter takes the set over and attacks.");
+            Assert.That(_rally.Touches(Team.Us),Is.EqualTo(2));
+            Assert.That(_rally.Embodied,Is.SameAs(_rally.Ally),"No switch: the player stays the front-right teammate.");
         }
 
         [Test]
-        public void TheSwitchBlanksTheViewInSlowMotion()
+        public void MovesGlideBehindAVignetteInSlowMotionWithoutBlanking()
         {
-            RunUntil(()=>_rally.Embodying,1f,"first embodiment");
+            _jump.Floor.SetStanceOffset(Forward*-3f); // start away from the player's spot so the first move is a real glide
+            RunUntil(()=>_rally.Embodying,1f,"first glide");
             Assert.That(Time.timeScale,Is.EqualTo(_rally.SlowMotionScale));
-            RunUntil(()=>_rally.FadeAlpha>=1f,1f,"blank");
-            RunUntil(()=>!_rally.Embodying,2f,"back");
-            Assert.That(Time.timeScale,Is.EqualTo(_scale));Assert.That(_rally.FadeAlpha,Is.Zero);
-            RunUntil(()=>_rally.Embodying || _launched,40f,"next switch or launch");
+            float largestStep=0f;var last=_rally.GroundedEye;
+            for(float t=0f;t<3f && _rally.Embodying;t+=.01f)
+            {
+                Frame();
+                Assert.That(_rally.FadeAlpha,Is.Zero,"Never blank.");
+                largestStep=Mathf.Max(largestStep,FlatDistance(_rally.GroundedEye,last));last=_rally.GroundedEye;
+            }
+            Assert.That(_rally.Embodying,Is.False);
+            // Smoothstep peaks at 1.5x the mean speed; one 10 ms game frame is 10 ms / SlowMotionScale of real time.
+            Assert.That(largestStep,Is.LessThan(_rally.GlideSpeed*1.6f*.01f/_rally.SlowMotionScale),"A continuous glide, not a jump cut.");
+            Assert.That(FlatDistance(_rally.GroundedEye,PlayerHome()),Is.LessThan(.05f),"At the player's own spot.");
+            Assert.That(Time.timeScale,Is.EqualTo(_scale));
+            Assert.That(_rally.VignetteAlpha,Is.GreaterThan(0f),"The vignette opens after the glide.");
+            RunUntil(()=>_rally.VignetteAlpha<=0f,1f,"vignette open");
+            RunUntil(()=>_rally.Embodying || _launched,40f,"next glide or launch");
             _rally.CancelFeed();
             Assert.That(Time.timeScale,Is.EqualTo(_scale),"Cancelling restores the game speed.");
+        }
+
+        [Test]
+        public void SideOutRotatesThePlayerClockwiseToTheNextSpot()
+        {
+            Serve(Team.Them);_rally.TheirDigSuccess=0f;
+            Launch(Phase.PlayerSpike);
+            Assert.That(_rally.PlayerSlot,Is.EqualTo(2));
+            _rally.RegisterPlayerTouch();
+            Fly(_destination,new Vector3(0f,-7f,14f));
+            Assert.That(_rally.PlayerScore,Is.EqualTo(1));
+            Assert.That(_rally.PlayerSlot,Is.EqualTo(1),"Front left -> front middle.");
+            RunUntil(()=>_rally.Phase==Phase.MatchPlay && !_rally.Embodying,_rally.RallyResetSeconds+4f,"next rally from the new spot");
+            Assert.That(_rally.Embodied,Is.SameAs(_rally.Teammates[0]));
+            Assert.That(_rally.Teammates[1].gameObject.activeSelf,Is.True,"The old spot's teammate is back on court.");
+            Assert.That(FlatDistance(_rally.GroundedEye,PlayerHome()),Is.LessThan(.05f));
+            Assert.That(_rally.ModeLabel,Does.Contain("FRONT MIDDLE"));
         }
 
         [Test]

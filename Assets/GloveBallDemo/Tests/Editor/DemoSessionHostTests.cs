@@ -62,7 +62,7 @@ namespace GloveBallDemo.Tests
             Assert.That(volley.SupportsHapticsToggle, Is.True);
             Assert.That(volley.Options.Count, Is.EqualTo(3));
             Assert.That(volley.FindOption("points").WhenOptionId, Is.EqualTo("scene"));
-            Assert.That(volley.FindOption("scene").Default, Is.EqualTo("block"), "Spike + Block turns are the default.");
+            Assert.That(volley.FindOption("scene").Default, Is.EqualTo("match"), "The 6 v 6 match is the default.");
             Assert.That(volley.FindOption("scene").Values.Count, Is.EqualTo(3));
             Assert.That(volley.FindOption("points").Values.Count, Is.EqualTo(3));
             Assert.That(volley.FindOption("balls").Default, Is.EqualTo("10"));
@@ -140,7 +140,7 @@ namespace GloveBallDemo.Tests
                 Assert.That(DemoPause.IsPaused, Is.False);
                 Assert.That(Time.timeScale, Is.EqualTo(_timeScale));
                 Assert.That(aerial.PlayerScore + aerial.OpponentScore, Is.Zero);
-                Assert.That(aerial.Mode, Is.EqualTo(VolleyAerialSequence.RallyMode.Alternate));
+                Assert.That(aerial.Mode, Is.EqualTo(VolleyAerialSequence.RallyMode.Match), "Restart keeps the scene's mode (the 6 v 6 match).");
             }
             finally { menu.SetOpen(false); UnityEngine.Object.DestroyImmediate(menu); }
         }

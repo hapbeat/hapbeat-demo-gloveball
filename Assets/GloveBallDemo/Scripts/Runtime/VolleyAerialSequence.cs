@@ -799,7 +799,7 @@ namespace GloveBallDemo.Runtime
         }
         void ResetMatch()
         {
-            PlayerScore=OpponentScore=0;TurnStarted=false;_attemptsInTurn=0;
+            PlayerScore=OpponentScore=0;TurnStarted=false;_attemptsInTurn=0;_playerSlot=-1;
             Phase=RallyPhase.Idle;_rallyTimer=0f;
         }
 
@@ -1021,7 +1021,7 @@ namespace GloveBallDemo.Runtime
         /// <summary>Changing the mode restarts with a blinked turn change so the new first turn is announced.</summary>
         public void SetMode(RallyMode mode)
         {
-            CancelMatch();_embodied=null;_roleTouch=PlayerTouch.None;_serving=Team.Us;
+            CancelMatch();_embodied=null;_pendingShow=null;_playerSlot=-1;_roleTouch=PlayerTouch.None;_serving=Team.Us;
             Mode=mode;TurnStarted=false;_attemptsInTurn=0;PlayerScore=OpponentScore=0;
             Jump.ResetJump();
             Drill.ResetCurrentAttempt();

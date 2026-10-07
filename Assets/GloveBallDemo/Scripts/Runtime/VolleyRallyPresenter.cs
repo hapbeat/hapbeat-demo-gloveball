@@ -3,7 +3,10 @@ using UnityEngine.UI;
 
 namespace GloveBallDemo.Runtime
 {
-    /// <summary>Runtime-only rally presentation: head-locked blink, court banner (turn, match score, outcome), landing marker and chimes.</summary>
+    /// <summary>
+    /// Runtime-only rally presentation: head-locked blink, head-locked comfort vignette (match glides), court banner
+    /// (turn, match score, outcome), landing marker and chimes.
+    /// </summary>
     public sealed class VolleyRallyPresenter : MonoBehaviour
     {
         public VolleyAerialSequence Rally;
@@ -13,11 +16,15 @@ namespace GloveBallDemo.Runtime
         [Range(0f,1f)] public float ChimeVolume=.6f;
         [Min(.2f)] public float OutcomeSeconds=2f;
         [Min(.2f)] public float MarkerSeconds=2.5f;
+        [Tooltip("Comfort vignette: clear field half-angle (deg) and the width of its soft edge (deg).")]
+        [Range(10f,60f)] public float VignetteClearDegrees=24f;
+        [Range(1f,30f)] public float VignetteEdgeDegrees=10f;
         static readonly Color SpikeColour=new Color(.1f,.35f,.9f,.88f);
         static readonly Color BlockColour=new Color(.85f,.2f,.1f,.88f);
         static readonly Color WinColour=new Color(.35f,1f,.45f);
         static readonly Color LoseColour=new Color(1f,.55f,.3f);
-        Image _fade, _banner;
+        Image _fade, _vignette, _banner;
+        Texture2D _vignetteTexture;
         Text _title, _score, _subtitle;
         AudioSource _audio;
         AudioClip _spikeChime, _blockChime, _pointWon, _pointLost, _matchWon, _matchLost;
@@ -30,7 +37,7 @@ namespace GloveBallDemo.Runtime
         {
             if(Rally==null)Rally=GetComponent<VolleyAerialSequence>();
             _font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            BuildFade();BuildBanner();BuildMarker();
+            BuildFade();BuildVignette();BuildBanner();BuildMarker();
             _audio=gameObject.AddComponent<AudioSource>();_audio.playOnAwake=false;_audio.spatialBlend=0f;
             _spikeChime=Chime("Spike turn chime",new[]{523.25f,659.25f,783.99f},.14f);
             _blockChime=Chime("Block turn chime",new[]{783.99f,523.25f},.14f);
@@ -47,6 +54,7 @@ namespace GloveBallDemo.Runtime
             if(Rally!=null){Rally.TurnAnnounced-=OnTurn;Rally.PointScored-=OnPoint;Rally.MatchEnded-=OnMatch;}
             foreach(var clip in new[]{_spikeChime,_blockChime,_pointWon,_pointLost,_matchWon,_matchLost})if(clip!=null)Destroy(clip);
             if(_markerMaterial!=null)Destroy(_markerMaterial);
+            if(_vignetteTexture!=null)Destroy(_vignetteTexture);
         }
 
         void BuildFade()
@@ -57,6 +65,30 @@ namespace GloveBallDemo.Runtime
             var canvas=go.GetComponent<Canvas>();canvas.renderMode=RenderMode.WorldSpace;canvas.sortingOrder=1000;
             var rect=(RectTransform)go.transform;rect.sizeDelta=new Vector2(3000,3000);rect.localScale=Vector3.one*.0005f;
             _fade=go.AddComponent<Image>();_fade.color=new Color(0f,0f,0f,0f);_fade.raycastTarget=false;
+        }
+        /// <summary>Black outside a soft-edged circle around the gaze, on a 1.5 m quad 0.3 m in front of the eyes.</summary>
+        void BuildVignette()
+        {
+            const float Distance=.3f,Half=.75f;const int Size=256;
+            var go=new GameObject("Rally comfort vignette",typeof(RectTransform),typeof(Canvas));
+            go.transform.SetParent(Rally.Drill.Head,false);
+            go.transform.localPosition=new Vector3(0f,0f,Distance);go.transform.localRotation=Quaternion.identity;
+            var canvas=go.GetComponent<Canvas>();canvas.renderMode=RenderMode.WorldSpace;canvas.sortingOrder=999;
+            var rect=(RectTransform)go.transform;rect.sizeDelta=new Vector2(3000,3000);rect.localScale=Vector3.one*.0005f;
+            float clear=Distance*Mathf.Tan(VignetteClearDegrees*Mathf.Deg2Rad)/Half;
+            float edge=Distance*Mathf.Tan((VignetteClearDegrees+VignetteEdgeDegrees)*Mathf.Deg2Rad)/Half;
+            _vignetteTexture=new Texture2D(Size,Size,TextureFormat.RGBA32,false){wrapMode=TextureWrapMode.Clamp,name="Rally vignette"};
+            var pixels=new Color32[Size*Size];
+            for(int y=0;y<Size;y++)for(int x=0;x<Size;x++)
+            {
+                float u=(x+.5f)/Size*2f-1f,v=(y+.5f)/Size*2f-1f;
+                float a=Mathf.SmoothStep(0f,1f,Mathf.InverseLerp(clear,edge,Mathf.Sqrt(u*u+v*v)));
+                pixels[y*Size+x]=new Color32(0,0,0,(byte)(a*255f));
+            }
+            _vignetteTexture.SetPixels32(pixels);_vignetteTexture.Apply(false,true);
+            _vignette=go.AddComponent<Image>();_vignette.raycastTarget=false;
+            _vignette.sprite=Sprite.Create(_vignetteTexture,new Rect(0,0,Size,Size),new Vector2(.5f,.5f));
+            _vignette.color=new Color(1f,1f,1f,0f);_vignette.enabled=false;
         }
         void BuildBanner()
         {
@@ -118,6 +150,12 @@ namespace GloveBallDemo.Runtime
                 float alpha=GameInputGate.IsBlocked ? 0f : Rally.FadeAlpha;
                 _fade.color=new Color(0f,0f,0f,alpha);
                 _fade.enabled=alpha>.001f;
+            }
+            if(_vignette!=null)
+            {
+                float alpha=GameInputGate.IsBlocked ? 0f : Rally.VignetteAlpha;
+                _vignette.color=new Color(1f,1f,1f,alpha);
+                _vignette.enabled=alpha>.001f;
             }
             if(Rally.OutcomeSerial!=_outcomeSerial){_outcomeSerial=Rally.OutcomeSerial;_outcomeAge=0f;}
             float dt=Time.deltaTime;

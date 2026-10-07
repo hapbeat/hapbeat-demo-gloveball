@@ -16,7 +16,7 @@
         "ja": "モード",
         "en": "Mode"
       },
-      "default": "block",
+      "default": "match",
       "values": [
         {
           "value": "block",
