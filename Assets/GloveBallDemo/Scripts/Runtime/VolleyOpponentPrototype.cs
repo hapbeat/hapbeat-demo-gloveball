@@ -15,27 +15,30 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Spike is the opposing attacker. Set is the friendly teammate that presents a high ball to the player. Block is an opposing net blocker.")]
         public MotionRole Role;
         [Header("Team kit")]
-        [Tooltip("Tints the jersey and shorts per instance without editing the shared prototype materials.")]
+        [Tooltip("Tints the jersey, shorts and skin regions per instance without editing the shared player material.")]
         public bool OverrideKit;
         public Color JerseyColour=new Color(.8f,.16f,.07f);
         public Color ShortsColour=new Color(.05f,.07f,.1f);
         public Color SkinColour=new Color(.87f,.67f,.53f);
-        static readonly int BaseColour=Shader.PropertyToID("_BaseColor");
+        // The player shader (GloveBall/VolleyPlayer) reads a region mask from the vertex colours and tints each region with these.
+        static readonly int SkinId=Shader.PropertyToID("_SkinColor"),JerseyId=Shader.PropertyToID("_JerseyColor"),ShortsId=Shader.PropertyToID("_ShortsColor");
         void OnEnable()=>ApplyKit();
         void OnValidate()=>ApplyKit();
         public void ApplyKit()
         {
             if(!OverrideKit)return;
-            Tint(Torso,JerseyColour);Tint(LeftThigh,ShortsColour);Tint(RightThigh,ShortsColour);
-            foreach(var part in new[]{Head,LeftUpperArm,LeftForearm,RightUpperArm,RightForearm,LeftShin,RightShin})Tint(part,SkinColour);
-        }
-        static void Tint(Transform part,Color colour)
-        {
-            if(part==null || !part.TryGetComponent<Renderer>(out var renderer))return;
-            var block=new MaterialPropertyBlock();renderer.GetPropertyBlock(block);
-            block.SetColor(BaseColour,colour);renderer.SetPropertyBlock(block);
+            var block=new MaterialPropertyBlock();
+            foreach(var part in new[]{Torso,Head,LeftUpperArm,LeftForearm,RightUpperArm,RightForearm,LeftThigh,LeftShin,RightThigh,RightShin,LeftHandModel,RightHandModel,LeftShoe,RightShoe})
+            {
+                if(part==null || !part.TryGetComponent<Renderer>(out var renderer))continue;
+                renderer.GetPropertyBlock(block);
+                block.SetColor(SkinId,SkinColour);block.SetColor(JerseyId,JerseyColour);block.SetColor(ShortsId,ShortsColour);
+                renderer.SetPropertyBlock(block);
+            }
         }
         public Transform LeftHand, RightHand, LeftShoe, RightShoe;
+        [Tooltip("Visible hands. Separate from LeftHand/RightHand, which a blocker re-points at its palm colliders.")]
+        public Transform LeftHandModel, RightHandModel;
         [Range(.1f,2f)] public float PlaybackSpeed=1f;
         [Min(1f)] public float CycleSeconds=3.5f;
         public float JumpHeight=.65f;
@@ -110,6 +113,21 @@ namespace GloveBallDemo.Runtime
             if(phase<end){float t=Mathf.InverseLerp(.52f,end,phase);elbow=Mix(hitE,endE,t);hand=Mix(hitH,endH,t);return;}
             elbow=Mix(endE,restE,Mathf.InverseLerp(.73f,.91f,phase));hand=Mix(endH,restH,Mathf.InverseLerp(.73f,.91f,phase));
         }
+        void PlaceHands(Vector3 le,Vector3 lh,Vector3 re,Vector3 rh,Quaternion body)
+        {
+            if(LeftHand!=null){LeftHand.localPosition=lh;LeftHand.localRotation=Quaternion.FromToRotation(Vector3.up,(lh-le).normalized);}
+            if(RightHand!=null){RightHand.localPosition=rh;RightHand.localRotation=Quaternion.FromToRotation(Vector3.up,(rh-re).normalized);}
+            PlaceHandModel(LeftHandModel,le,lh,-1f,body);PlaceHandModel(RightHandModel,re,rh,1f,body);
+        }
+        /// <summary>Fingers continue the forearm; the palm faces forward and slightly inward (toward the ball in a spike, set or block).</summary>
+        static void PlaceHandModel(Transform model,Vector3 elbow,Vector3 hand,float side,Quaternion body)
+        {
+            if(model==null)return;
+            var along=(hand-elbow).normalized;
+            var palm=Vector3.ProjectOnPlane(body*new Vector3(-side*.5f,0f,1f),along);
+            if(palm.sqrMagnitude<1e-4f)palm=Vector3.ProjectOnPlane(body*Vector3.up,along);
+            model.localPosition=hand;model.localRotation=Quaternion.LookRotation(palm,along);
+        }
         float Jump(float phase)=>phase<.25f ? -.18f*Mathf.Sin(phase/.25f*Mathf.PI) : phase<.75f ? JumpHeight*Mathf.Sin((phase-.25f)/.5f*Mathf.PI) : 0f;
         [ContextMenu("Preview Current Phase")]
         public void PreviewCurrentPhase()=>Pose(PreviewPhase);
@@ -147,8 +165,7 @@ namespace GloveBallDemo.Runtime
             le=ls+bodyRotation*le;lh=ls+bodyRotation*lh;re=rs+bodyRotation*re;rh=rs+bodyRotation*rh;
             Limb(LeftUpperArm,ls,le,.105f);Limb(LeftForearm,le,lh,.085f);
             Limb(RightUpperArm,rs,re,.105f);Limb(RightForearm,re,rh,.085f);
-            if(LeftHand!=null){LeftHand.localPosition=lh;LeftHand.localRotation=Quaternion.FromToRotation(Vector3.up,(lh-le).normalized);}
-            if(RightHand!=null){RightHand.localPosition=rh;RightHand.localRotation=Quaternion.FromToRotation(Vector3.up,(rh-re).normalized);}
+            PlaceHands(le,lh,re,rh,bodyRotation);
             if(LeftShoe!=null)LeftShoe.localPosition=new Vector3(-.15f,feetY+.06f,.08f);
             if(RightShoe!=null)RightShoe.localPosition=new Vector3(.15f,feetY+.06f,.08f);
             if(!PreviewOnly)return;
@@ -205,8 +222,7 @@ namespace GloveBallDemo.Runtime
             var ls=shoulder+Vector3.left*.25f;var rs=shoulder+Vector3.right*.25f;
             Limb(LeftUpperArm,ls,le,.105f);Limb(LeftForearm,le,lh,.085f);
             Limb(RightUpperArm,rs,re,.105f);Limb(RightForearm,re,rh,.085f);
-            if(LeftHand!=null){LeftHand.localPosition=lh;LeftHand.localRotation=Quaternion.FromToRotation(Vector3.up,(lh-le).normalized);}
-            if(RightHand!=null){RightHand.localPosition=rh;RightHand.localRotation=Quaternion.FromToRotation(Vector3.up,(rh-re).normalized);}
+            PlaceHands(le,lh,re,rh,Quaternion.identity);
             if(LeftShoe!=null)LeftShoe.localPosition=new Vector3(-.15f,feet+.06f,.08f);
             if(RightShoe!=null)RightShoe.localPosition=new Vector3(.15f,feet+.06f,.08f);
             if(PreviewBall!=null)PreviewBall.gameObject.SetActive(false);

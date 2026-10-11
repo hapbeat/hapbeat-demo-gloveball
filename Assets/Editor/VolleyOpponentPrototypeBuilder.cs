@@ -47,6 +47,7 @@ public static class VolleyOpponentPrototypeBuilder
         var light=new GameObject("Light").AddComponent<Light>();light.type=LightType.Directional;light.transform.rotation=Quaternion.Euler(45,-30,0);
         var label=new GameObject("Prototype state").AddComponent<TextMesh>();label.transform.position=new Vector3(-2,3,0);label.characterSize=.09f;label.fontSize=50;label.anchor=TextAnchor.MiddleCenter;
         label.transform.rotation=Quaternion.LookRotation(label.transform.position-camera.transform.position);actor.Status=label;
+        VolleyPlayerModelBuilder.BuildAssets();VolleyPlayerModelBuilder.Dress(actor,7);
         actor.Pose(.4f);
         EditorSceneManager.MarkSceneDirty(scene);if(!EditorSceneManager.SaveScene(scene,ScenePath))throw new InvalidOperationException("Save failed");
     }
