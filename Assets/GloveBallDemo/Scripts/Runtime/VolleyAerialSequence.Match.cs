@@ -843,7 +843,7 @@ namespace GloveBallDemo.Runtime
             float react=setting ? .1f : them ? TheirDigReaction : OurDigReaction;
             float speed=setting ? SetterSpeed : them ? TheirDigSpeed : OurDigSpeed;
             float reach=setting ? SetterReach : them ? TheirDigReach : OurDigReach;
-            float success=setting ? .97f : them ? TheirDigSuccess : OurDigSuccess;
+            float success=setting ? (Station ? 1f : .97f) : them ? TheirDigSuccess : OurDigSuccess;
             float moving=t-Mathf.Max(0f,react-_sinceTouch);
             var setter=setting ? ChooseSetter(side) : null;
             MatchActor best=null;float bestNeed=float.MaxValue;

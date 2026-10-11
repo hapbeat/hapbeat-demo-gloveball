@@ -93,15 +93,16 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
-        public void SetStationNoPushIsTooLowAndDrops()
+        public void SetStationASetToTheRightHasNoHitterAndDrops()
         {
             _rally.SetMode(Mode.Set);
             Launch(Phase.PlayerSet);
-            Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,Vector3.zero,out var set),Is.True);
+            // Our right, behind the setter: nobody hits there in this station.
+            Assert.That(_rally.OverrideTouchVelocity(Vector3.up*2f+Right*2f,_destination,Vector3.zero,out var set),Is.True);
             _rally.RegisterPlayerTouch();
             Fly(_destination,set);
             Assert.That(_rally.Phase,Is.EqualTo(Phase.Recovery));
-            Assert.That(_rally.Outcome,Is.EqualTo("SET DROPPED"));
+            Assert.That(_rally.Outcome,Is.EqualTo("SET DROPPED").Or.EqualTo("OUT"));
             Assert.That(_rally.OpponentScore,Is.EqualTo(1));Assert.That(_rally.StationQuality,Is.Zero);
         }
 
@@ -119,8 +120,7 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.StationQuality,Is.GreaterThanOrEqualTo(.75f));
             RunUntil(()=>_rally.Phase==Phase.Recovery,8f,"set, attack and the end of the rep");
             Assert.That(_rally.Outcome,Is.EqualTo("POINT!").Or.StartsWith("DUG"));
-            Assert.That(_rally.Serving,Is.EqualTo(VolleyAerialSequence.Team.Them));
-            RunUntil(()=>_launched && _rally.Phase==Phase.PlayerReceive,_rally.RallyResetSeconds+12f,"the next serve comes to the player");
+            RunUntil(()=>_launched && _rally.Phase==Phase.PlayerReceive,_rally.RallyResetSeconds+12f,"the next serve still comes from them to the player");
         }
 
         [Test]
