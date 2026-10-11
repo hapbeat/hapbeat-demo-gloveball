@@ -11511,6 +11511,11 @@ MonoBehaviour:
   SpikeMaximumRise: 0.1
   ImpactReferenceSpeed: 8
   MinimumImpactGain: 0.2
+  FingertipZone: 0.7
+  FingertipSpikeScale: 0.55
+  FingertipBlockPassThrough: 0.65
+  FingertipHapticScale: 0.4
+  PalmHapticScale: 1.3
   MaximumImpactGain: 1.5
   NearHandDistance: 0.45
   ServeLimit: 0
@@ -11562,7 +11567,7 @@ MonoBehaviour:
   Opponent: {fileID: 1011802256}
   TossLauncher: {fileID: 1739308276}
   RallyEnabled: 1
-  Mode: 3
+  Mode: 0
   FirstTurn: 1
   AttemptsPerTurn: 1
   BlinkOutSeconds: 0.2
@@ -11683,6 +11688,18 @@ MonoBehaviour:
   ServeMinimumSpeed: 9
   ServeMaximumSpeed: 18
   ServeMaximumRise: 0.35
+  SetAssist: 0.5
+  SetLiftBase: 3.5
+  SetLiftGain: 1.6
+  SetAimGain: 1.8
+  HitterReach: 1.3
+  PassAssist: 0.5
+  PassTarget: {x: 1, y: 1}
+  PassApexHeight: 4
+  PassPerfectRadius: 0.5
+  PassFalloff: 1.8
+  StationKillMin: 0.3
+  StationKillMax: 0.9
 --- !u!1 &1154938701
 GameObject:
   m_ObjectHideFlags: 0

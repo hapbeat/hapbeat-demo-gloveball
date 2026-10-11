@@ -115,18 +115,18 @@ namespace GloveBallDemo.Runtime
         /// <summary>Comfort vignette strength (0 open, 1 narrow); drawn head-locked by the presenter.</summary>
         public float VignetteAlpha { get; private set; }
         /// <summary>The player's rotation slot (see <see cref="PlayerStartSlot"/>).</summary>
-        public int PlayerSlot=>_playerSlot<0 ? PlayerStartSlot : _playerSlot;
+        public int PlayerSlot=>Station ? StationSlot : _playerSlot<0 ? PlayerStartSlot : _playerSlot;
         public bool PlayerFrontRow=>PlayerSlot<=2;
         static readonly string[] SlotNames={"FRONT RIGHT","FRONT MIDDLE","FRONT LEFT","BACK LEFT","BACK MIDDLE","BACK RIGHT"};
         public string PositionName=>SlotNames[PlayerSlot];
         MatchActor Me=>ActorAt(Team.Us,PlayerSlot);
-        public PlayerTouch CurrentPlayerTouch=>Mode==RallyMode.Match ? AwaitedTouch
+        public PlayerTouch CurrentPlayerTouch=>MatchEngine ? AwaitedTouch
             : IsPlayerSpike ? PlayerTouch.Spike : IsOpponentSpike ? PlayerTouch.Block : PlayerTouch.None;
         public string BannerTitle
         {
             get
             {
-                if(Mode!=RallyMode.Match)return CurrentTurn==RallyTurn.Spike ? "SPIKE TURN" : "BLOCK TURN";
+                if(!MatchEngine)return CurrentTurn==RallyTurn.Spike ? "SPIKE TURN" : "BLOCK TURN";
                 switch(_roleTouch)
                 {
                     case PlayerTouch.Spike: return "ATTACK";
@@ -138,7 +138,9 @@ namespace GloveBallDemo.Runtime
                 return "MATCH";
             }
         }
-        public string ModeLabel=>Mode==RallyMode.Match ? "LEVEL "+((int)PlayerInvolvement+1)+"  /  YOU: "+PositionName
+        public string ModeLabel=>Mode==RallyMode.Set ? "SET STATION  /  FIRST TO "+MatchPoints
+            : Mode==RallyMode.Pass ? "PASS STATION  /  FIRST TO "+MatchPoints
+            : Mode==RallyMode.Match ? "LEVEL "+((int)PlayerInvolvement+1)+"  /  YOU: "+PositionName
             : "FIRST TO "+MatchPoints+"  /  "+(Mode==RallyMode.Alternate ? "ALTERNATING" : Mode==RallyMode.SpikeOnly ? "SPIKE ONLY" : "BLOCK ONLY");
 
         public static VolleyOpponentPrototype CreateTeammate(VolleyOpponentPrototype template,int index,Color jersey,Color shorts)
@@ -156,6 +158,7 @@ namespace GloveBallDemo.Runtime
 
         bool Involved(PlayerTouch touch)
         {
+            if(Station)return touch==(Mode==RallyMode.Set ? PlayerTouch.Set : PlayerTouch.Receive);
             switch(touch)
             {
                 case PlayerTouch.Spike: case PlayerTouch.Block: return true;
@@ -268,6 +271,7 @@ namespace GloveBallDemo.Runtime
             if(Opponent!=null)Opponent.gameObject.SetActive(false);
             if(TossLauncher!=null && Application.isPlaying)TossLauncher.gameObject.SetActive(false);
             RandomizeFormation();
+            if(Station){StartStationRep();return;}
             var server=Server(_serving);
             var me=Me;
             if(server==null || me==null)return;
@@ -350,7 +354,7 @@ namespace GloveBallDemo.Runtime
             me.A.gameObject.SetActive(false);
             if(placeFormation)PlaceFormation();
             var delta=Vector3.ProjectOnPlane(head-GroundedEye,Vector3.up);
-            if(!_embodying && delta.magnitude<.25f){ShowPending();ConfigureEmbodiment(touch);after?.Invoke();return;}
+            if(!_embodying && delta.magnitude<(Station ? .6f : .25f)){ShowPending();ConfigureEmbodiment(touch);after?.Invoke();return;}
             _embodyTouch=touch;_afterEmbody+=after;
             _glideFrom=Jump.Floor.StanceOffset;_glideDelta=delta;
             _glideSeconds=Mathf.Clamp(delta.magnitude/GlideSpeed,GlideMinSeconds,GlideMaxSeconds);
@@ -515,6 +519,7 @@ namespace GloveBallDemo.Runtime
         // ---------- serve ----------
         void BeginServe()
         {
+            if(Mode==RallyMode.Set){BeginStationFeed();return;}
             var server=Server(_serving);
             if(_playerServes)
             {
@@ -664,6 +669,7 @@ namespace GloveBallDemo.Runtime
         }
         void NpcAttack(Team team,Vector3 hit)
         {
+            if(Station && team==Team.Us){StationAttack(hit);return;}
             var defending=Other(team);
             float roll=Random.value;
             var tape=NetCentre+Right*Lateral(hit)+Vector3.up*(NetTop+.25f);
@@ -760,15 +766,20 @@ namespace GloveBallDemo.Runtime
                 case RallyPhase.PlayerServe: _touches[0]=_touches[1]=0;_lastTouchTeam=Team.Us;Cue="SERVE!";break;
                 case RallyPhase.PlayerSet:
                     // The assisted set flies toward the chosen teammate, who takes it over shortly (SampleMatch).
-                    _touches[0]=2;_lastTouchTeam=Team.Us;Cue="NICE SET";
+                    _touches[0]=2;_lastTouchTeam=Team.Us;Cue=Station ? "SET!" : "NICE SET";
                     break;
             }
         }
         /// <summary>Serve and set touches use their own models; everything else keeps the drill's contact physics.</summary>
         public bool OverrideTouchVelocity(Vector3 handVelocity,Vector3 ballPosition,out Vector3 velocity)
+            =>OverrideTouchVelocity(handVelocity,ballPosition,Vector3.zero,out velocity);
+        /// <param name="physical">The rebound the contact physics computed (used by the pass station).</param>
+        public bool OverrideTouchVelocity(Vector3 handVelocity,Vector3 ballPosition,Vector3 physical,out Vector3 velocity)
         {
             velocity=default;
-            if(Mode!=RallyMode.Match || _playerTouched)return false;
+            if(!MatchEngine || _playerTouched)return false;
+            if(Station && Phase==RallyPhase.PlayerSet){velocity=StationSetVelocity(ballPosition,handVelocity);return true;}
+            if(Station && Phase==RallyPhase.PlayerReceive){velocity=StationPassVelocity(ballPosition,physical);return true;}
             if(Phase==RallyPhase.PlayerServe && handVelocity.magnitude>=Drill.SpikeSwingSpeed)
             {
                 velocity=VolleyMath.SpikeVelocity(handVelocity,ServePower,ServeMinimumSpeed,ServeMaximumSpeed,ServeMaximumRise);
@@ -798,6 +809,7 @@ namespace GloveBallDemo.Runtime
             if(!window)return false;
             _sinceTouch+=step;
             // A missed block keeps going into our court, where our defence may still dig it.
+            if(Station && Phase==RallyPhase.PlayerSet && _playerTouched)return TrackStationSet(position,velocity,radius,step,damping);
             if(Phase==RallyPhase.PlayerSet && _playerTouched)
             {
                 if(_sinceTouch>=SetHandOffSeconds)HandSetToHitter(position);
@@ -873,6 +885,7 @@ namespace GloveBallDemo.Runtime
             if(ball==null)return false;
             AdoptBall(ball);PlaceScriptedBall(position);
             var actor=_icActor;var team=_icTeam;
+            if(Mode==RallyMode.Pass && team==Team.Us && _touches[0]==1)JudgeStationPass(position);
             ClearIntercept();DisarmTheirBlock();EnableReceiveVolume(false);
             AwaitedTouch=PlayerTouch.None;Phase=RallyPhase.MatchPlay;
             NpcTouch(team,actor,position);
@@ -894,7 +907,14 @@ namespace GloveBallDemo.Runtime
             else if(Phase==RallyPhase.PlayerReceive && !_playerTouched)text="ACE";
             else if(!inBounds)text="OUT";
             else text=court==Team.Them ? "POINT!" : "DOWN ON YOUR SIDE";
-            if(winner==Team.Us && _serving==Team.Them)RotatePlayer(); // side-out
+            if(Station && _playerTouched && (Phase==RallyPhase.PlayerSet || Phase==RallyPhase.PlayerReceive))
+            {
+                // A station touch that no teammate could play is the player's miss wherever it lands.
+                winner=Team.Them;_stationQuality=0f;
+                text=!inBounds ? "OUT" : court==Team.Them ? "OVER THE NET" : Mode==RallyMode.Pass ? "PASS DROPPED" : "SET DROPPED";
+            }
+            else if(Phase==RallyPhase.PlayerSet && !_playerTouched)text="SET MISSED";
+            if(Mode==RallyMode.Match && winner==Team.Us && _serving==Team.Them)RotatePlayer(); // side-out
             _serving=winner;
             ClearIntercept();DisarmTheirBlock();EnableReceiveVolume(false);
             AwaitedTouch=PlayerTouch.None;_segTime=-1f;_launchPending=false;

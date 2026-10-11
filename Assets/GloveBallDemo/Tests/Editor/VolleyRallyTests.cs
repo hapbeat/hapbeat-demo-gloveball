@@ -424,6 +424,8 @@ namespace GloveBallDemo.Tests
                 menu.SetOpen(true);menu.Activate(9);Assert.That(_rally.Mode,Is.EqualTo(Mode.SpikeOnly));
                 menu.Activate(9);Assert.That(_rally.Mode,Is.EqualTo(Mode.BlockOnly));
                 menu.Activate(9);Assert.That(_rally.Mode,Is.EqualTo(Mode.Match));
+                menu.Activate(9);Assert.That(_rally.Mode,Is.EqualTo(Mode.Set));
+                menu.Activate(9);Assert.That(_rally.Mode,Is.EqualTo(Mode.Pass));
                 menu.Activate(9);Assert.That(_rally.Mode,Is.EqualTo(Mode.Alternate));
                 Assert.That(_rally.TurnStarted,Is.False,"A mode change re-announces the turn.");
             }

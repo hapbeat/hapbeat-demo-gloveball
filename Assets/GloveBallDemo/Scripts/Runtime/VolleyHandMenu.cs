@@ -231,7 +231,7 @@ namespace GloveBallDemo.Runtime
                 case 6:LoadDrill("VolleyReceive-codex");break;
                 case 7:LoadDrill("VolleyBlock-codex");break;
                 case 8:if(Drill.Aerial!=null)Drill.Aerial.SetBeginnerBlock(!Drill.Aerial.BeginnerBlock);break;
-                case 9:if(Drill.Aerial!=null)Drill.Aerial.SetMode((VolleyAerialSequence.RallyMode)(((int)Drill.Aerial.Mode+1)%4));break;
+                case 9:if(Drill.Aerial!=null)Drill.Aerial.SetMode((VolleyAerialSequence.RallyMode)(((int)Drill.Aerial.Mode+1)%6));break;
                 case 10:if(Drill.Aerial!=null)Drill.Aerial.SetInvolvement((VolleyAerialSequence.Involvement)(((int)Drill.Aerial.PlayerInvolvement+1)%3));break;
             }
             Refresh();
@@ -244,7 +244,7 @@ namespace GloveBallDemo.Runtime
             {
                 names.Add(Drill.Aerial.BeginnerBlock?"JUMP: BEGINNER (AUTO JUMP)":"JUMP: ADVANCED (HAND JUMP)");
                 var mode=Drill.Aerial.Mode;
-                names.Add("MODE: "+(mode==VolleyAerialSequence.RallyMode.Match?"MATCH 6 v 6":mode==VolleyAerialSequence.RallyMode.Alternate?"ALTERNATE SPIKE / BLOCK":mode==VolleyAerialSequence.RallyMode.SpikeOnly?"SPIKE ONLY":"BLOCK ONLY"));
+                names.Add("MODE: "+ModeName(mode));
                 var level=Drill.Aerial.PlayerInvolvement;
                 names.Add("YOU PLAY: "+(level==VolleyAerialSequence.Involvement.SpikeBlock?"SPIKE + BLOCK":level==VolleyAerialSequence.Involvement.AddReceiveServe?"+ RECEIVE + SERVE":"+ SET TOO"));
             }
@@ -259,8 +259,21 @@ namespace GloveBallDemo.Runtime
             || (action=="scene" && SceneName(sceneId)!=null);
         // Scene IDs match the descriptor's `scene` option: block (spike / block turns) and match (6 v 6) share the Block scene.
         static string SceneName(string id) => id=="receive" ? "VolleyReceive-codex"
-            : id=="block" || id=="match" ? "VolleyBlock-codex" : null;
+            : id=="block" || id=="match" || id=="set" || id=="pass" ? "VolleyBlock-codex" : null;
+        static string ModeName(VolleyAerialSequence.RallyMode mode)
+        {
+            switch(mode)
+            {
+                case VolleyAerialSequence.RallyMode.Alternate: return "ALTERNATE SPIKE / BLOCK";
+                case VolleyAerialSequence.RallyMode.SpikeOnly: return "SPIKE ONLY";
+                case VolleyAerialSequence.RallyMode.BlockOnly: return "BLOCK ONLY";
+                case VolleyAerialSequence.RallyMode.Match: return "MATCH 6 v 6";
+                case VolleyAerialSequence.RallyMode.Set: return "SET STATION";
+                default: return "PASS STATION";
+            }
+        }
         static VolleyAerialSequence.RallyMode? SceneMode(string id) => id=="match" ? VolleyAerialSequence.RallyMode.Match
+            : id=="set" ? VolleyAerialSequence.RallyMode.Set : id=="pass" ? VolleyAerialSequence.RallyMode.Pass
             : id=="block" ? VolleyAerialSequence.RallyMode.Alternate : (VolleyAerialSequence.RallyMode?)null;
         public System.Collections.IEnumerator ExecuteControl(string action,string sceneId)
         {

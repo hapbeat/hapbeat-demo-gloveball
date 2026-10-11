@@ -70,7 +70,7 @@ namespace GloveBallDemo.Runtime
             if (_drill == null) _drill = GetComponent<VolleyDrillController>();
             options.TryGetValue("scene", out var scene);
             var target = scene == "receive" ? ReceiveScene : BlockScene;
-            var mode = scene == "block" ? VolleyAerialSequence.RallyMode.Alternate : VolleyAerialSequence.RallyMode.Match;
+            var mode = scene == "match" ? VolleyAerialSequence.RallyMode.Match : VolleyAerialSequence.RallyMode.Alternate;
             if (!_sceneOptionApplied)
             {
                 _sceneOptionApplied = true;

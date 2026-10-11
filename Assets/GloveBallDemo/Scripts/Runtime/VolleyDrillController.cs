@@ -77,6 +77,16 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Relative normal speed (m/s) that gives nominal haptic gain and volume; slower touches are softer.")]
         [Min(.5f)] public float ImpactReferenceSpeed = 8f;
         [Min(0f)] public float MinimumImpactGain = .2f;
+        [Header("Rally: where on the hand the ball is met (spike and block)")]
+        [Tooltip("Fraction of the hand length from the wrist (0) to the fingertips (1) beyond which a contact counts as fingertips.")]
+        [Range(.3f,1f)] public float FingertipZone = .7f;
+        [Tooltip("A fingertip spike keeps this share of its speed (a tip, not a kill).")]
+        [Range(0f,1f)] public float FingertipSpikeScale = .55f;
+        [Tooltip("A fingertip block only partly turns the ball: 0 = full rebound, 1 = the ball carries on unchanged.")]
+        [Range(0f,1f)] public float FingertipBlockPassThrough = .65f;
+        [Tooltip("Haptic strength multiplier for a fingertip graze and for a solid palm / wrist contact.")]
+        [Min(0f)] public float FingertipHapticScale = .4f;
+        [Min(0f)] public float PalmHapticScale = 1.3f;
         [Min(.1f)] public float MaximumImpactGain = 1.5f;
         [Tooltip("Rally only: a hand within this distance of an untouched ball is reported for the missed-hit hint.")]
         [Min(0f)] public float NearHandDistance = .45f;
@@ -383,7 +393,13 @@ namespace GloveBallDemo.Runtime
                         var velocity = firstSpikeTouch && handVelocity.magnitude >= SpikeSwingSpeed
                             ? VolleyMath.SpikeVelocity(handVelocity,SpikePower,SpikeMinimumSpeed,SpikeMaximumSpeed,SpikeMaximumRise)
                             : ReturnForBall(_ball.Feel,incoming,handVelocity,normal);
-                        if(Aerial!=null && Aerial.OverrideTouchVelocity(handVelocity,_ball.Body.position,out var modelled))velocity=modelled; // serve / assisted set
+                        // Spike and block: fingertips only graze the ball, the palm and wrist meet it solidly.
+                        float zone = joined ? 0f : HandZone(hand, Vector3.Lerp(previous, current, hand == Left ? lt : rt));
+                        var touch = Aerial != null ? Aerial.CurrentPlayerTouch : VolleyAerialSequence.PlayerTouch.None;
+                        bool zoned = touch == VolleyAerialSequence.PlayerTouch.Spike || touch == VolleyAerialSequence.PlayerTouch.Block;
+                        bool tip = zoned && zone >= FingertipZone;
+                        if (tip) velocity = touch == VolleyAerialSequence.PlayerTouch.Spike ? velocity * FingertipSpikeScale : Vector3.Lerp(velocity, incoming, FingertipBlockPassThrough);
+                        if(Aerial!=null && Aerial.OverrideTouchVelocity(handVelocity,_ball.Body.position,velocity,out var modelled))velocity=modelled; // serve / set / pass
                         if (_ball.Deflect(velocity))
                         {
                             // Incoming feeds stay calibrated; returns use per-kind gameplay drag, not floor settings.
@@ -398,9 +414,9 @@ namespace GloveBallDemo.Runtime
                                 if (Mathf.Abs(localNormal[axis]) > .5f) localHit[axis] = Mathf.Sign(localNormal[axis]) * half[axis];
                             _ball.Body.position = volume.transform.TransformPoint(volume.center + localHit) + normal * (radius + .01f);
                             float relative = Mathf.Abs(Vector3.Dot(incoming - handVelocity, normal));
-                            ReportHandImpactScaled(_ball,hand,joined,ImpactGain(relative));
+                            ReportHandImpactScaled(_ball,hand,joined,ImpactGain(relative)*(zoned ? tip ? FingertipHapticScale : PalmHapticScale : 1f));
                             _lastContact = Time.time; Returns++;
-                            if(Aerial!=null)Aerial.RegisterPlayerTouch();
+                            if(Aerial!=null){Aerial.RegisterPlayerTouch();if(zoned)Aerial.NoteTouchZone(zone,tip,touch==VolleyAerialSequence.PlayerTouch.Spike);}
                         }
                         }
                     }
@@ -426,6 +442,25 @@ namespace GloveBallDemo.Runtime
             }
             else _haveBallSample = false; // Never sweep across an unobserved tracking gap.
             Left.EndPhysicsSample(); Right.EndPhysicsSample();
+        }
+
+        /// <summary>
+        /// Where along the hand a world point lies: 0 at the wrist, 1 at the far end of the contact box (the fingertips).
+        /// The box is wrist-rigid; its long horizontal axis runs from the wrist toward the fingers.
+        /// </summary>
+        public static float HandZone(VolleyTrackedHand hand, Vector3 point)
+        {
+            var box = hand.ContactVolume;
+            if (box == null) return 0f;
+            var wrist = box.transform.InverseTransformPoint(hand.transform.position);
+            var local = box.transform.InverseTransformPoint(point);
+            var size = Vector3.Scale(box.size, box.transform.lossyScale);
+            int axis = Mathf.Abs(size.x) > Mathf.Abs(size.z) ? 0 : 2;
+            if (Mathf.Abs(size.y) > Mathf.Abs(size[axis])) axis = 1;
+            float a = box.center[axis] - box.size[axis] * .5f, b = box.center[axis] + box.size[axis] * .5f;
+            float tipEnd = Mathf.Abs(b - wrist[axis]) >= Mathf.Abs(a - wrist[axis]) ? b : a;
+            float span = tipEnd - wrist[axis];
+            return Mathf.Abs(span) < 1e-4f ? 0f : Mathf.Clamp01((local[axis] - wrist[axis]) / span);
         }
 
         private static bool Contact(VolleyTrackedHand hand, Vector3 previous, Vector3 current, float radius, out float fraction, out Vector3 normal)

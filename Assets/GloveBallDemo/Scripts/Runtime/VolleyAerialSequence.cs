@@ -8,7 +8,7 @@ namespace GloveBallDemo.Runtime
     {
         public enum RallyPhase { Disabled, Idle, TurnChange, OpponentReceive, OpponentSet, OpponentSpike, AllyReceive, PlayerSpike, Recovery, MatchOver, MatchPlay, PlayerServe, PlayerReceive, PlayerSet }
         public enum RallyTurn { Block, Spike }
-        public enum RallyMode { Alternate, SpikeOnly, BlockOnly, Match }
+        public enum RallyMode { Alternate, SpikeOnly, BlockOnly, Match, Set, Pass }
         public VolleyDrillController Drill;
         public VolleyArmJump Jump;
         public VolleyOpponentPrototype Opponent;
@@ -175,7 +175,7 @@ namespace GloveBallDemo.Runtime
         Vector3 _lastBallPosition, _previousBallPosition, _previousBallVelocity;
         Vector3 SpikeStance=>-Forward*SpikeStandBackDistance;
         /// <summary>Stance the spike approach glides from: fixed in the turn modes, the current embodiment in a match.</summary>
-        Vector3 ApproachBase=>Mode==RallyMode.Match ? _approachBase : SpikeStance;
+        Vector3 ApproachBase=>MatchEngine ? _approachBase : SpikeStance;
         Vector3 _opponentHome; Quaternion _opponentHomeRotation;
         float[] _blockerJumpAt=new float[0];
         bool[] _blockerActive=new bool[0];
@@ -383,7 +383,7 @@ namespace GloveBallDemo.Runtime
             if(!RallyActive || dt<=0f)return false;
             CaptureHome();
             if(Phase==RallyPhase.Disabled)Phase=RallyPhase.Idle;
-            if(Mode==RallyMode.Match)return TickMatch(dt,ballInPlay,out start,out destination,out seconds);
+            if(MatchEngine)return TickMatch(dt,ballInPlay,out start,out destination,out seconds);
             TickCast(dt);
             switch(Phase)
             {
@@ -668,7 +668,7 @@ namespace GloveBallDemo.Runtime
         /// <returns>True when a defender dug the ball; the drill then applies <see cref="DigVelocity"/>.</returns>
         public bool SampleBall(Vector3 position,Vector3 velocity,float radius,float step,float damping=0f)
         {
-            if(Mode==RallyMode.Match)return SampleMatch(position,velocity,radius,step,damping);
+            if(MatchEngine)return SampleMatch(position,velocity,radius,step,damping);
             if(Phase!=RallyPhase.OpponentSpike && Phase!=RallyPhase.PlayerSpike)return false;
             if(_playerTouched)
             {
@@ -875,8 +875,16 @@ namespace GloveBallDemo.Runtime
         {
             if(CurrentPlayerTouch==PlayerTouch.None)return;
             _playerTouched=true;_sinceTouch=0f;
-            if(Mode==RallyMode.Match){OnMatchPlayerTouch();return;}
+            if(MatchEngine){OnMatchPlayerTouch();return;}
             Cue=IsPlayerSpike ? "SPIKE!" : "TOUCHED — IS IT GOING BACK?";
+        }
+        /// <summary>Hand zone of the player's spike or block touch (0 wrist .. 1 fingertips); fingertips only graze the ball.</summary>
+        public float LastTouchZone { get; private set; }
+        public void NoteTouchZone(float zone,bool fingertips,bool spike)
+        {
+            LastTouchZone=zone;
+            Cue=fingertips ? (spike ? "FINGERTIPS — ONLY A TIP" : "FINGERTIPS — IT SLIPS THROUGH")
+                : (Cue+"  (PALM — SOLID)");
         }
         /// <summary>Called by a solid opposing blocker. The ball rebounds physically; its landing decides the point.</summary>
         public bool RegisterSpikeBlocked(Ball ball,Vector3 point)
@@ -892,7 +900,7 @@ namespace GloveBallDemo.Runtime
         /// <summary>The ball vanished (target flash, timeout) before touching the floor: decide from its last position.</summary>
         public void RegisterBallUnavailable()
         {
-            if(Mode==RallyMode.Match)
+            if(MatchEngine)
             {
                 if(Phase==RallyPhase.OpponentSpike || Phase==RallyPhase.PlayerSpike || Phase==RallyPhase.PlayerServe
                     || Phase==RallyPhase.PlayerReceive || Phase==RallyPhase.PlayerSet)ResolveMatch(_lastBallPosition);
@@ -999,7 +1007,7 @@ namespace GloveBallDemo.Runtime
         }
         public void CancelFeed()
         {
-            if(Mode==RallyMode.Match)CancelMatch();
+            if(MatchEngine)CancelMatch();
             _windup=-1;
             var ball=TakePreparedBall();
             if(ball!=null && Drill!=null && Drill.Pool!=null)Drill.Pool.Return(ball,"cancelled volley toss");
