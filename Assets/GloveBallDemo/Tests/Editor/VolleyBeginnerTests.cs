@@ -57,13 +57,13 @@ namespace GloveBallDemo.Tests
             var menu=Object.FindFirstObjectByType<VolleyHandMenu>();var a=menu.Drill.Aerial;var original=Time.timeScale;
             try
             {
-                menu.SetOpen(true);menu.Activate(8);
+                menu.SetOpen(true);menu.Activate(VolleyHandMenu.AutoJumpRow);
                 Assert.That(a.BeginnerBlock,Is.False);Assert.That(a.Jump.UseHeightThreshold,Is.True);
                 Assert.That(Time.timeScale,Is.Zero);Assert.That(a.Jump.TryStartAutomaticJump(),Is.False);
                 menu.SetOpen(false);
                 for(int i=0;i<12;i++)a.Jump.Tick(.05f,true,-.3f,-.3f,false);
                 a.Jump.Tick(.05f,true,0,0,false);Assert.That(a.Jump.Jumps,Is.EqualTo(1));
-                menu.SetOpen(true);menu.Activate(8);
+                menu.SetOpen(true);menu.Activate(VolleyHandMenu.AutoJumpRow);
                 Assert.That(a.BeginnerBlock,Is.True);Assert.That(a.Jump.Airborne,Is.False);
                 Assert.That(a.AttackStarted,Is.False);
             }

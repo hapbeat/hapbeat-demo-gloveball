@@ -51,7 +51,9 @@ namespace GloveBallDemo.Tests
         void RunUntil(System.Func<bool> done,float limit,string what)
         {
             for(float t=0f;t<limit && !done();t+=.01f)Frame();
-            Assert.That(done(),Is.True,what+" (phase "+_rally.Phase+", cue "+_rally.Cue+")");
+            Assert.That(done(),Is.True,what+" (phase "+_rally.Phase+", cue "+_rally.Cue+", embodying "+_rally.Embodying
+                +", serve timer "+typeof(VolleyAerialSequence).GetField("_serveTimer",Private).GetValue(_rally)
+                +", wait "+typeof(VolleyAerialSequence).GetField("_serveWait",Private).GetValue(_rally)+")");
         }
         void Launch(Phase phase)
         {
@@ -73,45 +75,57 @@ namespace GloveBallDemo.Tests
         Vector3 Right=>Vector3.Cross(Vector3.up,Forward);
         Vector3 Net=>_drill.ReceiveNet.transform.position;
 
+        GameObject Ring(int index)=>_rally.transform.Find("TOSS target ring "+index)?.gameObject;
+
         [Test]
-        public void SetStationAGoodPushReachesTheOutsideHitterWhoAttacks()
+        public void TossTheirServeIsPassedUpByATeammateAndAGoodPushSetsTheHitter()
         {
-            _rally.SetMode(Mode.Set);
+            _rally.SetMode(Mode.Set);_rally.SetAssist=1f;
             Launch(Phase.PlayerSet);
+            Assert.That(_rally.Serving,Is.EqualTo(VolleyAerialSequence.Team.Them),"They serve, our back row passes to the player.");
             Assert.That(_rally.RoleTouch,Is.EqualTo(Touch.Set));
             Assert.That(_rally.Embodied,Is.SameAs(_rally.Ally),"The player is the setter at the net.");
+            Assert.That(_rally.HoldsSet,Is.True,"The drill catches the set instead of bouncing it.");
+            Assert.That(_destination.y-_rally.GroundedEye.y,Is.EqualTo(.35f).Within(.01f),"The pass comes down just above the head.");
+            Assert.That(Ring(1).activeSelf && Ring(2).activeSelf,Is.True,"Rings mark both hitters' spots.");
+            Assert.That(Ring(1).GetComponent<LineRenderer>().GetPosition(0).y,Is.EqualTo(_rally.HitterSpot(0).y).Within(.01f));
             var ball=_destination;
-            // Push up and toward our left (the outside hitter's lane).
-            Assert.That(_rally.OverrideTouchVelocity(Vector3.up*2f-Right*1.6f,ball,Vector3.zero,out var set),Is.True);
+            // The push of the hold: up and toward our left (the left hitter).
+            Assert.That(_rally.OverrideTouchVelocity(Vector3.up*2.5f-Right*1.5f,ball,Vector3.zero,out var set),Is.True);
             _rally.RegisterPlayerTouch();
             Fly(ball,set);
             Assert.That(_rally.Phase,Is.EqualTo(Phase.MatchPlay),"A hitter took the set ("+_rally.Cue+")");
-            Assert.That(_rally.StationQuality,Is.GreaterThanOrEqualTo(.4f));
-            Assert.That(_rally.Teammates[1].transform.position.x-Net.x,Is.LessThan(-1f),"The outside hitter (our left) attacks it.");
+            Assert.That(Ring(1).activeSelf,Is.False,"Rings go once the set is judged.");
+            Assert.That(_rally.StationQuality,Is.GreaterThanOrEqualTo(_rally.PerfectSetQuality));
+            Assert.That(_rally.Teammates[1].transform.position.x-Net.x,Is.LessThan(-1f),"The left hitter attacks it.");
             RunUntil(()=>_rally.Phase==Phase.Recovery,6f,"the attack ends the rep");
-            Assert.That(_rally.Outcome,Is.EqualTo("POINT!").Or.StartsWith("DUG"));
+            Assert.That(_rally.Outcome,Does.EndWith("PERFECT SET"));
+            Assert.That(_rally.PlayerScore,Is.EqualTo(1),"A good set counts, kill or dig.");
         }
 
         [Test]
-        public void SetStationASetToTheRightHasNoHitterAndDrops()
+        public void TossHitterSpotsChangeEveryRep()
         {
             _rally.SetMode(Mode.Set);
             Launch(Phase.PlayerSet);
-            // Our right, behind the setter: nobody hits there in this station.
-            Assert.That(_rally.OverrideTouchVelocity(Vector3.up*2f+Right*2f,_destination,Vector3.zero,out var set),Is.True);
+            var first=_rally.HitterSpot(0);
+            Assert.That(first.x-Net.x,Is.InRange(_rally.LeftHitterLateral.x-.6f,_rally.LeftHitterLateral.y+.6f));
+            Assert.That(_rally.OverrideTouchVelocity(Vector3.up*.2f,_destination,Vector3.zero,out var set),Is.True);
             _rally.RegisterPlayerTouch();
             Fly(_destination,set);
-            Assert.That(_rally.Phase,Is.EqualTo(Phase.Recovery));
-            Assert.That(_rally.Outcome,Is.EqualTo("SET DROPPED").Or.EqualTo("OUT"));
+            Assert.That(_rally.Outcome,Is.EqualTo("SET DROPPED"),"A push with no lift never reaches a hitter.");
             Assert.That(_rally.OpponentScore,Is.EqualTo(1));Assert.That(_rally.StationQuality,Is.Zero);
+            Launch(Phase.PlayerSet);
+            Assert.That(Vector3.Distance(_rally.HitterSpot(0),first),Is.GreaterThan(.05f));
         }
 
         [Test]
-        public void PassStationAnIdealPassReachesTheSetterAndOurHitterAttacks()
+        public void PassTheServeArrivesAtForearmHeightAndAnIdealPassIsSetAndAttacked()
         {
             _rally.SetMode(Mode.Pass);_rally.PassAssist=1f;
             Launch(Phase.PlayerReceive);
             Assert.That(_rally.RoleTouch,Is.EqualTo(Touch.Receive));
+            Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.EqualTo(_rally.ReceiveHeight).Within(.01f));
             Assert.That(_drill.JoinedHands,Is.SameAs(_rally.ReceiveVolume),"Forearm platform while passing.");
             Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,Forward*3f,out var pass),Is.True);
             _rally.RegisterPlayerTouch();
@@ -119,21 +133,57 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.Phase,Is.EqualTo(Phase.MatchPlay),"Our setter took the pass ("+_rally.Cue+")");
             Assert.That(_rally.StationQuality,Is.GreaterThanOrEqualTo(.75f));
             RunUntil(()=>_rally.Phase==Phase.Recovery,8f,"set, attack and the end of the rep");
-            Assert.That(_rally.Outcome,Is.EqualTo("POINT!").Or.StartsWith("DUG"));
-            RunUntil(()=>_launched && _rally.Phase==Phase.PlayerReceive,_rally.RallyResetSeconds+12f,"the next serve still comes from them to the player");
+            Assert.That(_rally.Outcome,Does.EndWith("PERFECT PASS"));
+            Assert.That(_rally.PlayerScore,Is.EqualTo(1));
+            RunUntil(()=>_launched && _rally.Phase==Phase.PlayerReceive,_rally.RallyResetSeconds+12f,"the next serve comes to the player");
         }
 
         [Test]
-        public void PassStationAShankDropsAndCountsAgainstThePlayer()
+        public void PassBelowTheNetIsNotSetEvenWhenTheSetterCouldReachIt()
         {
             _rally.SetMode(Mode.Pass);_rally.PassAssist=0f;
             Launch(Phase.PlayerReceive);
-            Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,Right*4f+Vector3.up*1f,out var pass),Is.True);
+            // A flat pass toward the setter that never rises above the tape.
+            Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,Forward*4.5f+Vector3.up*3f,out var pass),Is.True);
             _rally.RegisterPlayerTouch();
             Fly(_destination,pass);
             Assert.That(_rally.Phase,Is.EqualTo(Phase.Recovery));
-            Assert.That(_rally.Outcome,Is.EqualTo("PASS DROPPED").Or.EqualTo("OUT"));
+            Assert.That(_rally.Outcome,Is.EqualTo("TOO LOW FOR YOUR SETTER").Or.EqualTo("OVER THE NET"));
             Assert.That(_rally.OpponentScore,Is.EqualTo(1));
+        }
+
+        [Test]
+        public void PassOverTheNetEndsTheRepWithoutTheirDefencePlayingOn()
+        {
+            _rally.SetMode(Mode.Pass);_rally.PassAssist=0f;_rally.TheirDigSuccess=1f;_rally.TheirDigReach=5f;_rally.TheirDigSpeed=20f;
+            Launch(Phase.PlayerReceive);
+            Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,Forward*9f+Vector3.up*6f,out var pass),Is.True);
+            _rally.RegisterPlayerTouch();
+            Fly(_destination,pass);
+            Assert.That(_rally.Phase,Is.EqualTo(Phase.Recovery),"No NPC rally after a pass that went over.");
+            Assert.That(_rally.Outcome,Is.EqualTo("OVER THE NET").Or.EqualTo("OUT"));
+            Assert.That(_rally.OpponentScore,Is.EqualTo(1));
+        }
+
+        [Test]
+        public void SetHoldCarriesTheBallAndReleasesWithThePush()
+        {
+            var hold=new VolleySetHold{MaxSeconds=.35f,ReleaseSpeed=.8f};
+            hold.Begin(new Vector3(0f,2f,0f),new Vector3(0f,1.95f,0f));
+            Vector3 position,release;
+            // The hands give way under the ball, then push up to 2.4 m/s and slow down.
+            float[] speeds={-.6f,-.3f,.4f,1.2f,2f,2.4f,1.9f};
+            int released=-1;
+            for(int i=0;i<speeds.Length;i++)
+                if(hold.Step(new Vector3(0f,1.95f+i*.01f,0f),new Vector3(-.5f,speeds[i],0f),.02f,out position,out release)){released=i;break;}
+            Assert.That(released,Is.EqualTo(6),"Leaves when the push slows down.");
+            Assert.That(hold.Peak.y,Is.EqualTo(2.4f));Assert.That(hold.Give,Is.EqualTo(-.6f));
+            hold.Begin(Vector3.up*2f,Vector3.up*2f);
+            bool left=false;for(int i=0;i<30 && !left;i++)left=hold.Step(Vector3.up*2f,Vector3.zero,.02f,out position,out release);
+            Assert.That(left,Is.True);Assert.That(hold.Seconds,Is.EqualTo(.36f).Within(.021f),"Never held longer than the limit.");
+            hold.Begin(Vector3.up*1.9f,Vector3.up*2f);
+            hold.Step(Vector3.up*2f,Vector3.zero,.02f,out position,out release);
+            Assert.That(position.y-2f,Is.EqualTo(.06f).Within(1e-4f),"The ball sits on the fingers, not inside the hands.");
         }
 
         [Test]

@@ -176,7 +176,7 @@ namespace GloveBallDemo.Tests
             _rally.PlayerInvolvement=Level.AddReceiveServe;Serve(Team.Them);
             Launch(Phase.PlayerReceive);
             Assert.That(_rally.RoleTouch,Is.EqualTo(Touch.Receive));
-            Assert.That(_destination.y,Is.EqualTo(.85f).Within(.01f));
+            Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.EqualTo(_rally.ReceiveHeight).Within(.01f));
             Assert.That(_drill.JoinedHands,Is.SameAs(_rally.ReceiveVolume),"Forearm platform only while receiving.");
             Assert.That(_rally.ReceiveVolume.gameObject.activeSelf,Is.True);
             Assert.That(_rally.AwaitingPlayerTouch,Is.True);
@@ -283,21 +283,6 @@ namespace GloveBallDemo.Tests
             Assert.That(over,Is.True,"Someone reaches match point.");
             Assert.That(Mathf.Max(_rally.PlayerScore,_rally.OpponentScore),Is.EqualTo(_rally.MatchPoints));
             RunUntil(()=>_rally.PlayerScore+_rally.OpponentScore==0 && _rally.Phase==Phase.MatchPlay,_rally.MatchEndSeconds+3f,"a new match starts");
-        }
-
-        [Test]
-        public void MenuPicksTheMatchLevel()
-        {
-            var menu=Object.FindFirstObjectByType<VolleyHandMenu>();var original=Time.timeScale;
-            try
-            {
-                menu.SetOpen(true);
-                menu.Activate(10);Assert.That(_rally.PlayerInvolvement,Is.EqualTo(Level.AddReceiveServe));
-                menu.Activate(10);Assert.That(_rally.PlayerInvolvement,Is.EqualTo(Level.AddSet));
-                menu.Activate(10);Assert.That(_rally.PlayerInvolvement,Is.EqualTo(Level.SpikeBlock));
-                Assert.That(_rally.Mode,Is.EqualTo(Mode.Match));
-            }
-            finally{menu.SetOpen(false);Time.timeScale=original;Object.DestroyImmediate(menu);}
         }
     }
 }

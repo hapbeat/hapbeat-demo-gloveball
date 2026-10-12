@@ -50,7 +50,13 @@ namespace GloveBallDemo.Runtime
         float _lastToggle=-10f, _gestureStart=-1f;
         bool _menuPressed, _gestureUsed;
         /// <summary>Yaw right of the head's heading for this menu beside the shared pause panel (0.55 m ahead, about 0.44 m wide).</summary>
-        public const float BesidePauseYaw=40f;
+        public const float BesidePauseYaw=48f;
+        /// <summary>Settings on the left (rows 0..6), the five ways to play on the right: picking one starts it at once.</summary>
+        public const int AutoJumpRow=6, FirstModeRow=7, RowCount=12;
+        public static readonly VolleyAerialSequence.RallyMode[] MenuModes={VolleyAerialSequence.RallyMode.Pass,VolleyAerialSequence.RallyMode.Set,
+            VolleyAerialSequence.RallyMode.SpikeOnly,VolleyAerialSequence.RallyMode.BlockOnly,VolleyAerialSequence.RallyMode.Alternate};
+        static readonly string[] MenuModeNames={"PASS\nreceive the serve to your setter","TOSS\nset the ball to a hitter","SPIKE","BLOCK","SPIKE + BLOCK\ntake turns"};
+        static readonly Color RowColour=new Color(.1f,.18f,.24f), CurrentColour=new Color(.12f,.38f,.2f), HoverColour=new Color(.12f,.48f,.6f);
         static bool SharedPause=>DemoPause.IsEnabled;
 
         /// <summary>Rally mode a CONTROL scene change asks for; applied once the reloaded Block scene has started.</summary>
@@ -71,18 +77,25 @@ namespace GloveBallDemo.Runtime
             _font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             var go=new GameObject("Volley hand menu",typeof(RectTransform),typeof(Canvas));go.transform.SetParent(transform,false);
             _canvas=go.GetComponent<Canvas>();_canvas.renderMode=RenderMode.WorldSpace;_canvas.sortingOrder=100;
-            int rows=Drill.Drill==VolleyDrill.Block?11:8;
-            float height=250+rows*72, top=height*.5f;
-            var rect=go.GetComponent<RectTransform>();rect.sizeDelta=new Vector2(620,height);rect.localScale=Vector3.one*.0016f;
+            // Two columns: settings (7 rows) left, the five modes (taller buttons) right.
+            const float Width=1180f, Column=555f, Left=-292f, Right=292f;
+            float height=250+(FirstModeRow)*72, top=height*.5f;
+            var rect=go.GetComponent<RectTransform>();rect.sizeDelta=new Vector2(Width,height);rect.localScale=Vector3.one*.0012f;
             go.AddComponent<Image>().color=new Color(.025f,.04f,.065f,.97f);
             Label("VOLLEY MENU",rect,new Vector2(0,top-50),34);
-            _heightText=Label("",rect,new Vector2(0,top-105),23);
-            for(int i=0;i<rows;i++)
+            _heightText=Label("",rect,new Vector2(Left,top-110),21);
+            Label("PLAY  (starts at once)",rect,new Vector2(Right,top-110),26);
+            float modeHeight=(FirstModeRow*72f-12f-(RowCount-FirstModeRow-1)*12f)/(RowCount-FirstModeRow);
+            for(int i=0;i<RowCount;i++)
             {
+                bool mode=i>=FirstModeRow;
                 var row=new GameObject("Menu row "+i,typeof(RectTransform),typeof(Image)).GetComponent<RectTransform>();
-                row.SetParent(rect,false);row.sizeDelta=new Vector2(555,60);row.anchoredPosition=new Vector2(0,top-190-i*72);
-                row.GetComponent<Image>().color=new Color(.1f,.18f,.24f);
-                _rows.Add(row);_labels.Add(Label("",row,Vector2.zero,27));
+                row.SetParent(rect,false);
+                if(mode){int m=i-FirstModeRow;row.sizeDelta=new Vector2(Column,modeHeight);row.anchoredPosition=new Vector2(Right,top-160-modeHeight*.5f-m*(modeHeight+12f));}
+                else{row.sizeDelta=new Vector2(Column,60);row.anchoredPosition=new Vector2(Left,top-190-i*72);}
+                row.GetComponent<Image>().color=RowColour;
+                var label=Label("",row,Vector2.zero,mode ? 28 : 25);label.rectTransform.sizeDelta=row.sizeDelta;
+                _rows.Add(row);_labels.Add(label);
             }
             _rayMaterial=new Material(Shader.Find("Universal Render Pipeline/Unlit"));_rayMaterial.SetColor("_BaseColor",Color.white);
             for(int i=0;i<2;i++)
@@ -122,7 +135,7 @@ namespace GloveBallDemo.Runtime
         void UpdatePointers()
         {
             if(!IsOpen)return;
-            foreach(var row in _rows)row.GetComponent<Image>().color=new Color(.1f,.18f,.24f);
+            for(int i=0;i<_rows.Count;i++)_rows[i].GetComponent<Image>().color=BaseColour(i);
             for(int side=0;side<2;side++)
             {
                 bool valid=TryRay(side,out var ray,out bool pinch);
@@ -137,7 +150,7 @@ namespace GloveBallDemo.Runtime
             _rays[side].enabled=valid;
             if(!valid){_pinched[side]=true;return;}
             int hit=HitRow(ray,out var point);_rays[side].SetPosition(0,ray.origin);_rays[side].SetPosition(1,point);
-            if(hit>=0)_rows[hit].GetComponent<Image>().color=new Color(.12f,.48f,.6f);
+            if(hit>=0)_rows[hit].GetComponent<Image>().color=HoverColour;
             if(pinch&&!_pinched[side] && Time.unscaledTime-_lastToggle>.35f && hit>=0)Activate(hit);
             _pinched[side]=pinch;
         }
@@ -228,26 +241,27 @@ namespace GloveBallDemo.Runtime
 #endif
                     break;
                 case 5:RepositionToStart();break;
-                case 6:LoadDrill("VolleyReceive-codex");break;
-                case 7:LoadDrill("VolleyBlock-codex");break;
-                case 8:if(Drill.Aerial!=null)Drill.Aerial.SetBeginnerBlock(!Drill.Aerial.BeginnerBlock);break;
-                case 9:if(Drill.Aerial!=null)Drill.Aerial.SetMode((VolleyAerialSequence.RallyMode)(((int)Drill.Aerial.Mode+1)%6));break;
-                case 10:if(Drill.Aerial!=null)Drill.Aerial.SetInvolvement((VolleyAerialSequence.Involvement)(((int)Drill.Aerial.PlayerInvolvement+1)%3));break;
+                case AutoJumpRow:if(Drill.Aerial!=null)Drill.Aerial.SetBeginnerBlock(!Drill.Aerial.BeginnerBlock);break;
+                default:if(row>=FirstModeRow && row<RowCount){Play(MenuModes[row-FirstModeRow]);return;}break;
             }
             Refresh();
         }
+        /// <summary>Starts a mode right away: closes a shown completion panel and this menu (the Receive scene loads the Block scene first).</summary>
+        public void Play(VolleyAerialSequence.RallyMode mode)
+        {
+            if(DemoSession.IsCompletionShown)DemoSession.DismissCompletion();
+            if(Drill.Drill==VolleyDrill.Block && Drill.Aerial!=null){Drill.Aerial.SetMode(mode);SetOpen(false);return;}
+            s_pendingMode=mode;LoadDrill("VolleyBlock-codex");
+        }
+        bool IsCurrent(int row)=>row>=FirstModeRow && row<RowCount && Drill.Drill==VolleyDrill.Block && Drill.Aerial!=null
+            && Drill.Aerial.Mode==MenuModes[row-FirstModeRow];
+        Color BaseColour(int row)=>IsCurrent(row) ? CurrentColour : RowColour;
         void Refresh()
         {
             if(_heightText==null)return;_heightText.text=$"Eye {Floor.EyeHeight:F2} m  /  correction {Floor.HeightCorrection:+0.00;-0.00;0.00} m\n"+(GloveBallWideMotionFeature.Active?.Status??"WMM: unavailable (Quest APK required)");
-            var names=new List<string>{"RESUME",$"HANDS ONLY: {(Drill.Left.InputMode==VolleyInputMode.HandsOnly?"ON":"OFF")}",$"STAND UPRIGHT: SET EYE {Floor.StandingEyeHeight:F2} m","USE RUNTIME FLOOR","RESTART","REPOSITION TO START","RECEIVE DEMO","SPIKE + BLOCK DEMO"};
-            if(Drill.Drill==VolleyDrill.Block)
-            {
-                names.Add(Drill.Aerial.BeginnerBlock?"JUMP: BEGINNER (AUTO JUMP)":"JUMP: ADVANCED (HAND JUMP)");
-                var mode=Drill.Aerial.Mode;
-                names.Add("MODE: "+ModeName(mode));
-                var level=Drill.Aerial.PlayerInvolvement;
-                names.Add("YOU PLAY: "+(level==VolleyAerialSequence.Involvement.SpikeBlock?"SPIKE + BLOCK":level==VolleyAerialSequence.Involvement.AddReceiveServe?"+ RECEIVE + SERVE":"+ SET TOO"));
-            }
+            var names=new List<string>{"RESUME",$"HANDS ONLY: {(Drill.Left.InputMode==VolleyInputMode.HandsOnly?"ON":"OFF")}",$"STAND UPRIGHT: SET EYE {Floor.StandingEyeHeight:F2} m","USE RUNTIME FLOOR","RESTART","REPOSITION TO START",
+                Drill.Aerial==null ? "AUTO JUMP: (SPIKE / BLOCK)" : Drill.Aerial.BeginnerBlock ? "AUTO JUMP: ON" : "AUTO JUMP: OFF (RAISE HANDS TO JUMP)"};
+            for(int i=0;i<MenuModeNames.Length;i++)names.Add((IsCurrent(FirstModeRow+i) ? "NOW: " : "")+MenuModeNames[i]);
             for(int i=0;i<names.Count;i++)_labels[i].text=names[i];
         }
         void ResetAutomaticAttempt(){if(Drill.Aerial!=null && Drill.Aerial.BeginnerBlock)Drill.Aerial.SetBeginnerBlock(true);}
@@ -260,18 +274,6 @@ namespace GloveBallDemo.Runtime
         // Scene IDs match the descriptor's `scene` option: block (spike / block turns) and match (6 v 6) share the Block scene.
         static string SceneName(string id) => id=="receive" ? "VolleyReceive-codex"
             : id=="block" || id=="match" || id=="set" || id=="pass" ? "VolleyBlock-codex" : null;
-        static string ModeName(VolleyAerialSequence.RallyMode mode)
-        {
-            switch(mode)
-            {
-                case VolleyAerialSequence.RallyMode.Alternate: return "ALTERNATE SPIKE / BLOCK";
-                case VolleyAerialSequence.RallyMode.SpikeOnly: return "SPIKE ONLY";
-                case VolleyAerialSequence.RallyMode.BlockOnly: return "BLOCK ONLY";
-                case VolleyAerialSequence.RallyMode.Match: return "MATCH 6 v 6";
-                case VolleyAerialSequence.RallyMode.Set: return "SET STATION";
-                default: return "PASS STATION";
-            }
-        }
         static VolleyAerialSequence.RallyMode? SceneMode(string id) => id=="match" ? VolleyAerialSequence.RallyMode.Match
             : id=="set" ? VolleyAerialSequence.RallyMode.Set : id=="pass" ? VolleyAerialSequence.RallyMode.Pass
             : id=="block" ? VolleyAerialSequence.RallyMode.Alternate : (VolleyAerialSequence.RallyMode?)null;

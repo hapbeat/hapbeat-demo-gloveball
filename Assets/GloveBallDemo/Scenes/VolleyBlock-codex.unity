@@ -15083,6 +15083,10 @@ MonoBehaviour:
   FingertipBlockPassThrough: 0.65
   FingertipHapticScale: 0.4
   PalmHapticScale: 1.3
+  SetMaxHoldSeconds: 0.35
+  SetReleaseSpeed: 0.8
+  SetCatchHapticScale: 0.5
+  SetReleaseHapticScale: 0.8
   MaximumImpactGain: 1.5
   NearHandDistance: 0.45
   ServeLimit: 0
@@ -15260,11 +15264,19 @@ MonoBehaviour:
   SetLiftGain: 1.6
   SetAimGain: 1.8
   HitterReach: 1.3
+  LeftHitterLateral: {x: -3.6, y: -1.6}
+  RightHitterLateral: {x: 2.6, y: 3.8}
+  HitterDepth: {x: 0.6, y: 1.3}
+  GoodSetQuality: 0.4
+  PerfectSetQuality: 0.75
+  TargetRingRadius: 0.35
   PassAssist: 0.5
   PassTarget: {x: 1, y: 1}
   PassApexHeight: 4
+  PassMinClearance: 0.4
   PassPerfectRadius: 0.5
   PassFalloff: 1.8
+  ReceiveHeight: 1.1
   StationKillMin: 0.3
   StationKillMax: 0.9
 --- !u!1 &1154938701

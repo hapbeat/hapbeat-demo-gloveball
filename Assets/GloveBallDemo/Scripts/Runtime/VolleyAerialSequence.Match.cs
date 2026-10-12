@@ -98,6 +98,7 @@ namespace GloveBallDemo.Runtime
         bool _embodying, _slowActive, _restoreScale, _launchPending, _icSuccess, _playerServes;
         int _playerSlot=-1;
         float _embodyClock, _glideSeconds, _serveTimer=-1f, _serveWait, _segTime=-1f, _segDuration, _icHeight, _icReach, _icReaction, _icSpeed;
+        float _flightTop=float.MinValue;
         Vector3 _glideFrom, _glideDelta, _segFrom, _segTo, _icPoint, _approachBase;
         System.Action _segArrive, _afterEmbody, _onLaunched;
         System.Action<float> _segProgress;
@@ -243,7 +244,7 @@ namespace GloveBallDemo.Runtime
             }
             if(_serveTimer>=0f && !_embodying)
             {
-                _serveTimer-=dt;
+                _serveTimer=Mathf.Max(0f,_serveTimer-dt);
                 // The others walk to their rotation spots between rallies; serve once they are there.
                 if(_serveTimer<=0f && (FormationSettled() || (_serveWait+=dt)>3f)){_serveTimer=-1f;BeginServe();}
             }
@@ -266,7 +267,7 @@ namespace GloveBallDemo.Runtime
         void StartRally()
         {
             _touches[0]=_touches[1]=0;_lastTouchTeam=_serving;
-            ClearIntercept();_segTime=-1f;_launchPending=false;AwaitedTouch=PlayerTouch.None;
+            ClearIntercept();_segTime=-1f;_launchPending=false;AwaitedTouch=PlayerTouch.None;_flightTop=float.MinValue;
             _plannedAttacker=null;_playerServes=false;
             if(Opponent!=null)Opponent.gameObject.SetActive(false);
             if(TossLauncher!=null && Application.isPlaying)TossLauncher.gameObject.SetActive(false);
@@ -319,7 +320,7 @@ namespace GloveBallDemo.Runtime
             ReturnScriptedBall();
             _launchPending=false;_serveTimer=-1f;_segArrive=null;_segProgress=null;_afterEmbody=null;
             ClearIntercept();DisarmTheirBlock();EnableReceiveVolume(false);
-            _embodying=false;FadeAlpha=0f;VignetteAlpha=0f;SetSlowMotion(false);ShowPending();
+            _embodying=false;FadeAlpha=0f;VignetteAlpha=0f;SetSlowMotion(false);ShowPending();ShowRings(false);
             AwaitedTouch=PlayerTouch.None;
         }
         void RandomizeFormation()
@@ -519,7 +520,6 @@ namespace GloveBallDemo.Runtime
         // ---------- serve ----------
         void BeginServe()
         {
-            if(Mode==RallyMode.Set){BeginStationFeed();return;}
             var server=Server(_serving);
             if(_playerServes)
             {
@@ -544,7 +544,7 @@ namespace GloveBallDemo.Runtime
             if(receiving==Team.Us && _roleTouch==PlayerTouch.Receive && _embodied!=null)
             {
                 RequestLaunch(()=>{
-                    var to=GroundedEye+Forward*.45f;to.y=FloorY+.85f;
+                    var to=GroundedEye+Forward*.45f;to.y=FloorY+ReceiveHeight;
                     return (release,to,Mathf.Max(ServeSeconds,ClearNetSeconds(release,to,.3f)));
                 },RallyPhase.PlayerReceive,PlayerTouch.Receive);
                 Cue="RECEIVE — FOREARMS TOGETHER";
@@ -554,7 +554,8 @@ namespace GloveBallDemo.Runtime
             var target=ClampToCourt(receiver.Home+TeamRight(receiving)*Random.Range(-1f,1f)+TeamForward(receiving)*Random.Range(-1f,1f),receiving);
             var point=target+Vector3.up*(DigHeight+.1f);
             receiver.Target=target-TeamForward(receiving)*.3f;receiver.Speed=NpcRunSpeed;
-            bool ok=Random.value<(receiving==Team.Them ? TheirReceiveSuccess : OurReceiveSuccess);
+            // TOSS: our receiver always gets the pass up to the player.
+            bool ok=Mode==RallyMode.Set || Random.value<(receiving==Team.Them ? TheirReceiveSuccess : OurReceiveSuccess);
             StartSegment(release,point,Mathf.Max(ServeSeconds,ClearNetSeconds(release,point,.3f)),()=>{
                 if(ok){NpcTouch(receiving,receiver,point);return;}
                 // Shanked: it deflects off the platform and dies, the serving team scores either way.
@@ -579,6 +580,7 @@ namespace GloveBallDemo.Runtime
         }
         void PassToSetter(Team team,Vector3 from)
         {
+            if(team==Team.Us && Mode==RallyMode.Set){StationPassToPlayer(from);return;}
             var setter=ChooseSetter(team);
             var attacker=_plannedAttacker!=null && _plannedAttacker.Team==team && _plannedAttacker!=setter ? _plannedAttacker : ChooseAttacker(team,setter,Vector3.zero);
             _plannedAttacker=attacker;
@@ -831,14 +833,20 @@ namespace GloveBallDemo.Runtime
         {
             var p=position;var v=velocity;float t=0f;const float dt=.02f;
             bool found=false;var side=Team.Us;float height=DigHeight;
+            _flightTop=Mathf.Max(_flightTop,position.y);float top=_flightTop;
             for(int i=0;i<200;i++)
             {
                 side=SideOf(p);height=_touches[(int)side]==1 ? SetHeight : DigHeight;
                 if(v.y<0f && p.y-FloorY<=height){found=true;break;}
                 v+=Physics.gravity*dt;v*=Mathf.Clamp01(1f-damping*dt);p+=v*dt;t+=dt;
+                top=Mathf.Max(top,p.y);
             }
             if(!found || !InsideCourt(p,.3f)){ClearIntercept();return;}
             int touches=_touches[(int)side];
+            // PASS: only our setter plays the player's pass, and only one that rose clearly above the net.
+            if(Station && (side!=Team.Us || touches!=1)){ClearIntercept();return;}
+            if(Station && top<NetTop+PassMinClearance){_passTooLow=true;ClearIntercept();return;}
+            if(Station)_passTooLow=false;
             bool them=side==Team.Them, setting=touches==1;
             float react=setting ? .1f : them ? TheirDigReaction : OurDigReaction;
             float speed=setting ? SetterSpeed : them ? TheirDigSpeed : OurDigSpeed;
@@ -911,7 +919,8 @@ namespace GloveBallDemo.Runtime
             {
                 // A station touch that no teammate could play is the player's miss wherever it lands.
                 winner=Team.Them;_stationQuality=0f;
-                text=!inBounds ? "OUT" : court==Team.Them ? "OVER THE NET" : Mode==RallyMode.Pass ? "PASS DROPPED" : "SET DROPPED";
+                text=!inBounds ? "OUT" : court==Team.Them ? "OVER THE NET" : Mode==RallyMode.Set ? "SET DROPPED"
+                    : _passTooLow ? "TOO LOW FOR YOUR SETTER" : "PASS DROPPED";
             }
             else if(Phase==RallyPhase.PlayerSet && !_playerTouched)text="SET MISSED";
             if(Mode==RallyMode.Match && winner==Team.Us && _serving==Team.Them)RotatePlayer(); // side-out

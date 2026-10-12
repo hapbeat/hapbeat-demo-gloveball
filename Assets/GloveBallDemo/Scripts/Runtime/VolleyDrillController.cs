@@ -87,6 +87,19 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Haptic strength multiplier for a fingertip graze and for a solid palm / wrist contact.")]
         [Min(0f)] public float FingertipHapticScale = .4f;
         [Min(0f)] public float PalmHapticScale = 1.3f;
+        [Header("Rally: set (toss) - caught, carried and pushed")]
+        [Tooltip("Longest the ball may ride the hands (s); a real set is a short hold, not a bounce.")]
+        [Range(.05f,.6f)] public float SetMaxHoldSeconds = .35f;
+        [Tooltip("The ball leaves when the hands have pushed up faster than this (m/s) and start to slow down.")]
+        [Min(0f)] public float SetReleaseSpeed = .8f;
+        [Tooltip("Haptic strength of the soft catch and of the push, relative to a normal impact of the same speed.")]
+        [Min(0f)] public float SetCatchHapticScale = .5f;
+        [Min(0f)] public float SetReleaseHapticScale = .8f;
+        readonly VolleySetHold _setHold = new VolleySetHold();
+        VolleyTrackedHand _setHand;
+        bool _setBoth;
+        /// <summary>True while a set is held on the hands.</summary>
+        public bool HoldingSet => _setHold.Holding;
         [Min(.1f)] public float MaximumImpactGain = 1.5f;
         [Tooltip("Rally only: a hand within this distance of an untouched ball is reported for the missed-hit hint.")]
         [Min(0f)] public float NearHandDistance = .45f;
@@ -361,7 +374,13 @@ namespace GloveBallDemo.Runtime
         {
             Left.BeginPhysicsSample(); Right.BeginPhysicsSample();
             if(JoinedHands!=null) JoinedHands.Sample(Time.fixedDeltaTime);
-            if (_ball != null && _ball.gameObject.activeInHierarchy && TrackingReady)
+            if (_setHold.Holding && (_ball == null || !_ball.gameObject.activeInHierarchy)) _setHold.Cancel();
+            if (_setHold.Holding)
+            {
+                TickSetHold(Time.fixedDeltaTime);
+                if (_ball != null) { _previousBallPosition = _ball.Body.position; _haveBallSample = true; }
+            }
+            else if (_ball != null && _ball.gameObject.activeInHierarchy && TrackingReady)
             {
                 Vector3 current = _ball.Body.position;
                 Vector3 previous = _haveBallSample ? _previousBallPosition : current;
@@ -386,6 +405,7 @@ namespace GloveBallDemo.Runtime
                     {
                         var hand = l && (!r || lt <= rt) ? Left : Right;
                         var normal = hand == Left ? ln : rn;
+                        if (!joined && Aerial != null && Aerial.HoldsSet) { BeginSetHold(hand); goto sampled; }
                         // Blocks and spikes both deflect physically; the rally scores where the ball lands.
                         {
                         var incoming = _ball.Body.linearVelocity;
@@ -428,7 +448,8 @@ namespace GloveBallDemo.Runtime
                                 Aerial.NoteHandNearBall(hand.Ready && hand.ContactVolume!=null && hand.ContactVolume.enabled);
                     }
                 }
-                if(_ball!=null)
+                sampled:
+                if(_ball!=null && !_setHold.Holding)
                 {
                     _previousBallPosition = _ball.Body.position; _haveBallSample = true;
                     if(Aerial!=null)
@@ -442,6 +463,53 @@ namespace GloveBallDemo.Runtime
             }
             else _haveBallSample = false; // Never sweep across an unobserved tracking gap.
             Left.EndPhysicsSample(); Right.EndPhysicsSample();
+        }
+
+        Vector3 SetHandsCentre(out Vector3 velocity)
+        {
+            // Both hands carry the ball when both are on it; otherwise the hand that caught it.
+            var a = HandCentre(Left); var b = HandCentre(Right);
+            _setBoth = Left.Ready && Right.Ready && Vector3.Distance(a, b) < .35f;
+            if (_setBoth) { velocity = (Left.Velocity + Right.Velocity) * .5f; return (a + b) * .5f; }
+            velocity = _setHand.Velocity; return HandCentre(_setHand);
+        }
+        static Vector3 HandCentre(VolleyTrackedHand hand)
+            => hand.ContactVolume != null ? hand.ContactVolume.transform.TransformPoint(hand.ContactVolume.center) : hand.transform.position;
+        void BeginSetHold(VolleyTrackedHand hand)
+        {
+            _setHand = hand;
+            var centre = SetHandsCentre(out var handVelocity);
+            float relative = (_ball.Body.linearVelocity - handVelocity).magnitude;
+            _setHold.MaxSeconds = SetMaxHoldSeconds; _setHold.ReleaseSpeed = SetReleaseSpeed;
+            _setHold.Begin(_ball.Body.position, centre);
+            _ball.Body.linearVelocity = Vector3.zero; _ball.Body.isKinematic = true;
+            SetHaptic(ImpactGain(relative) * SetCatchHapticScale);
+            _lastContact = Time.time;
+        }
+        void TickSetHold(float dt)
+        {
+            if (_ball == null) { _setHold.Cancel(); return; }
+            var centre = SetHandsCentre(out var handVelocity);
+            bool lost = !_setHand.Ready;
+            if (!_setHold.Step(centre, handVelocity, dt, out var position, out var release) && !lost)
+            {
+                _ball.Body.MovePosition(position);
+                return;
+            }
+            if (lost) { _setHold.Cancel(); release = handVelocity; }
+            _ball.Body.isKinematic = false;
+            var velocity = release;
+            if (Aerial != null && Aerial.OverrideTouchVelocity(release, _ball.Body.position, release, out var modelled)) velocity = modelled;
+            if (!_ball.Deflect(velocity)) return;
+            _ball.Body.linearDamping = ResponseFor(_ball.Feel)?.ReturnDrag ?? 0f;
+            SetHaptic(ImpactGain(release.magnitude) * SetReleaseHapticScale);
+            _lastContact = Time.time; Returns++;
+            if (Aerial != null) Aerial.RegisterPlayerTouch();
+        }
+        void SetHaptic(float strength)
+        {
+            if (_setBoth) ReportHandImpactScaled(_ball, null, true, strength);
+            else ReportHandImpactScaled(_ball, _setHand, false, strength);
         }
 
         /// <summary>
