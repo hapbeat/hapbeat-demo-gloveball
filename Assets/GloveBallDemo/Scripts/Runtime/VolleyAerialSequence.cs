@@ -1039,6 +1039,13 @@ namespace GloveBallDemo.Runtime
             if(SpikeClip==null)return;
             SpikeAudioRequested?.Invoke(SpikeClip,position);
             if(!Application.isPlaying)return; // EditMode verification observes requests without PC audio.
+            // NPC touches sound like the ball in play (its own impact clip); the spike clip only for a ball with no variant.
+            var ball=_preparedBall!=null ? _preparedBall : Drill!=null ? Drill.ActiveBall : null;
+            if(ball!=null && ball.VariantIndex>=0)
+            {
+                HapticEventRelay.PlayAudioOnly(ball.ImpactEvent(DemoHapticEvent.BodyCollide),position,SpikeVolume);
+                return;
+            }
             if(_spikeAudio==null)
             {
                 var source=new GameObject("Opponent spike audio");source.transform.SetParent(transform,false);

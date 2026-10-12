@@ -544,7 +544,9 @@ namespace GloveBallDemo.Runtime
             if(receiving==Team.Us && _roleTouch==PlayerTouch.Receive && _embodied!=null)
             {
                 RequestLaunch(()=>{
-                    var to=GroundedEye+Forward*.45f;to.y=FloorY+ReceiveHeight;
+                    // Spread so every serve is a little different, never far enough to make the player step.
+                    var to=GroundedEye+Forward*(.45f+Random.Range(-ReceiveSpread.y,ReceiveSpread.y))+Right*Random.Range(-ReceiveSpread.x,ReceiveSpread.x);
+                    to.y=FloorY+ReceiveHeight+Random.Range(-ReceiveSpread.z,ReceiveSpread.z);
                     return (release,to,Mathf.Max(ServeSeconds,ClearNetSeconds(release,to,.3f)));
                 },RallyPhase.PlayerReceive,PlayerTouch.Receive);
                 Cue="RECEIVE — FOREARMS TOGETHER";
@@ -853,7 +855,8 @@ namespace GloveBallDemo.Runtime
             float reach=setting ? SetterReach : them ? TheirDigReach : OurDigReach;
             float success=setting ? (Station ? 1f : .97f) : them ? TheirDigSuccess : OurDigSuccess;
             float moving=t-Mathf.Max(0f,react-_sinceTouch);
-            var setter=setting ? ChooseSetter(side) : null;
+            // PASS: whichever front-row player the ball comes down nearest sets it (never one across the court).
+            var setter=setting ? (Mode==RallyMode.Pass ? NearestFrontRow(p) : ChooseSetter(side)) : null;
             MatchActor best=null;float bestNeed=float.MaxValue;
             foreach(var actor in _cast)
             {
@@ -893,7 +896,7 @@ namespace GloveBallDemo.Runtime
             if(ball==null)return false;
             AdoptBall(ball);PlaceScriptedBall(position);
             var actor=_icActor;var team=_icTeam;
-            if(Mode==RallyMode.Pass && team==Team.Us && _touches[0]==1)JudgeStationPass(position);
+            if(Mode==RallyMode.Pass && team==Team.Us && _touches[0]==1)JudgeStationPass(position,actor);
             ClearIntercept();DisarmTheirBlock();EnableReceiveVolume(false);
             AwaitedTouch=PlayerTouch.None;Phase=RallyPhase.MatchPlay;
             NpcTouch(team,actor,position);

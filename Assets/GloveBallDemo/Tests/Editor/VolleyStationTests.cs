@@ -78,7 +78,7 @@ namespace GloveBallDemo.Tests
         GameObject Ring(int index)=>_rally.transform.Find("TOSS target ring "+index)?.gameObject;
 
         [Test]
-        public void TossTheirServeIsPassedUpByATeammateAndAGoodPushSetsTheHitter()
+        public void TossTheirServeIsPassedUpByATeammateAndAGoodPushSetsTheNearHitter()
         {
             _rally.SetMode(Mode.Set);_rally.SetAssist=1f;
             Launch(Phase.PlayerSet);
@@ -88,19 +88,24 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.HoldsSet,Is.True,"The drill catches the set instead of bouncing it.");
             Assert.That(_destination.y-_rally.GroundedEye.y,Is.EqualTo(.35f).Within(.01f),"The pass comes down just above the head.");
             Assert.That(Ring(1).activeSelf && Ring(2).activeSelf,Is.True,"Rings mark both hitters' spots.");
-            Assert.That(Ring(1).GetComponent<LineRenderer>().GetPosition(0).y,Is.EqualTo(_rally.HitterSpot(0).y).Within(.01f));
+            var ring=Ring(1).GetComponent<LineRenderer>();var centre=Vector3.zero;
+            for(int k=0;k<ring.positionCount;k++)centre+=ring.GetPosition(k)/ring.positionCount;
+            Assert.That(Vector3.Distance(centre,_rally.HitterSpot(0)),Is.LessThan(.01f),"The near ring is centred on the near hitter's spot.");
+            Assert.That(_rally.GroundedEye.x-Net.x,Is.EqualTo(_rally.SetterLateral).Within(.3f),"The player sets from the right end of the net.");
             var ball=_destination;
-            // The push of the hold: up and toward our left (the left hitter).
-            Assert.That(_rally.OverrideTouchVelocity(Vector3.up*2.5f-Right*1.5f,ball,Vector3.zero,out var set),Is.True);
+            // The push of the hold: up and a little toward our left (the near hitter).
+            Assert.That(_rally.OverrideTouchVelocity(Vector3.up*2.5f-Right*.8f,ball,Vector3.zero,out var set),Is.True);
             _rally.RegisterPlayerTouch();
             Fly(ball,set);
             Assert.That(_rally.Phase,Is.EqualTo(Phase.MatchPlay),"A hitter took the set ("+_rally.Cue+")");
             Assert.That(Ring(1).activeSelf,Is.False,"Rings go once the set is judged.");
             Assert.That(_rally.StationQuality,Is.GreaterThanOrEqualTo(_rally.PerfectSetQuality));
-            Assert.That(_rally.Teammates[1].transform.position.x-Net.x,Is.LessThan(-1f),"The left hitter attacks it.");
+            Assert.That(_rally.Cue,Does.StartWith("EXCELLENT SET").Or.Contains("SPIKE"));
+            Assert.That(_rally.transform.Find("TOSS set crossing").gameObject.activeSelf,Is.True,"Where the set came down is marked.");
+            Assert.That(_rally.SetBlockers,Is.InRange(1,2),"One or two of their blockers face the hitter.");
             RunUntil(()=>_rally.Phase==Phase.Recovery,6f,"the attack ends the rep");
-            Assert.That(_rally.Outcome,Does.EndWith("PERFECT SET"));
-            Assert.That(_rally.PlayerScore,Is.EqualTo(1),"A good set counts, kill or dig.");
+            Assert.That(_rally.Outcome,Does.EndWith("EXCELLENT SET"));
+            Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.EqualTo(1),"A kill counts for the player, a dig or block against.");
         }
 
         [Test]
@@ -109,14 +114,35 @@ namespace GloveBallDemo.Tests
             _rally.SetMode(Mode.Set);
             Launch(Phase.PlayerSet);
             var first=_rally.HitterSpot(0);
-            Assert.That(first.x-Net.x,Is.InRange(_rally.LeftHitterLateral.x-.6f,_rally.LeftHitterLateral.y+.6f));
+            Assert.That(first.x-Net.x,Is.InRange(_rally.NearHitterLateral.x-.6f,_rally.NearHitterLateral.y+.6f));
+            // Their blockers: two in front of one hitter, one in front of the other.
+            int near=0,far=0;
+            foreach(var blocker in _rally.Blockers)
+            {
+                float lateral=blocker.transform.position.x-Net.x;
+                if(Mathf.Abs(lateral-(_rally.HitterSpot(0).x-Net.x))<1.1f)near++;
+                if(Mathf.Abs(lateral-(_rally.HitterSpot(1).x-Net.x))<1.1f)far++;
+            }
+            Assert.That(near+far,Is.EqualTo(3));Assert.That(Mathf.Max(near,far),Is.EqualTo(2));
             Assert.That(_rally.OverrideTouchVelocity(Vector3.up*.2f,_destination,Vector3.zero,out var set),Is.True);
             _rally.RegisterPlayerTouch();
             Fly(_destination,set);
             Assert.That(_rally.Outcome,Is.EqualTo("SET DROPPED"),"A push with no lift never reaches a hitter.");
+            Assert.That(_rally.Cue,Is.Not.Null);
             Assert.That(_rally.OpponentScore,Is.EqualTo(1));Assert.That(_rally.StationQuality,Is.Zero);
             Launch(Phase.PlayerSet);
             Assert.That(Vector3.Distance(_rally.HitterSpot(0),first),Is.GreaterThan(.05f));
+        }
+
+        [Test]
+        public void TossTooLongIsGradedBadWithWhatToChange()
+        {
+            _rally.SetMode(Mode.Set);_rally.SetAssist=0f;
+            Launch(Phase.PlayerSet);
+            Assert.That(_rally.OverrideTouchVelocity(Vector3.up*2.5f-Right*3f,_destination,Vector3.zero,out var set),Is.True);
+            _rally.RegisterPlayerTouch();
+            for(int i=0;i<3;i++){Frame();_rally.SampleBall(_destination+set*.02f*i,set,.11f,.02f);}
+            Assert.That(_rally.Cue,Does.StartWith("BAD SET").And.Contains("TOO LONG"));
         }
 
         [Test]
@@ -125,7 +151,7 @@ namespace GloveBallDemo.Tests
             _rally.SetMode(Mode.Pass);_rally.PassAssist=1f;
             Launch(Phase.PlayerReceive);
             Assert.That(_rally.RoleTouch,Is.EqualTo(Touch.Receive));
-            Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.EqualTo(_rally.ReceiveHeight).Within(.01f));
+            Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.EqualTo(_rally.ReceiveHeight).Within(_rally.ReceiveSpread.z+.01f));
             Assert.That(_drill.JoinedHands,Is.SameAs(_rally.ReceiveVolume),"Forearm platform while passing.");
             Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,Forward*3f,out var pass),Is.True);
             _rally.RegisterPlayerTouch();

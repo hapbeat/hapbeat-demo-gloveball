@@ -96,6 +96,9 @@ public static class VolleyRallySetup
         aerial.MinBlockers=aerial.MaxBlockers=3;
         aerial.HeightSpread=.15f;aerial.BlockReachAboveEye=.45f;aerial.BlockSpeed=10.5f; // readable from the body turn, always reachable
         aerial.BlockerJumpSeconds=1.3f;aerial.BlockerReactionSeconds=.05f;aerial.BlockerTimingJitter=.05f;
+        aerial.ReceiveHeight=1.3f; // forearm height: the serve came in too low to pass upward
+        aerial.SetLiftBase=1f;aerial.SetLiftGain=2.6f;aerial.SetAimGain=2.2f; // the held push, not a bounce, lifts the set
+        aerial.BlockerNetDistance=.5f; // the players' hands reach 14 cm past the hand point: keep their block over the tape, not through the net
         // Fast overhead swings exceed 8 m/s in tracking space; the old limit flagged them as tracking jumps.
         drill.Left.MaximumTrackedSpeed=drill.Right.MaximumTrackedSpeed=30f;
         drill.Left.MaximumHandSpeed=drill.Right.MaximumHandSpeed=25f;

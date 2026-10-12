@@ -176,7 +176,7 @@ namespace GloveBallDemo.Tests
             _rally.PlayerInvolvement=Level.AddReceiveServe;Serve(Team.Them);
             Launch(Phase.PlayerReceive);
             Assert.That(_rally.RoleTouch,Is.EqualTo(Touch.Receive));
-            Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.EqualTo(_rally.ReceiveHeight).Within(.01f));
+            Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.EqualTo(_rally.ReceiveHeight).Within(_rally.ReceiveSpread.z+.01f));
             Assert.That(_drill.JoinedHands,Is.SameAs(_rally.ReceiveVolume),"Forearm platform only while receiving.");
             Assert.That(_rally.ReceiveVolume.gameObject.activeSelf,Is.True);
             Assert.That(_rally.AwaitingPlayerTouch,Is.True);
