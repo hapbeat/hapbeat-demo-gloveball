@@ -213,6 +213,20 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
+        public void StartAlignmentKeepsTheStanceSoABlockTurnIsNotPushedIntoTheNet()
+        {
+            var floor=_jump.Floor;
+            Assert.That(floor.StanceAnchor,Is.Not.Null);
+            var alignment=Object.FindFirstObjectByType<Hapbeat.DemoSwitch.XrStartAlignment>();
+            var anchor=(Transform)typeof(Hapbeat.DemoSwitch.XrStartAlignment).GetField("_anchor",Private).GetValue(alignment);
+            Assert.That(anchor,Is.SameAs(floor.StanceAnchor),"視線をリセット / start alignment use the stance anchor.");
+            floor.SetStanceOffset(-Forward*1.2f); // a spike turn
+            Assert.That(Vector3.Distance(anchor.position,floor.RepositionTarget.position-Forward*1.2f),Is.LessThan(1e-4f));
+            floor.SetStanceOffset(Vector3.zero);  // back to the block spot
+            Assert.That(Vector3.Distance(anchor.position,floor.RepositionTarget.position),Is.LessThan(1e-4f));
+        }
+
+        [Test]
         public void HandZoneRunsFromTheWristToTheFingertips()
         {
             var hand=_drill.Right;var box=hand.ContactVolume;

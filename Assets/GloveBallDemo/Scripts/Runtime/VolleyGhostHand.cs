@@ -16,7 +16,8 @@ namespace GloveBallDemo.Runtime
             if (Hand == null || Skeleton == null || Mesh == null) return;
             bool joints = Hand.Source == "hands";
             Skeleton.enabled = joints;
-            Mesh.enabled = Hand.Source != "lost";
+            // With the shared hands (Volley APK) they are the visible hands; this mesh stays as the skeleton only.
+            Mesh.enabled = Hand.Source != "lost" && Hapbeat.DemoSwitch.DemoHands.Instance == null;
             if (Hand.Source == "controller")
                 Skeleton.rootTransform.SetPositionAndRotation(Hand.transform.position - Hand.transform.forward * .06f, Hand.transform.rotation);
             else if(Hand.IsEstimated || Hand.Source=="held" || Hand.Source=="brief-loss")

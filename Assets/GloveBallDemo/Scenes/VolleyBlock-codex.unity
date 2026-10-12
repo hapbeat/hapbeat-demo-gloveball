@@ -3259,6 +3259,37 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 210431245}
   m_Mesh: {fileID: 4300000, guid: 09bcb17b3b0ae9c449dccd6ba9aa8042, type: 2}
+--- !u!1 &211642766
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 211642767}
+  m_Layer: 0
+  m_Name: Volley stance anchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &211642767
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 211642766}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -0.3}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &212332494
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7474,6 +7505,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Origin: {fileID: 631991372}
   RepositionTarget: {fileID: 1540327377}
+  StanceAnchor: {fileID: 211642767}
   RecenterOnFirstTracking: 1
   HeightCorrection: 0
   StandingEyeHeight: 1.6
@@ -15175,7 +15207,7 @@ MonoBehaviour:
   BlockerMinSpacing: 0.8
   BlockerJumpMin: 0.8
   BlockerJumpMax: 1.1
-  BlockerNetDistance: 0.5
+  BlockerNetDistance: 0.35
   BlockerStandbyDistance: 3.2
   BlockerJumpSeconds: 1.3
   BlockerReactionSeconds: 0.05
@@ -27581,7 +27613,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _xrOrigin: {fileID: 631991372}
-  _anchor: {fileID: 1540327377}
+  _anchor: {fileID: 211642767}
 --- !u!1001 &577963460530417258
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -30835,3 +30867,4 @@ SceneRoots:
   - {fileID: 2129807929}
   - {fileID: 1458386994}
   - {fileID: 1590459783}
+  - {fileID: 211642767}

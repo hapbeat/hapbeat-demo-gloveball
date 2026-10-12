@@ -98,7 +98,7 @@ public static class VolleyRallySetup
         aerial.BlockerJumpSeconds=1.3f;aerial.BlockerReactionSeconds=.05f;aerial.BlockerTimingJitter=.05f;
         aerial.ReceiveHeight=1.3f; // forearm height: the serve came in too low to pass upward
         aerial.SetLiftBase=1f;aerial.SetLiftGain=2.6f;aerial.SetAimGain=2.2f; // the held push, not a bounce, lifts the set
-        aerial.BlockerNetDistance=.5f; // the players' hands reach 14 cm past the hand point: keep their block over the tape, not through the net
+        aerial.BlockerNetDistance=.35f;
         // Fast overhead swings exceed 8 m/s in tracking space; the old limit flagged them as tracking jumps.
         drill.Left.MaximumTrackedSpeed=drill.Right.MaximumTrackedSpeed=30f;
         drill.Left.MaximumHandSpeed=drill.Right.MaximumHandSpeed=25f;
@@ -113,9 +113,31 @@ public static class VolleyRallySetup
         drill.Targets.RandomizeOnStart=false;
         drill.Targets.gameObject.SetActive(false);
         ApplySkinHands(drill);
+        ApplyStanceAnchor(aerial.Jump.Floor);
         EditorUtility.SetDirty(aerial);
         EditorSceneManager.MarkSceneDirty(scene);
         if(!EditorSceneManager.SaveScene(scene))throw new InvalidOperationException("Failed to save VolleyBlock-codex.");
+    }
+
+    /// <summary>The shared start alignment aligns the head to an anchor that follows the stance (see VolleyFloorTracking.StanceAnchor).</summary>
+    static void ApplyStanceAnchor(VolleyFloorTracking floor)
+    {
+        if(floor==null || floor.RepositionTarget==null)throw new InvalidOperationException("Floor tracking needs its RepositionTarget.");
+        const string Name="Volley stance anchor";
+        var anchor=floor.StanceAnchor;
+        if(anchor==null)
+        {
+            var existing=GameObject.Find(Name);
+            anchor=existing!=null ? existing.transform : new GameObject(Name).transform;
+        }
+        anchor.SetParent(floor.RepositionTarget.parent,false);
+        anchor.SetPositionAndRotation(floor.RepositionTarget.position,floor.RepositionTarget.rotation);
+        floor.StanceAnchor=anchor;EditorUtility.SetDirty(floor);
+        var alignment=UnityEngine.Object.FindFirstObjectByType<Hapbeat.DemoSwitch.XrStartAlignment>(FindObjectsInactive.Include);
+        if(alignment==null)throw new InvalidOperationException("The scene has no XrStartAlignment.");
+        var serialized=new SerializedObject(alignment);
+        serialized.FindProperty("_anchor").objectReferenceValue=anchor;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
     }
 
     const string SkinHandPath="Assets/GloveBallDemo/Art/UnityGhostHands/VolleySkinHand.mat";

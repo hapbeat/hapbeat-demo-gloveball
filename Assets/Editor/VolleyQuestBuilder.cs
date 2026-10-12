@@ -29,6 +29,8 @@ public static class VolleyQuestBuilder
         var serialized=new SerializedObject(settings);var id=serialized.FindProperty("_currentDemoId");string oldId=id.stringValue;
         // The shared pause is Volley's only: GloveBall (same settings asset) keeps its own menu.
         var pause=serialized.FindProperty("_pauseMenu");var gesture=serialized.FindProperty("_pauseGesture");bool oldPause=pause.boolValue;int oldGesture=gesture.intValue;
+        // Volley draws the shared hands (the Hub's Ghost / Skin look and its hand_style); GloveBall keeps its own.
+        var hands=serialized.FindProperty("_hands");bool oldHands=hands.boolValue;
         // The checked-in StreamingAssets descriptor is Volley's (demo_id volley); verify it before building.
         using(DemoSessionDescriptors.Use(null,DemoSessionDescriptors.VolleyDemoId))
         try
@@ -36,6 +38,7 @@ public static class VolleyQuestBuilder
             PlayerSettings.productName="Volley";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android,"jp.hapbeat.volley");
             id.stringValue="volley";pause.boolValue=true;gesture.intValue=0; // SystemMenu: left-hand menu gesture + controller ≡
+            hands.boolValue=true;
             serialized.ApplyModifiedPropertiesWithoutUndo();AssetDatabase.SaveAssets();
             var scenes=SceneNames.Select(n=>"Assets/GloveBallDemo/Scenes/"+n+".unity").ToArray();
             string output=Path.GetFullPath("Builds/Android/hapbeat-volley.apk");Directory.CreateDirectory(Path.GetDirectoryName(output));
@@ -48,6 +51,7 @@ public static class VolleyQuestBuilder
             PlayerSettings.productName=product;PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android,identifier);
             serialized.Update();serialized.FindProperty("_currentDemoId").stringValue=oldId;
             serialized.FindProperty("_pauseMenu").boolValue=oldPause;serialized.FindProperty("_pauseGesture").intValue=oldGesture;
+            serialized.FindProperty("_hands").boolValue=oldHands;
             serialized.ApplyModifiedPropertiesWithoutUndo();AssetDatabase.SaveAssets();
         }
     }

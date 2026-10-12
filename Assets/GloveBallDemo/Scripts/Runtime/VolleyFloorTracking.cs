@@ -12,6 +12,9 @@ namespace GloveBallDemo.Runtime
         public XROrigin Origin;
         [Tooltip("Fixed scene destination for menu reposition and initial placement. XZ and forward are used; calibrated height is preserved.")]
         public Transform RepositionTarget;
+        [Tooltip("Kept at RepositionTarget + StanceOffset. The shared start alignment and 視線をリセット (XrStartAlignment) align the head to it,\n"
+            +"so they keep the current stance instead of putting a spiker's head on the block spot (the next block turn then ended at the net).")]
+        public Transform StanceAnchor;
         public bool RecenterOnFirstTracking;
         bool _centered;
         [Tooltip("App-only vertical correction for a miscalibrated runtime floor. Set through the standing-height menu.")]
@@ -58,6 +61,12 @@ namespace GloveBallDemo.Runtime
             value=Vector3.ProjectOnPlane(value,Vector3.up);
             Origin.CameraFloorOffsetObject.transform.position+=value-StanceOffset;
             StanceOffset=value;
+            PlaceStanceAnchor();
+        }
+        void PlaceStanceAnchor()
+        {
+            if(StanceAnchor==null || RepositionTarget==null)return;
+            StanceAnchor.SetPositionAndRotation(RepositionTarget.position+StanceOffset,RepositionTarget.rotation);
         }
         public void CalibrateStandingHeight()
         {
