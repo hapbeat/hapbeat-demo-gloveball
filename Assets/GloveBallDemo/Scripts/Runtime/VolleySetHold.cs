@@ -19,11 +19,13 @@ namespace GloveBallDemo.Runtime
         /// <summary>Lowest upward hand speed during the hold (negative: how far the hands gave way under the ball).</summary>
         public float Give { get; private set; }
         public Vector3 Peak { get; private set; }
-        Vector3 _offset;
+        Vector3 _offset, _smoothed;
+        /// <summary>Hand velocity smoothing per physics step (one noisy tracking sample must not become the push).</summary>
+        public float Smoothing=.5f;
 
         public void Begin(Vector3 ball,Vector3 hands)
         {
-            Holding=true;Seconds=0f;Give=0f;Peak=Vector3.zero;
+            Holding=true;Seconds=0f;Give=0f;Peak=Vector3.zero;_smoothed=Vector3.zero;_first=true;
             _offset=ball-hands;
             if(_offset.y<.06f)_offset.y=.06f; // the ball sits on the fingers, never inside the hands
         }
@@ -33,14 +35,16 @@ namespace GloveBallDemo.Runtime
             ballPosition=hands+_offset;release=default;
             if(!Holding)return false;
             Seconds+=dt;
-            Give=Mathf.Min(Give,handVelocity.y);
-            if(handVelocity.y>Peak.y)Peak=handVelocity;
-            bool pushed=Peak.y>=ReleaseSpeed && handVelocity.y<Peak.y*PeakDrop;
+            _smoothed=_first ? handVelocity : Vector3.Lerp(_smoothed,handVelocity,1f-Smoothing);_first=false;
+            Give=Mathf.Min(Give,_smoothed.y);
+            if(_smoothed.y>Peak.y)Peak=_smoothed;
+            bool pushed=Peak.y>=ReleaseSpeed && _smoothed.y<Peak.y*PeakDrop;
             if(!pushed && Seconds<MaxSeconds)return false;
             Holding=false;
-            release=pushed ? Peak : handVelocity;
+            release=pushed ? Peak : _smoothed;
             return true;
         }
+        bool _first;
         public void Cancel()=>Holding=false;
     }
 }

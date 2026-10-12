@@ -37,10 +37,19 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Set quality needed for the rep to count, and for a hard spike.")]
         [Range(0f,1f)] public float GoodSetQuality=.4f;
         [Range(0f,1f)] public float PerfectSetQuality=.75f;
-        [Min(.05f)] public float TargetRingRadius=.35f;
+        [Tooltip("Ghost spheres mark where to set (near / far hitter) and where the set came down.")]
+        [Min(.05f)] public float TargetRadius=.3f;
+        [Tooltip("Transparent material for the target spheres (tinted per sphere).")]
+        public Material TargetMaterial;
+        [Tooltip("Hand speed used for the set is capped here: a noisy tracking sample must not launch the ball sky-high (m/s).")]
+        [Min(.5f)] public float SetMaxPushSpeed=3.5f;
         [Header("PASS (receive to the setter)")]
         [Tooltip("Pull of the player's pass toward the ideal pass to the setter (0 = raw physics, 1 = always ideal).")]
         [Range(0f,1f)] public float PassAssist=.5f;
+        [Tooltip("The forearm rebound is scaled by this before the assist (the volleyball came off the platform too lively).")]
+        [Range(.3f,1f)] public float PassReboundScale=.8f;
+        [Tooltip("Their attack toward the player when a rally carries on after a chance ball or a dig (m/s).")]
+        [Min(4f)] public float TheirAttackSpeed=11f;
         [Tooltip("Random offset of each of our front-row players from their spot every rep (m).")]
         [Min(0f)] public float FrontRowJitter=.6f;
         [Tooltip("Ideal pass apex above the floor.")]
@@ -63,10 +72,11 @@ namespace GloveBallDemo.Runtime
         MatchActor _setHitter;
         Vector3 _setContact;
         readonly Vector3[] _hitterSpot=new Vector3[2];
-        readonly LineRenderer[] _rings=new LineRenderer[3];
-        readonly Material[] _ringMaterials=new Material[3];
+        readonly Renderer[] _targets=new Renderer[3];
+        MaterialPropertyBlock _targetBlock;
         int _setBlockers;
-        static readonly Color[] RingColours={new Color(.2f,.9f,1f),new Color(1f,.85f,.2f),Color.white};
+        bool _attackNext;
+        static readonly Color[] TargetColours={new Color(.2f,.9f,1f,.32f),new Color(1f,.85f,.2f,.32f),new Color(1f,1f,1f,.6f)};
 
         bool Station=>Mode==RallyMode.Set || Mode==RallyMode.Pass;
         /// <summary>Modes driven by the 6 v 6 engine (cast, scripted segments, physical player touches).</summary>
@@ -80,9 +90,15 @@ namespace GloveBallDemo.Runtime
         public Vector3 HitterSpot(int index)=>_hitterSpot[index];
         /// <summary>Their blockers standing in front of the hitter the last set went to.</summary>
         public int SetBlockers=>_setBlockers;
+        /// <summary>EXCELLENT / GOOD / BAD of the player's last set or pass, shown small in the view (<see cref="GradeSerial"/> counts them).</summary>
+        public string LastGrade { get; private set; }
+        public int GradeSerial { get; private set; }
+        /// <summary>The next rep starts with their attack (the rally carried on), not a serve.</summary>
+        public bool AttackNext=>_attackNext;
 
         static string QualityWord(float q)=>q>=.75f ? "PERFECT" : q>=.4f ? "GOOD" : "LOOSE";
-        static string Grade(float q)=>q>=.75f ? "EXCELLENT" : q>=.4f ? "GOOD" : "BAD";
+        static string GradeWord(float q)=>q>=.75f ? "EXCELLENT" : q>=.4f ? "GOOD" : "BAD";
+        void ShowGrade(string grade){LastGrade=grade;GradeSerial++;}
         Vector3 SetterSpot=>SetHead(TeamPoint(Team.Us,SetterLateral,.8f));
 
         void StartStationRep()
@@ -99,7 +115,8 @@ namespace GloveBallDemo.Runtime
             else RandomizeFrontRow();
             EmbodyRequest(me.Home,Mode==RallyMode.Set ? PlayerTouch.Set : PlayerTouch.Receive,true);
             ShowRings(Mode==RallyMode.Set);ShowCrossing(false,Vector3.zero,0f);
-            Cue=Mode==RallyMode.Set ? "TOSS: NEAR OR FAR HITTER? WATCH THEIR BLOCKERS, AIM FOR A RING" : "PASS HIGH TO ONE OF YOUR FRONT-ROW PLAYERS";
+            Cue=Mode==RallyMode.Set ? "TOSS: NEAR OR FAR HITTER? WATCH THEIR BLOCKERS, AIM FOR A GHOST BALL"
+                : _attackNext ? "THEY ATTACK — DIG IT UP TO A FRONT-ROW PLAYER" : "RECEIVE HIGH TO ONE OF YOUR FRONT-ROW PLAYERS";
             Phase=RallyPhase.MatchPlay;_serveTimer=ServeDelaySeconds;_serveWait=0f;
         }
 
@@ -177,49 +194,40 @@ namespace GloveBallDemo.Runtime
             return best;
         }
 
-        LineRenderer Ring(int index)
+        Renderer Target(int index)
         {
-            if(_rings[index]!=null)return _rings[index];
-            var go=new GameObject(index<2 ? "TOSS target ring "+(index+1) : "TOSS set crossing"){hideFlags=HideFlags.DontSave};
+            if(_targets[index]!=null)return _targets[index];
+            var go=GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            go.name=index<2 ? "TOSS target "+(index+1) : "TOSS set crossing";go.hideFlags=HideFlags.DontSave;
+            if(Application.isPlaying)Destroy(go.GetComponent<Collider>());else DestroyImmediate(go.GetComponent<Collider>());
             go.transform.SetParent(transform,false);
-            var ring=go.AddComponent<LineRenderer>();
-            _ringMaterials[index]=new Material(Shader.Find("Universal Render Pipeline/Unlit")){hideFlags=HideFlags.DontSave};
-            _ringMaterials[index].SetColor("_BaseColor",RingColours[index]);
-            ring.sharedMaterial=_ringMaterials[index];ring.loop=true;ring.useWorldSpace=true;
-            ring.startWidth=ring.endWidth=index<2 ? .04f : .03f;ring.positionCount=32;
-            return _rings[index]=ring;
+            var renderer=go.GetComponent<Renderer>();
+            if(TargetMaterial!=null)renderer.sharedMaterial=TargetMaterial;
+            renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;renderer.receiveShadows=false;
+            return _targets[index]=renderer;
         }
-        /// <summary>A vertical circle around <paramref name="centre"/>, turned toward the player so it reads as a target.</summary>
-        void DrawCircle(LineRenderer ring,Vector3 centre,float radius)
+        void PlaceTarget(int index,Vector3 at,float radius,Color colour)
         {
-            var toward=Flat(GroundedEye-centre);
-            if(toward.sqrMagnitude<1e-4f)toward=-Forward;
-            var side=Vector3.Cross(Vector3.up,toward.normalized);
-            for(int k=0;k<32;k++)
-            {
-                float a=k*Mathf.PI*2f/32f;
-                ring.SetPosition(k,centre+(side*Mathf.Cos(a)+Vector3.up*Mathf.Sin(a))*radius);
-            }
+            var target=Target(index);
+            target.gameObject.SetActive(true);
+            target.transform.SetPositionAndRotation(at,Quaternion.identity);
+            target.transform.localScale=Vector3.one*radius*2f;
+            if(_targetBlock==null)_targetBlock=new MaterialPropertyBlock();
+            target.GetPropertyBlock(_targetBlock);_targetBlock.SetColor("_BaseColor",colour);target.SetPropertyBlock(_targetBlock);
         }
+        void HideTarget(int index){if(_targets[index]!=null)_targets[index].gameObject.SetActive(false);}
+        /// <summary>Ghost balls where a perfect set meets the near (cyan) and far (yellow) hitter.</summary>
         void ShowRings(bool show)
         {
             for(int i=0;i<2;i++)
-            {
-                if(_rings[i]==null && !show)continue;
-                var ring=Ring(i);
-                ring.gameObject.SetActive(show);
-                if(show)DrawCircle(ring,_hitterSpot[i],TargetRingRadius);
-            }
+                if(show)PlaceTarget(i,_hitterSpot[i],TargetRadius,TargetColours[i]);else HideTarget(i);
         }
         /// <summary>Where the player's set came down to hitting height, coloured by its grade (stays until the next rep).</summary>
         void ShowCrossing(bool show,Vector3 at,float q)
         {
-            if(_rings[2]==null && !show)return;
-            var ring=Ring(2);
-            ring.gameObject.SetActive(show);
-            if(!show)return;
-            _ringMaterials[2].SetColor("_BaseColor",q>=PerfectSetQuality ? new Color(.3f,1f,.4f) : q>=GoodSetQuality ? new Color(1f,.85f,.2f) : new Color(1f,.35f,.25f));
-            DrawCircle(ring,at,.13f);
+            if(!show){HideTarget(2);return;}
+            var colour=q>=PerfectSetQuality ? new Color(.3f,1f,.4f,.7f) : q>=GoodSetQuality ? new Color(1f,.85f,.2f,.7f) : new Color(1f,.35f,.25f,.7f);
+            PlaceTarget(2,at,.12f,colour);
         }
 
         /// <summary>TOSS: our receiver's pass flies (physically) to just above the player's head.</summary>
@@ -246,6 +254,7 @@ namespace GloveBallDemo.Runtime
         /// </summary>
         public Vector3 StationSetVelocity(Vector3 ball,Vector3 handVelocity)
         {
+            handVelocity=Vector3.ClampMagnitude(handVelocity,SetMaxPushSpeed);
             var raw=Flat(handVelocity)*SetAimGain+Vector3.up*(SetLiftBase+SetLiftGain*Mathf.Max(0f,handVelocity.y));
             float g=Mathf.Abs(Physics.gravity.y);
             float apex=ball.y+raw.y*raw.y/(2f*g);
@@ -261,13 +270,14 @@ namespace GloveBallDemo.Runtime
         /// <summary>PASS: the platform's physical rebound pulled toward a pass that peaks over the front-row player it heads for.</summary>
         public Vector3 StationPassVelocity(Vector3 ball,Vector3 physical)
         {
+            physical*=PassReboundScale;
             // Where the raw rebound comes down to setting height picks the player; the assist only helps toward them.
-            float g=Mathf.Abs(Physics.gravity.y),setY=FloorY+SetHeight;
+            float g=Mathf.Abs(Physics.gravity.y),setY=SetterHandsHeight;
             float apex=ball.y+Mathf.Max(0f,physical.y)*Mathf.Max(0f,physical.y)/(2f*g);
             float time=Mathf.Max(0f,physical.y)/g+(apex>setY ? Mathf.Sqrt(2f*(apex-setY)/g) : 0f);
             var player=NearestFrontRow(ball+Flat(physical)*Mathf.Max(.3f,time));
             if(player==null)return physical;
-            var target=player.Home;target.y=setY;
+            var target=SetWindowAt(player);
             return Vector3.Lerp(physical,ArcVelocity(ball,target,FloorY+PassApexHeight),PassAssist);
         }
 
@@ -308,15 +318,15 @@ namespace GloveBallDemo.Runtime
                 if(p.y<FloorY)break;
                 v+=Physics.gravity*dt;v*=Mathf.Clamp01(1f-damping*dt);p+=v*dt;t+=dt;
             }
-            if(!found){_stationQuality=0f;Cue="BAD SET — TOO LOW: PUSH UP HARDER";return;}
-            if(SideOf(p)!=Team.Us){_stationQuality=0f;Cue="BAD SET — OVER THE NET: PUSH ALONG THE NET";return;}
+            if(!found){_stationQuality=0f;ShowGrade("BAD");Cue="BAD SET — TOO LOW: PUSH UP HARDER";return;}
+            if(SideOf(p)!=Team.Us){_stationQuality=0f;ShowGrade("BAD");Cue="BAD SET — OVER THE NET: PUSH ALONG THE NET";return;}
             var hitter=NearestHitter(p);
             float distance=hitter!=null ? Flat(p-HitterContact(hitter)).magnitude : float.MaxValue;
             float q=distance>HitterReach ? 0f : 1f-distance/HitterReach;
             if(-Vector3.Dot(p-NetCentre,Forward)<.35f)q=Mathf.Min(q,.2f);
             _stationQuality=q;
-            ShowCrossing(true,p,q);
-            Cue=Grade(q)+" SET"+(hitter!=null && q<PerfectSetQuality ? " — "+SetAdvice(position,p,HitterContact(hitter)) : "!");
+            ShowCrossing(true,p,q);ShowGrade(GradeWord(q));
+            Cue=GradeWord(q)+" SET"+(hitter!=null && q<PerfectSetQuality ? " — "+SetAdvice(position,p,HitterContact(hitter)) : "!");
             if(distance>HitterReach)return;
             _setBlockers=BlockersFacing(Lateral(HitterContact(hitter)));
             ArmBlock(Team.Them,Lateral(p),t);
@@ -342,16 +352,17 @@ namespace GloveBallDemo.Runtime
         /// <summary>PASS: a front-row player has the player's pass; judge it by how close it came down above them.</summary>
         void JudgeStationPass(Vector3 position,MatchActor player)
         {
-            var target=player!=null ? player.Home : position;
+            var target=player!=null ? SetWindowAt(player) : position;
             float q=1f-Mathf.Clamp01((Flat(position-target).magnitude-PassPerfectRadius)/PassFalloff);
-            _stationQuality=q;
+            _stationQuality=q;ShowGrade(GradeWord(q));
             Cue=QualityWord(q)+" PASS";
         }
 
         /// <summary>
         /// Our attack ends the rep. TOSS: the set's quality decides the attack (hard spike, spike, or an off-balance roll
-        /// shot) and the rep counts from a good set. PASS: a pass our setter could set always counts; its quality only
-        /// raises the kill chance. Either way the play stops at the kill or at their dig.
+        /// shot) and how likely it kills; their blockers in front of the hitter cut that and may stuff it. RECEIVE: the
+        /// pass's quality raises the kill chance. A kill is our point, a stuff block theirs; a dig carries the rally on
+        /// (no point): they attack back and the next rep starts from that.
         /// </summary>
         void StationAttack(Vector3 hit)
         {
@@ -368,11 +379,9 @@ namespace GloveBallDemo.Runtime
                 if(_setBlockers>0)shot+=_setBlockers>1 ? " INTO A DOUBLE BLOCK" : " PAST ONE BLOCKER";
             }
             else{speed=NpcAttackSpeed;kill=Mathf.Lerp(StationKillMin,StationKillMax,q);shot="SPIKE";}
-            string touch=toss ? Grade(q)+" SET" : QualityWord(q)+" PASS";
+            string touch=toss ? GradeWord(q)+" SET" : QualityWord(q)+" PASS";
             var them=Team.Them;
             bool killed=Random.value<kill;
-            // TOSS counts on a kill (the set and the read of their block); PASS counts once a teammate could set it.
-            bool counts=toss ? killed : true;
             if(toss && !killed && _setBlockers>0 && Random.value<.35f*_setBlockers)
             {
                 // Stuffed: straight back down on our side.
@@ -395,7 +404,7 @@ namespace GloveBallDemo.Runtime
                 }
                 best.y=FloorY;
                 float seconds=Mathf.Max(Flat(best-hit).magnitude/speed,ClearNetSeconds(hit,best,.2f));
-                StartSegment(hit,best,seconds,()=>Award(counts,"KILL! — "+touch,best));
+                StartSegment(hit,best,seconds,()=>Award(true,"KILL! — "+touch,best));
                 Cue=shot;
                 return;
             }
@@ -407,14 +416,59 @@ namespace GloveBallDemo.Runtime
                 float distance=Flat(aim-actor.A.transform.position).magnitude;
                 if(distance<nearest){nearest=distance;digger=actor;}
             }
-            if(digger==null){StartSegment(hit,aim,.6f,()=>Award(counts,touch,aim));return;}
+            if(digger==null){StartSegment(hit,aim,.6f,()=>Award(true,"KILL! — "+touch,aim));return;}
             var dig=digger.A.transform.position-TeamForward(them)*.3f;dig.y=FloorY+DigHeight;
             float flight=Mathf.Max(Flat(dig-hit).magnitude/speed,ClearNetSeconds(hit,dig,.2f));
             StartSegment(hit,dig,flight,()=>{
                 digger.Anim=Anim.Dig;digger.Clock=0f;PlaySpikeAudio(dig);
-                Award(counts,"DUG — "+touch,dig);
+                // The dig visibly pops up on their side; the rally carries on from their attack.
+                var up=dig+Vector3.up*2.2f-TeamForward(them)*1.2f;
+                StartSegment(dig,up,.6f,()=>StationContinue("DUG — THEY ATTACK BACK"));
             });
             Cue=shot;
+        }
+
+        /// <summary>No point either way: the rally carries on, and the next rep starts with their attack.</summary>
+        void StationContinue(string text)
+        {
+            ClearIntercept();DisarmTheirBlock();EnableReceiveVolume(false);
+            AwaitedTouch=PlayerTouch.None;_segTime=-1f;_launchPending=false;
+            _attackNext=true;
+            SetOutcome(text,true);
+        }
+        /// <summary>
+        /// The rally carries on: their outside hitter spikes. RECEIVE: at the player, who digs it like a serve. TOSS: at our
+        /// back row, whose dig goes up to the player to set.
+        /// </summary>
+        void BeginTheirAttack()
+        {
+            var attacker=ActorAt(Team.Them,2);var setter=ActorAt(Team.Them,0);
+            if(attacker==null || setter==null){_attackNext=false;BeginServe();return;}
+            attacker.Facing=TeamFacing(Team.Them);
+            attacker.A.Role=VolleyOpponentPrototype.MotionRole.Spike;attacker.Anim=Anim.Spike;attacker.Clock=-1f;attacker.Phase=0f;
+            var hit=attacker.A.ReleasePositionAt(attacker.A.transform.position,attacker.Facing);
+            var from=setter.A.transform.position+Vector3.up*2.2f;
+            EnsureScriptedBall(from);
+            Cue="THEIR ATTACK";
+            StartSegment(from,hit,WindupSeconds,()=>{
+                attacker.Clock=0f;_lastTouchTeam=Team.Them;_touches[1]=3;_touches[0]=0;PlaySpikeAudio(hit);
+                if(Mode==RallyMode.Pass){LaunchToForearms(hit,0f,TheirAttackSpeed);Cue="DIG IT UP!";return;}
+                var receiver=ChooseReceiver(Team.Us);
+                var point=receiver.A.transform.position;point.y=FloorY+DigHeight+.1f;
+                receiver.Target=Flat(point)-TeamForward(Team.Us)*.3f+Vector3.up*FloorY;
+                StartSegment(hit,point,Mathf.Max(Flat(point-hit).magnitude/TheirAttackSpeed,ClearNetSeconds(hit,point,.2f)),()=>NpcTouch(Team.Us,receiver,point));
+            },p=>attacker.Phase=p*.52f);
+        }
+        /// <summary>A physical ball to the player's forearms (serve or attack), a little different each time.</summary>
+        void LaunchToForearms(Vector3 from,float minimumSeconds,float speed)
+        {
+            RequestLaunch(()=>{
+                // Spread so every ball is a little different, never far enough to make the player step.
+                var to=GroundedEye+Forward*(.45f+Random.Range(-ReceiveSpread.y,ReceiveSpread.y))+Right*Random.Range(-ReceiveSpread.x,ReceiveSpread.x);
+                to.y=FloorY+ReceiveHeight+Random.Range(-ReceiveSpread.z,ReceiveSpread.z);
+                float seconds=speed>0f ? Flat(to-from).magnitude/speed : 0f;
+                return (from,to,Mathf.Max(Mathf.Max(minimumSeconds,seconds),ClearNetSeconds(from,to,.3f)));
+            },RallyPhase.PlayerReceive,PlayerTouch.Receive);
         }
     }
 }

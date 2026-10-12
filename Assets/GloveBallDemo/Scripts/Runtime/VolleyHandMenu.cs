@@ -55,7 +55,7 @@ namespace GloveBallDemo.Runtime
         public const int AutoJumpRow=6, FirstModeRow=7, RowCount=12;
         public static readonly VolleyAerialSequence.RallyMode[] MenuModes={VolleyAerialSequence.RallyMode.Pass,VolleyAerialSequence.RallyMode.Set,
             VolleyAerialSequence.RallyMode.SpikeOnly,VolleyAerialSequence.RallyMode.BlockOnly,VolleyAerialSequence.RallyMode.Alternate};
-        static readonly string[] MenuModeNames={"PASS\nreceive the serve to your setter","TOSS\nset the ball to a hitter","SPIKE","BLOCK","SPIKE + BLOCK\ntake turns"};
+        static readonly string[] MenuModeNames={"RECEIVE\npass high to a front-row player","TOSS\nset the ball to a hitter","SPIKE","BLOCK","SPIKE + BLOCK\ntake turns"};
         static readonly Color RowColour=new Color(.1f,.18f,.24f), CurrentColour=new Color(.12f,.38f,.2f), HoverColour=new Color(.12f,.48f,.6f);
         static bool SharedPause=>DemoPause.IsEnabled;
 

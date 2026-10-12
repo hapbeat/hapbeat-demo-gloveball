@@ -3284,7 +3284,7 @@ Transform:
   m_GameObject: {fileID: 211642766}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0.3}
+  m_LocalPosition: {x: 0, y: 0, z: -0.6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -7453,7 +7453,7 @@ Transform:
   m_GameObject: {fileID: 631991368}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0.3}
+  m_LocalPosition: {x: 0, y: 0, z: -0.6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -15186,7 +15186,7 @@ MonoBehaviour:
   SpikeJumpHeight: 1.5
   SpikeJumpSeconds: 1.4
   Ally: {fileID: 623465753}
-  SpikeStandBackDistance: 1.2
+  SpikeStandBackDistance: 0.9
   AllyNetOffset: {x: 1.4, y: -0.35}
   AllyDropHeight: 3.4
   AllyDropBehind: 0.8
@@ -15208,6 +15208,7 @@ MonoBehaviour:
   BlockerJumpMin: 0.8
   BlockerJumpMax: 1.1
   BlockerNetDistance: 0.35
+  BlockStandDistance: 0.6
   BlockerStandbyDistance: 3.2
   BlockerJumpSeconds: 1.3
   BlockerReactionSeconds: 0.05
@@ -15303,8 +15304,12 @@ MonoBehaviour:
   BlockerKillFactor: 0.55
   GoodSetQuality: 0.4
   PerfectSetQuality: 0.75
-  TargetRingRadius: 0.35
+  TargetRadius: 0.3
+  TargetMaterial: {fileID: 2100000, guid: 7bcc523b06b39ee448623b360e00bc72, type: 2}
+  SetMaxPushSpeed: 3.5
   PassAssist: 0.5
+  PassReboundScale: 0.8
+  TheirAttackSpeed: 11
   FrontRowJitter: 0.6
   PassApexHeight: 4
   PassMinClearance: 0.4
@@ -19364,7 +19369,7 @@ Transform:
   m_GameObject: {fileID: 1540327376}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0.3}
+  m_LocalPosition: {x: 0, y: 0, z: -0.6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -23706,7 +23711,7 @@ MonoBehaviour:
   _prefab: {fileID: 1822205085755586216, guid: 70a065263db6ba74391a6833070ad89a, type: 3}
   _size: 32
   _verboseLog: 1
-  _launchBallKinds: 00000000010000000200000004000000
+  _launchBallKinds: 01000000
 --- !u!4 &1897988254
 Transform:
   m_ObjectHideFlags: 0

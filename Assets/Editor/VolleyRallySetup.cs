@@ -98,6 +98,13 @@ public static class VolleyRallySetup
         aerial.BlockerJumpSeconds=1.3f;aerial.BlockerReactionSeconds=.05f;aerial.BlockerTimingJitter=.05f;
         aerial.ReceiveHeight=1.3f; // forearm height: the serve came in too low to pass upward
         aerial.SetLiftBase=1f;aerial.SetLiftGain=2.6f;aerial.SetAimGain=2.2f; // the held push, not a bounce, lifts the set
+        // Block spot: eyes 0.6 m from the net (0.3 m put raised arms through it); the spike stance stays 1.5 m from the net.
+        aerial.BlockStandDistance=.6f;aerial.SpikeStandBackDistance=.9f;
+        PlaceBlockSpot(aerial,net,forward);
+        aerial.TargetMaterial=TargetMaterial();
+        // The rally is tuned on the volleyball first; the other balls come back once its feel is right.
+        var pool=new SerializedObject(drill.Pool);var kinds=pool.FindProperty("_launchBallKinds");
+        kinds.arraySize=1;kinds.GetArrayElementAtIndex(0).enumValueIndex=(int)BallKind.Volleyball;pool.ApplyModifiedPropertiesWithoutUndo();
         aerial.BlockerNetDistance=.35f;
         // Fast overhead swings exceed 8 m/s in tracking space; the old limit flagged them as tracking jumps.
         drill.Left.MaximumTrackedSpeed=drill.Right.MaximumTrackedSpeed=30f;
@@ -119,6 +126,36 @@ public static class VolleyRallySetup
         if(!EditorSceneManager.SaveScene(scene))throw new InvalidOperationException("Failed to save VolleyBlock-codex.");
     }
 
+    static void PlaceBlockSpot(VolleyAerialSequence aerial,Vector3 net,Vector3 forward)
+    {
+        var floor=aerial.Jump.Floor;
+        var spot=floor.RepositionTarget;
+        var position=net-forward*aerial.BlockStandDistance;position.y=spot.position.y;
+        spot.position=new Vector3(spot.position.x,position.y,position.z);
+        // The XR Origin starts there too (the start alignment then has nothing to correct in the editor).
+        var origin=floor.Origin.transform;
+        origin.position=new Vector3(origin.position.x,origin.position.y,position.z);
+        EditorUtility.SetDirty(spot);EditorUtility.SetDirty(origin);
+    }
+    const string TargetMaterialPath="Assets/GloveBallDemo/Art/VolleyTargetGhost.mat";
+    /// <summary>Transparent unlit material for the TOSS ghost targets (an asset, so the transparent variant ships).</summary>
+    static Material TargetMaterial()
+    {
+        var material=AssetDatabase.LoadAssetAtPath<Material>(TargetMaterialPath);
+        if(material==null)
+        {
+            var shader=Shader.Find("Universal Render Pipeline/Unlit");
+            if(shader==null)throw new InvalidOperationException("URP Unlit shader is missing.");
+            material=new Material(shader);AssetDatabase.CreateAsset(material,TargetMaterialPath);
+        }
+        material.SetFloat("_Surface",1f);material.SetFloat("_Blend",0f);
+        material.SetFloat("_SrcBlend",(float)UnityEngine.Rendering.BlendMode.SrcAlpha);material.SetFloat("_DstBlend",(float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        material.SetFloat("_ZWrite",0f);material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        material.renderQueue=(int)UnityEngine.Rendering.RenderQueue.Transparent;
+        material.SetColor("_BaseColor",new Color(1f,1f,1f,.35f));
+        EditorUtility.SetDirty(material);
+        return material;
+    }
     /// <summary>The shared start alignment aligns the head to an anchor that follows the stance (see VolleyFloorTracking.StanceAnchor).</summary>
     static void ApplyStanceAnchor(VolleyFloorTracking floor)
     {

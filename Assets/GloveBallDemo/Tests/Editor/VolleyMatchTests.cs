@@ -125,7 +125,7 @@ namespace GloveBallDemo.Tests
             {
                 Assert.That(_rally.RoleTouch,Is.EqualTo(Touch.Block));
                 Assert.That(Mathf.Abs(_destination.x-head.x),Is.LessThanOrEqualTo(_rally.BlockLateralLimit+.01f),"Always reachable for the block.");
-                Assert.That(NetZ-head.z,Is.EqualTo(.3f).Within(.05f),"Block stance at the net.");
+                Assert.That(NetZ-head.z,Is.EqualTo(_rally.BlockStandDistance).Within(.05f),"Block stance at the net.");
             }
             else
             {
@@ -159,7 +159,7 @@ namespace GloveBallDemo.Tests
 
             Launch(Phase.OpponentSpike,15f);
             Assert.That(_rally.RoleTouch,Is.EqualTo(Touch.Block),"The player became our blocker for their attack.");
-            Assert.That(NetZ-_rally.GroundedEye.z,Is.EqualTo(.3f).Within(.05f));
+            Assert.That(NetZ-_rally.GroundedEye.z,Is.EqualTo(_rally.BlockStandDistance).Within(.05f));
             Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero);
 
             // Miss the block: the attack continues into our court, our back row digs, our setter sets, the player spikes again.

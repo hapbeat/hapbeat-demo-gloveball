@@ -74,6 +74,8 @@ namespace GloveBallDemo.Runtime
         [Min(.1f)] public float BlockerJumpMin=.8f;
         [Min(.1f)] public float BlockerJumpMax=1.1f;
         public float BlockerNetDistance=.35f;
+        [Tooltip("The player's eyes from the net at the block spot (the Block Reposition Point); arms reach about this far forward.")]
+        [Min(.2f)] public float BlockStandDistance=.6f;
         public float BlockerStandbyDistance=3.2f;
         [Tooltip("Blocker airtime; the arms stay up over the net for most of it.")]
         [Min(.4f)] public float BlockerJumpSeconds=1.3f;
@@ -469,7 +471,9 @@ namespace GloveBallDemo.Runtime
         /// <summary>Runs only while the view is blanked: moves the player stance and repositions both teams without visible sliding.</summary>
         void ApplyTurnLayout(RallyTurn turn)
         {
-            if(Jump!=null && Jump.Floor!=null)Jump.Floor.SetStanceOffset(turn==RallyTurn.Spike ? SpikeStance : Vector3.zero);
+            // Absolute at every turn change (the view is blanked): the head goes to the block spot or the spike stance,
+            // whatever an alignment or the player's own steps did since.
+            if(Jump!=null && Jump.Floor!=null)Jump.Floor.PlaceStance(turn==RallyTurn.Spike ? SpikeStance : Vector3.zero);
             if(Jump!=null)
             {
                 Jump.JumpHeight=turn==RallyTurn.Spike ? SpikeJumpHeight : BlockJumpHeight;

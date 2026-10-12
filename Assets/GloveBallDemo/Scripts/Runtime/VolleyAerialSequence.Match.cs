@@ -99,6 +99,17 @@ namespace GloveBallDemo.Runtime
         int _playerSlot=-1;
         float _embodyClock, _glideSeconds, _serveTimer=-1f, _serveWait, _segTime=-1f, _segDuration, _icHeight, _icReach, _icReaction, _icSpeed;
         float _flightTop=float.MinValue;
+        Vector3 _icRootOffset;
+        /// <summary>Height of a setter's hands (the set pose's forehead window) above the floor.</summary>
+        float SetterHandsHeight=>FloorY+SetWindow.y*(Ally!=null ? Ally.transform.lossyScale.y : 1f);
+        /// <summary>The set pose's ball window in actor space (<see cref="VolleyOpponentPrototype.LocalRelease"/> for the Set role).</summary>
+        static readonly Vector3 SetWindow=new Vector3(0f,1.82f,.30f);
+        /// <summary>Where a front-row player's hands meet a pass when they set from their spot, facing the net.</summary>
+        Vector3 SetWindowAt(MatchActor actor)
+        {
+            var root=actor.Home;root.y=FloorY;
+            return root+TeamFacing(actor.Team)*Vector3.Scale(actor.A.transform.lossyScale,SetWindow);
+        }
         Vector3 _glideFrom, _glideDelta, _segFrom, _segTo, _icPoint, _approachBase;
         System.Action _segArrive, _afterEmbody, _onLaunched;
         System.Action<float> _segProgress;
@@ -320,7 +331,7 @@ namespace GloveBallDemo.Runtime
             ReturnScriptedBall();
             _launchPending=false;_serveTimer=-1f;_segArrive=null;_segProgress=null;_afterEmbody=null;
             ClearIntercept();DisarmTheirBlock();EnableReceiveVolume(false);
-            _embodying=false;FadeAlpha=0f;VignetteAlpha=0f;SetSlowMotion(false);ShowPending();ShowRings(false);
+            _embodying=false;FadeAlpha=0f;VignetteAlpha=0f;SetSlowMotion(false);ShowPending();ShowRings(false);_attackNext=false;
             AwaitedTouch=PlayerTouch.None;
         }
         void RandomizeFormation()
@@ -462,7 +473,7 @@ namespace GloveBallDemo.Runtime
         /// <summary>Approach start for our hitter; a back-row hitter takes off behind the 3 m line.</summary>
         Vector3 AttackHead(MatchActor attacker)=>TeamPoint(Team.Us,Mathf.Clamp(SlotBase[attacker.Slot].x,-3.2f,3.2f),
             attacker.Slot>2 ? BackRowAttackDepth : SpikeStandBackDistance+.3f);
-        Vector3 BlockHead(float worldLateral)=>NetCentre+Right*Mathf.Clamp(worldLateral,-3.5f,3.5f)-Forward*.3f;
+        Vector3 BlockHead(float worldLateral)=>NetCentre+Right*Mathf.Clamp(worldLateral,-3.5f,3.5f)-Forward*BlockStandDistance;
         Vector3 SetHead(Vector3 spot)=>spot-Forward*.25f;
 
         // ---------- scripted segments and launches ----------
@@ -520,6 +531,7 @@ namespace GloveBallDemo.Runtime
         // ---------- serve ----------
         void BeginServe()
         {
+            if(Station && _attackNext){_attackNext=false;BeginTheirAttack();return;}
             var server=Server(_serving);
             if(_playerServes)
             {
@@ -543,12 +555,7 @@ namespace GloveBallDemo.Runtime
             var receiving=Other(server.Team);
             if(receiving==Team.Us && _roleTouch==PlayerTouch.Receive && _embodied!=null)
             {
-                RequestLaunch(()=>{
-                    // Spread so every serve is a little different, never far enough to make the player step.
-                    var to=GroundedEye+Forward*(.45f+Random.Range(-ReceiveSpread.y,ReceiveSpread.y))+Right*Random.Range(-ReceiveSpread.x,ReceiveSpread.x);
-                    to.y=FloorY+ReceiveHeight+Random.Range(-ReceiveSpread.z,ReceiveSpread.z);
-                    return (release,to,Mathf.Max(ServeSeconds,ClearNetSeconds(release,to,.3f)));
-                },RallyPhase.PlayerReceive,PlayerTouch.Receive);
+                LaunchToForearms(release,ServeSeconds,0f);
                 Cue="RECEIVE — FOREARMS TOGETHER";
                 return;
             }
@@ -838,7 +845,7 @@ namespace GloveBallDemo.Runtime
             _flightTop=Mathf.Max(_flightTop,position.y);float top=_flightTop;
             for(int i=0;i<200;i++)
             {
-                side=SideOf(p);height=_touches[(int)side]==1 ? SetHeight : DigHeight;
+                side=SideOf(p);height=_touches[(int)side]==1 ? (Station ? SetterHandsHeight : SetHeight) : DigHeight;
                 if(v.y<0f && p.y-FloorY<=height){found=true;break;}
                 v+=Physics.gravity*dt;v*=Mathf.Clamp01(1f-damping*dt);p+=v*dt;t+=dt;
                 top=Mathf.Max(top,p.y);
@@ -870,6 +877,15 @@ namespace GloveBallDemo.Runtime
             if(best!=_icActor)_icSuccess=Random.value<success; // one roll per defender and ball
             _icActor=best;_icTeam=side;_icPoint=new Vector3(p.x,FloorY,p.z);
             _icHeight=height;_icReach=reach;_icReaction=react;_icSpeed=speed;
+            _icRootOffset=Vector3.zero;
+            if(Station && setting)
+            {
+                // RECEIVE: the setter stands where its hands (forehead window) meet the ball and its set pose grows as it arrives.
+                best.Facing=TeamFacing(side);
+                best.A.Role=VolleyOpponentPrototype.MotionRole.Set;best.Anim=Anim.Set;best.Clock=-1f;
+                best.Phase=VolleyOpponentPrototype.SetContactPhase*Mathf.Clamp01(1f-t/.8f);
+                _icRootOffset=-Flat(best.A.ReleasePositionAt(Vector3.zero,best.Facing));
+            }
             // Our setter is committed: make the player the hitter now, so the switch is done before the set leaves.
             if(side==Team.Us && setting && _plannedAttacker==null)
             {
@@ -896,9 +912,18 @@ namespace GloveBallDemo.Runtime
             if(ball==null)return false;
             AdoptBall(ball);PlaceScriptedBall(position);
             var actor=_icActor;var team=_icTeam;
-            if(Mode==RallyMode.Pass && team==Team.Us && _touches[0]==1)JudgeStationPass(position,actor);
+            bool stationSet=Mode==RallyMode.Pass && team==Team.Us && _touches[0]==1;
+            if(stationSet)JudgeStationPass(position,actor);
             ClearIntercept();DisarmTheirBlock();EnableReceiveVolume(false);
             AwaitedTouch=PlayerTouch.None;Phase=RallyPhase.MatchPlay;
+            if(stationSet)
+            {
+                // The ball settles into the setter's hands before the set leaves them.
+                var hands=actor.A.ReleasePositionAt(actor.A.transform.position,actor.A.transform.rotation);
+                actor.Phase=VolleyOpponentPrototype.SetContactPhase;
+                StartSegment(position,hands,.1f,()=>NpcTouch(team,actor,hands));
+                return true;
+            }
             NpcTouch(team,actor,position);
             return true;
         }
@@ -918,10 +943,18 @@ namespace GloveBallDemo.Runtime
             else if(Phase==RallyPhase.PlayerReceive && !_playerTouched)text="ACE";
             else if(!inBounds)text="OUT";
             else text=court==Team.Them ? "POINT!" : "DOWN ON YOUR SIDE";
+            if(Mode==RallyMode.Pass && _playerTouched && Phase==RallyPhase.PlayerReceive && inBounds && (court==Team.Them || !_passTooLow))
+            {
+                // Not our point, not theirs: a pass that went over is their chance ball, one that floated up but no
+                // front-row player could set goes over as a free ball. Either way they attack, and the player digs again.
+                ShowGrade("BAD");
+                StationContinue(court==Team.Them ? "OVER THE NET — THEY ATTACK" : "NO SET POSSIBLE — FREE BALL OVER, THEY ATTACK");
+                return;
+            }
             if(Station && _playerTouched && (Phase==RallyPhase.PlayerSet || Phase==RallyPhase.PlayerReceive))
             {
-                // A station touch that no teammate could play is the player's miss wherever it lands.
-                winner=Team.Them;_stationQuality=0f;
+                // A low pass (into the net, under the tape), an out, or a set no hitter could reach: the player's miss.
+                winner=Team.Them;_stationQuality=0f;if(Mode==RallyMode.Pass)ShowGrade("BAD");
                 text=!inBounds ? "OUT" : court==Team.Them ? "OVER THE NET" : Mode==RallyMode.Set ? "SET DROPPED"
                     : _passTooLow ? "TOO LOW FOR YOUR SETTER" : "PASS DROPPED";
             }
@@ -941,7 +974,7 @@ namespace GloveBallDemo.Runtime
                 if(actor==_embodied || actor.A==null || !actor.A.gameObject.activeSelf)continue;
                 var target=actor.Target;float speed=actor.Speed;
                 bool chasing=actor==_icActor && _sinceTouch>=_icReaction;
-                if(chasing){target=_icPoint-TeamForward(actor.Team)*.25f;speed=_icSpeed;}
+                if(chasing){target=_icRootOffset!=Vector3.zero ? _icPoint+_icRootOffset : _icPoint-TeamForward(actor.Team)*.25f;speed=_icSpeed;}
                 if(actor.Delay>0f)actor.Delay-=dt;
                 else
                 {

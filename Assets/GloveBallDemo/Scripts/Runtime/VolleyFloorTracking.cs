@@ -63,6 +63,16 @@ namespace GloveBallDemo.Runtime
             StanceOffset=value;
             PlaceStanceAnchor();
         }
+        /// <summary>Absolute placement: the head goes to RepositionTarget + <paramref name="value"/> (horizontal), no turn.</summary>
+        public void PlaceStance(Vector3 value)
+        {
+            value=Vector3.ProjectOnPlane(value,Vector3.up);
+            if(RepositionTarget==null || Origin==null || Origin.Camera==null){SetStanceOffset(value);return;}
+            var head=Origin.Camera.transform.position;
+            Origin.CameraFloorOffsetObject.transform.position+=Vector3.ProjectOnPlane(RepositionTarget.position+value-head,Vector3.up);
+            StanceOffset=value;
+            PlaceStanceAnchor();
+        }
         void PlaceStanceAnchor()
         {
             if(StanceAnchor==null || RepositionTarget==null)return;

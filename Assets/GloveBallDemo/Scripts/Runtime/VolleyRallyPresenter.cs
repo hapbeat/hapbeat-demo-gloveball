@@ -24,6 +24,9 @@ namespace GloveBallDemo.Runtime
         static readonly Color WinColour=new Color(.35f,1f,.45f);
         static readonly Color LoseColour=new Color(1f,.55f,.3f);
         Image _fade, _vignette, _banner;
+        Text _grade;
+        float _gradeAge=-1f;
+        int _gradeSerial;
         Texture2D _vignetteTexture;
         Text _title, _score, _subtitle;
         AudioSource _audio;
@@ -37,7 +40,8 @@ namespace GloveBallDemo.Runtime
         {
             if(Rally==null)Rally=GetComponent<VolleyAerialSequence>();
             _font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            BuildFade();BuildVignette();BuildBanner();BuildMarker();
+            BuildFade();BuildVignette();BuildGrade();BuildBanner();BuildMarker();
+            _gradeSerial=Rally.GradeSerial;
             _audio=gameObject.AddComponent<AudioSource>();_audio.playOnAwake=false;_audio.spatialBlend=0f;
             _spikeChime=Chime("Spike turn chime",new[]{523.25f,659.25f,783.99f},.14f);
             _blockChime=Chime("Block turn chime",new[]{783.99f,523.25f},.14f);
@@ -89,6 +93,19 @@ namespace GloveBallDemo.Runtime
             _vignette=go.AddComponent<Image>();_vignette.raycastTarget=false;
             _vignette.sprite=Sprite.Create(_vignetteTexture,new Rect(0,0,Size,Size),new Vector2(.5f,.5f));
             _vignette.color=new Color(1f,1f,1f,0f);_vignette.enabled=false;
+        }
+        /// <summary>EXCELLENT / GOOD / BAD of a set or pass: small, head-locked, a little above the centre of view.</summary>
+        void BuildGrade()
+        {
+            var go=new GameObject("Rally grade",typeof(RectTransform),typeof(Canvas));
+            go.transform.SetParent(Rally.Drill.Head,false);
+            go.transform.localPosition=new Vector3(0f,.07f,.7f);go.transform.localRotation=Quaternion.identity;
+            var canvas=go.GetComponent<Canvas>();canvas.renderMode=RenderMode.WorldSpace;canvas.sortingOrder=998;
+            var rect=(RectTransform)go.transform;rect.sizeDelta=new Vector2(600,120);rect.localScale=Vector3.one*.0006f;
+            _grade=new GameObject("Grade",typeof(RectTransform),typeof(Text)).GetComponent<Text>();
+            _grade.transform.SetParent(rect,false);_grade.rectTransform.sizeDelta=rect.sizeDelta;
+            _grade.font=_font;_grade.fontSize=64;_grade.alignment=TextAnchor.MiddleCenter;_grade.raycastTarget=false;
+            _grade.enabled=false;
         }
         void BuildBanner()
         {
@@ -156,6 +173,19 @@ namespace GloveBallDemo.Runtime
                 float alpha=GameInputGate.IsBlocked ? 0f : Rally.VignetteAlpha;
                 _vignette.color=new Color(1f,1f,1f,alpha);
                 _vignette.enabled=alpha>.001f;
+            }
+            if(_grade!=null)
+            {
+                if(Rally.GradeSerial!=_gradeSerial){_gradeSerial=Rally.GradeSerial;_gradeAge=0f;_grade.text=Rally.LastGrade;}
+                if(_gradeAge>=0f)
+                {
+                    _gradeAge+=Time.deltaTime;
+                    var colour=Rally.LastGrade=="EXCELLENT" ? new Color(.35f,1f,.45f) : Rally.LastGrade=="GOOD" ? new Color(1f,.88f,.3f) : new Color(1f,.45f,.35f);
+                    colour.a=Mathf.Clamp01(1.6f-_gradeAge); // shown about a second, then fades
+                    _grade.color=colour;
+                    if(_gradeAge>1.6f)_gradeAge=-1f;
+                }
+                _grade.enabled=_gradeAge>=0f && !GameInputGate.IsBlocked;
             }
             if(Rally.OutcomeSerial!=_outcomeSerial){_outcomeSerial=Rally.OutcomeSerial;_outcomeAge=0f;}
             float dt=Time.deltaTime;
