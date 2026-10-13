@@ -103,15 +103,10 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.Cue,Does.StartWith("EXCELLENT SET").Or.Contains("SPIKE"));
             Assert.That(_rally.transform.Find("TOSS set crossing").gameObject.activeSelf,Is.True,"Where the set came down is marked.");
             Assert.That(_rally.SetBlockers,Is.InRange(1,2),"One or two of their blockers face the hitter.");
-            _launched=false;
-            RunUntil(()=>_rally.Phase==Phase.Recovery || (_launched && _rally.Phase==Phase.PlayerSet),20f,"the attack ends the rep or the rally flows back to the player");
-            if(_rally.Phase==Phase.Recovery)
-            {
-                Assert.That(_rally.Outcome,Does.EndWith("EXCELLENT SET"));
-                if(_rally.Outcome.StartsWith("KILL"))Assert.That(_rally.PlayerScore,Is.EqualTo(1),"A kill is our point.");
-                else Assert.That(_rally.OpponentScore,Is.EqualTo(1),"A stuff block is theirs.");
-            }
-            else Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero,"Dug: they counter, our back row digs it up to the player again, no pause, no point.");
+            RunUntil(()=>_rally.Phase==Phase.Recovery,6f,"the attack ends the rep");
+            Assert.That(_rally.Outcome,Does.EndWith("EXCELLENT SET"));
+            if(_rally.Outcome.StartsWith("KILL"))Assert.That(_rally.PlayerScore,Is.EqualTo(1),"A kill is our point.");
+            else Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero,"Dug: the rep just ends, no point.");
         }
 
         [Test]
@@ -138,6 +133,23 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.OpponentScore,Is.EqualTo(1));Assert.That(_rally.StationQuality,Is.Zero);
             Launch(Phase.PlayerSet);
             Assert.That(Vector3.Distance(_rally.HitterSpot(0),first),Is.GreaterThan(.05f));
+        }
+
+        [Test]
+        public void ALowSetOnTheRightSpotIsOnlyGoodTheHitterHasNoTime()
+        {
+            _rally.SetMode(Mode.Set);_rally.SetAssist=1f;
+            Launch(Phase.PlayerSet);
+            float contactY=_rally.HitterSpot(0).y,netTop=_drill.ReceiveNet.bounds.max.y;
+            Assume.That(contactY,Is.LessThan(netTop+_rally.ExcellentSetRise-.1f),"The hitting point must sit below an excellent set's peak.");
+            float apex=(contactY+netTop+_rally.ExcellentSetRise)*.5f;
+            float vy=Mathf.Sqrt(2f*Mathf.Abs(Physics.gravity.y)*(apex-_destination.y));
+            float push=(vy-_rally.SetLiftBase)/_rally.SetLiftGain;
+            Assert.That(_rally.OverrideTouchVelocity(Vector3.up*push-Right*.8f,_destination,Vector3.zero,out var set),Is.True);
+            _rally.RegisterPlayerTouch();
+            for(int i=0;i<3;i++){Frame();_rally.SampleBall(_destination+set*.02f*i,set,.11f,.02f);}
+            Assert.That(_rally.LastGrade,Is.Not.EqualTo("EXCELLENT"),"On the spot but low: "+_rally.Cue);
+            Assert.That(_rally.Cue,Does.Contain("TOO LOW"));
         }
 
         [Test]

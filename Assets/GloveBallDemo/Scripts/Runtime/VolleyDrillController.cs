@@ -526,14 +526,21 @@ namespace GloveBallDemo.Runtime
             if (Aerial != null && Aerial.OverrideTouchVelocity(release, _ball.Body.position, release, out var modelled)) velocity = modelled;
             if (!_ball.Deflect(velocity)) return;
             _ball.Body.linearDamping = ResponseFor(_ball.Feel)?.ReturnDrag ?? 0f;
-            SetHaptic(ImpactGain(release.magnitude) * SetReleaseHapticScale);
+            // One touch, one sound: the catch was heard; the push is felt only.
+            SetHaptic(ImpactGain(release.magnitude) * SetReleaseHapticScale, false);
             _lastContact = Time.time; Returns++;
             if (Aerial != null) Aerial.RegisterPlayerTouch();
         }
-        void SetHaptic(float strength)
+        void SetHaptic(float strength, bool sound = true)
         {
-            if (_setBoth) ReportHandImpactScaled(_ball, null, true, strength);
-            else ReportHandImpactScaled(_ball, _setHand, false, strength);
+            if (sound)
+            {
+                if (_setBoth) ReportHandImpactScaled(_ball, null, true, strength);
+                else ReportHandImpactScaled(_ball, _setHand, false, strength);
+                return;
+            }
+            if (_setBoth || _setHand == Left) HapticEventRelay.ReportHapticOnly(_ball.ImpactEvent(DemoHapticEvent.LeftArmCollide), Left.transform.position, strength);
+            if (_setBoth || _setHand == Right) HapticEventRelay.ReportHapticOnly(_ball.ImpactEvent(DemoHapticEvent.RightArmCollide), Right.transform.position, strength);
         }
 
         /// <summary>

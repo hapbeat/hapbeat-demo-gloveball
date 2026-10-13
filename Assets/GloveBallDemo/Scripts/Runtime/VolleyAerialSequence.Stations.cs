@@ -34,6 +34,13 @@ namespace GloveBallDemo.Runtime
         public Vector2 HitterDepth=new Vector2(.7f,1.2f);
         [Tooltip("Each of their blockers in front of the hitter keeps this share of the kill chance.")]
         [Range(0f,1f)] public float BlockerKillFactor=.55f;
+        [Tooltip("A set is graded by what the hitter can do with it. EXCELLENT: the hitter barely has to adjust (m), it peaks this far over the tape (time to approach), and it comes down within this band off the net.")]
+        [Min(0f)] public float ExcellentSetAdjust=.6f;
+        [Min(0f)] public float ExcellentSetRise=1f;
+        public Vector2 ExcellentSetOffNet=new Vector2(.4f,1.5f);
+        [Tooltip("GOOD: reachable, peaks at least this far over the tape, and inside this band off the net (the 3 m line).")]
+        [Min(0f)] public float GoodSetRise=.5f;
+        public Vector2 GoodSetOffNet=new Vector2(.3f,3f);
         [Tooltip("Set quality needed for the rep to count, and for a hard spike.")]
         [Range(0f,1f)] public float GoodSetQuality=.4f;
         [Range(0f,1f)] public float PerfectSetQuality=.75f;
@@ -315,22 +322,34 @@ namespace GloveBallDemo.Runtime
         void PlanStationSet(Vector3 position,Vector3 velocity,float damping)
         {
             float contactY=Mathf.Min(_hitterSpot[0].y,_hitterSpot[1].y);
-            var p=position;var v=velocity;float t=0f;const float dt=.02f;bool found=false;
+            var p=position;var v=velocity;float t=0f;const float dt=.02f;bool found=false;float apex=position.y;
             for(int i=0;i<250;i++)
             {
                 if(v.y<0f && p.y<=contactY){found=true;break;}
                 if(p.y<FloorY)break;
                 v+=Physics.gravity*dt;v*=Mathf.Clamp01(1f-damping*dt);p+=v*dt;t+=dt;
+                apex=Mathf.Max(apex,p.y);
             }
             if(!found){_stationQuality=0f;ShowGrade("BAD");Cue="BAD SET — TOO LOW: PUSH UP HARDER";return;}
             if(SideOf(p)!=Team.Us){_stationQuality=0f;ShowGrade("BAD");Cue="BAD SET — OVER THE NET: PUSH ALONG THE NET";return;}
             var hitter=NearestHitter(p);
             float distance=hitter!=null ? Flat(p-HitterContact(hitter)).magnitude : float.MaxValue;
-            float q=distance>HitterReach ? 0f : 1f-distance/HitterReach;
-            if(-Vector3.Dot(p-NetCentre,Forward)<.35f)q=Mathf.Min(q,.2f);
+            // Graded by what the hitter can do with it, not by the spot alone: how far the hitter must adjust, how high it
+            // peaks over the tape (time to approach - better too high than too low), how far off the net it comes down.
+            float rise=apex-NetTop,off=-Vector3.Dot(p-NetCentre,Forward);
+            float q;
+            if(distance>HitterReach)q=0f;
+            else if(distance<=ExcellentSetAdjust && rise>=ExcellentSetRise && off>=ExcellentSetOffNet.x && off<=ExcellentSetOffNet.y)q=1f;
+            else if(rise>=GoodSetRise && off>=GoodSetOffNet.x && off<=GoodSetOffNet.y)q=.6f;
+            else q=.2f;
             _stationQuality=q;
             ShowCrossing(true,p,q);ShowGrade(GradeWord(q));
-            Cue=GradeWord(q)+" SET"+(hitter!=null && q<PerfectSetQuality ? " — "+SetAdvice(position,p,HitterContact(hitter)) : "!");
+            string advice=rise<ExcellentSetRise ? "TOO LOW: PUSH HIGHER, GIVE THE HITTER TIME"
+                : off<ExcellentSetOffNet.x ? "TOO TIGHT: KEEP IT OFF THE NET"
+                : off>GoodSetOffNet.y ? "BEHIND THE 3 M LINE: PUSH TOWARD THE NET"
+                : off>ExcellentSetOffNet.y ? "TOO FAR OFF THE NET: PUSH TOWARD THE NET"
+                : hitter!=null ? SetAdvice(position,p,HitterContact(hitter)) : "";
+            Cue=GradeWord(q)+" SET"+(q<PerfectSetQuality && advice.Length>0 ? " — "+advice : "!");
             if(distance>HitterReach)return;
             _setBlockers=BlockersFacing(Lateral(HitterContact(hitter)));
             ArmBlock(Team.Them,Lateral(p),t);
@@ -387,10 +406,14 @@ namespace GloveBallDemo.Runtime
             string shot;
             if(toss)
             {
-                if(q>=PerfectSetQuality){speed=NpcAttackSpeed+3f;kill=.9f;shot="HARD SPIKE";}
-                else if(q>=GoodSetQuality){speed=NpcAttackSpeed;kill=.55f;shot="SPIKE";}
-                else{speed=7f;kill=.15f;shot="OFF BALANCE — ROLL SHOT";}
-                kill*=Mathf.Pow(BlockerKillFactor,_setBlockers);
+                // An EXCELLENT set is put away almost always; their block only matters on the others.
+                if(q>=PerfectSetQuality){speed=NpcAttackSpeed+7f;kill=_setBlockers>1 ? .88f : .97f;shot="HARD SPIKE";}
+                else
+                {
+                    if(q>=GoodSetQuality){speed=NpcAttackSpeed+2f;kill=.55f;shot="SPIKE";}
+                    else{speed=7f;kill=.15f;shot="OFF BALANCE — ROLL SHOT";}
+                    kill*=Mathf.Pow(BlockerKillFactor,_setBlockers);
+                }
                 if(_setBlockers>0)shot+=_setBlockers>1 ? " INTO A DOUBLE BLOCK" : " PAST ONE BLOCKER";
             }
             else if(q>=PerfectSetQuality){speed=NpcAttackSpeed+7f;kill=StationKillMax;shot="HARD SPIKE";}
@@ -399,7 +422,7 @@ namespace GloveBallDemo.Runtime
             string touch=GradeWord(q)+(toss ? " SET" : " PASS");
             var them=Team.Them;
             bool killed=Random.value<kill;
-            if(toss && !killed && _setBlockers>0 && Random.value<.35f*_setBlockers)
+            if(toss && !killed && q<PerfectSetQuality && _setBlockers>0 && Random.value<.35f*_setBlockers)
             {
                 // Stuffed: straight back down on our side.
                 var tape=NetCentre+Right*Lateral(hit)+Vector3.up*(NetTop+.25f);
@@ -436,7 +459,8 @@ namespace GloveBallDemo.Runtime
             if(digger==null){StartSegment(hit,aim,.6f,()=>Award(true,"KILL! — "+touch,aim));return;}
             var dig=digger.A.transform.position-TeamForward(them)*.3f;dig.y=FloorY+DigHeight;
             float flight=Mathf.Max(Flat(dig-hit).magnitude/speed,ClearNetSeconds(hit,dig,.2f));
-            // Dug: no point, the rally flows on - they pass, set and attack (at the player in RECEIVE, at our back row in TOSS).
+            // Dug: no point. RECEIVE flows on (they pass, set and attack the player); TOSS just ends the rep there.
+            if(toss){StartSegment(hit,dig,flight,()=>{digger.Anim=Anim.Dig;digger.Clock=0f;PlaySpikeAudio(dig);SetOutcome("DUG — "+touch,true);});return;}
             StartSegment(hit,dig,flight,()=>{Cue="DUG — THEY COUNTER";NpcTouch(them,digger,dig);});
             Cue=shot;
         }
