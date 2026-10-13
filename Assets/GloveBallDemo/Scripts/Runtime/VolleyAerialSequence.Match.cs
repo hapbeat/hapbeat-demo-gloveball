@@ -331,7 +331,7 @@ namespace GloveBallDemo.Runtime
             ReturnScriptedBall();
             _launchPending=false;_serveTimer=-1f;_segArrive=null;_segProgress=null;_afterEmbody=null;
             ClearIntercept();DisarmTheirBlock();EnableReceiveVolume(false);
-            _embodying=false;FadeAlpha=0f;VignetteAlpha=0f;SetSlowMotion(false);ShowPending();ShowRings(false);_attackNext=false;
+            _embodying=false;FadeAlpha=0f;VignetteAlpha=0f;SetSlowMotion(false);ShowPending();ShowRings(false);HideTarget(3);
             AwaitedTouch=PlayerTouch.None;
         }
         void RandomizeFormation()
@@ -531,7 +531,6 @@ namespace GloveBallDemo.Runtime
         // ---------- serve ----------
         void BeginServe()
         {
-            if(Station && _attackNext){_attackNext=false;BeginTheirAttack();return;}
             var server=Server(_serving);
             if(_playerServes)
             {
@@ -656,6 +655,13 @@ namespace GloveBallDemo.Runtime
         {
             attacker.Clock=0f;_touches[(int)team]=3;_lastTouchTeam=team;PlaySpikeAudio(hit);
             var defending=Other(team);
+            if(Mode==RallyMode.Pass && defending==Team.Us)
+            {
+                // Their counter-attack goes at the player, lower and faster than a serve: a poor pass makes it harder.
+                LaunchToForearms(hit,0f,TheirAttackSpeed,-TheirAttackDrop);
+                Cue="THEY ATTACK — DIG IT UP!";
+                return;
+            }
             if(defending==Team.Us && PlayerBlocking)
             {
                 RequestLaunch(()=>{
@@ -721,7 +727,8 @@ namespace GloveBallDemo.Runtime
             }
             float arrive=seconds*.92f;
             bool reachable=best!=null && bestNeed<=arrive;
-            bool ok=reachable && Random.value<(soft ? .97f : them ? TheirDigSuccess : OurDigSuccess);
+            // TOSS: our back row always digs their counter-attack up to the player.
+            bool ok=reachable && (Mode==RallyMode.Set && !them || Random.value<(soft ? .97f : them ? TheirDigSuccess : OurDigSuccess));
             if(reachable){best.Target=target-TeamForward(team)*.25f;best.Speed=speed;best.Delay=react;}
             if(ok)StartSegment(from,dig,arrive,()=>NpcTouch(team,best,dig));
             else StartSegment(from,target,seconds,()=>{if(reachable){best.Anim=Anim.Dig;best.Clock=0f;}ResolveMatch(target);});
@@ -853,17 +860,21 @@ namespace GloveBallDemo.Runtime
             if(!found || !InsideCourt(p,.3f)){ClearIntercept();return;}
             int touches=_touches[(int)side];
             // PASS: only our setter plays the player's pass, and only one that rose clearly above the net.
-            if(Station && (side!=Team.Us || touches!=1)){ClearIntercept();return;}
-            if(Station && top<NetTop+PassMinClearance){_passTooLow=true;ClearIntercept();return;}
-            if(Station)_passTooLow=false;
+            // Stations play on only what the rally needs: our setter takes the player's pass (risen clearly over the
+            // tape), and in RECEIVE a pass that went over is their chance ball - they dig it and attack the player.
+            bool overpass=Mode==RallyMode.Pass && side==Team.Them && touches==0;
+            if(Station && !overpass && (side!=Team.Us || touches!=1)){ClearIntercept();return;}
+            if(Station && !overpass && top<NetTop+PassMinClearance){_passTooLow=true;ClearIntercept();return;}
+            if(Station && !overpass)_passTooLow=false;
             bool them=side==Team.Them, setting=touches==1;
             float react=setting ? .1f : them ? TheirDigReaction : OurDigReaction;
             float speed=setting ? SetterSpeed : them ? TheirDigSpeed : OurDigSpeed;
             float reach=setting ? SetterReach : them ? TheirDigReach : OurDigReach;
             float success=setting ? (Station ? 1f : .97f) : them ? TheirDigSuccess : OurDigSuccess;
+            if(overpass){react=.2f;speed=6f;reach=1.5f;success=1f;}
             float moving=t-Mathf.Max(0f,react-_sinceTouch);
-            // PASS: whichever front-row player the ball comes down nearest sets it (never one across the court).
-            var setter=setting ? (Mode==RallyMode.Pass ? NearestFrontRow(p) : ChooseSetter(side)) : null;
+            // RECEIVE: whichever of our players the pass comes down nearest sets it (never one across the court).
+            var setter=setting ? (Mode==RallyMode.Pass ? NearestTeammate(p) : ChooseSetter(side)) : null;
             MatchActor best=null;float bestNeed=float.MaxValue;
             foreach(var actor in _cast)
             {
@@ -943,14 +954,6 @@ namespace GloveBallDemo.Runtime
             else if(Phase==RallyPhase.PlayerReceive && !_playerTouched)text="ACE";
             else if(!inBounds)text="OUT";
             else text=court==Team.Them ? "POINT!" : "DOWN ON YOUR SIDE";
-            if(Mode==RallyMode.Pass && _playerTouched && Phase==RallyPhase.PlayerReceive && inBounds && (court==Team.Them || !_passTooLow))
-            {
-                // Not our point, not theirs: a pass that went over is their chance ball, one that floated up but no
-                // front-row player could set goes over as a free ball. Either way they attack, and the player digs again.
-                ShowGrade("BAD");
-                StationContinue(court==Team.Them ? "OVER THE NET — THEY ATTACK" : "NO SET POSSIBLE — FREE BALL OVER, THEY ATTACK");
-                return;
-            }
             if(Station && _playerTouched && (Phase==RallyPhase.PlayerSet || Phase==RallyPhase.PlayerReceive))
             {
                 // A low pass (into the net, under the tape), an out, or a set no hitter could reach: the player's miss.

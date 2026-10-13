@@ -103,11 +103,15 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.Cue,Does.StartWith("EXCELLENT SET").Or.Contains("SPIKE"));
             Assert.That(_rally.transform.Find("TOSS set crossing").gameObject.activeSelf,Is.True,"Where the set came down is marked.");
             Assert.That(_rally.SetBlockers,Is.InRange(1,2),"One or two of their blockers face the hitter.");
-            RunUntil(()=>_rally.Phase==Phase.Recovery,6f,"the attack ends the rep");
-            Assert.That(_rally.Outcome,Does.EndWith("EXCELLENT SET").Or.StartsWith("DUG"));
-            if(_rally.Outcome.StartsWith("KILL"))Assert.That(_rally.PlayerScore,Is.EqualTo(1),"A kill is our point.");
-            else if(_rally.Outcome.StartsWith("DUG"))Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero,"A dig carries the rally on: no point.");
-            else Assert.That(_rally.OpponentScore,Is.EqualTo(1),"A stuff block is theirs.");
+            _launched=false;
+            RunUntil(()=>_rally.Phase==Phase.Recovery || (_launched && _rally.Phase==Phase.PlayerSet),20f,"the attack ends the rep or the rally flows back to the player");
+            if(_rally.Phase==Phase.Recovery)
+            {
+                Assert.That(_rally.Outcome,Does.EndWith("EXCELLENT SET"));
+                if(_rally.Outcome.StartsWith("KILL"))Assert.That(_rally.PlayerScore,Is.EqualTo(1),"A kill is our point.");
+                else Assert.That(_rally.OpponentScore,Is.EqualTo(1),"A stuff block is theirs.");
+            }
+            else Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero,"Dug: they counter, our back row digs it up to the player again, no pause, no point.");
         }
 
         [Test]
@@ -159,11 +163,19 @@ namespace GloveBallDemo.Tests
             _rally.RegisterPlayerTouch();
             Fly(_destination,pass);
             Assert.That(_rally.Phase,Is.EqualTo(Phase.MatchPlay),"Our setter took the pass ("+_rally.Cue+")");
-            Assert.That(_rally.StationQuality,Is.GreaterThanOrEqualTo(.75f));
-            RunUntil(()=>_rally.Phase==Phase.Recovery,8f,"set, attack and the end of the rep");
-            Assert.That(_rally.Outcome,Is.EqualTo("KILL! — PERFECT PASS").Or.StartsWith("DUG"));
-            Assert.That(_rally.OpponentScore,Is.Zero);
-            RunUntil(()=>_launched && _rally.Phase==Phase.PlayerReceive,_rally.RallyResetSeconds+12f,"the next serve comes to the player");
+            Assert.That(_rally.StationQuality,Is.EqualTo(1f));Assert.That(_rally.LastGrade,Is.EqualTo("EXCELLENT"));
+            _launched=false;
+            RunUntil(()=>_rally.Phase==Phase.Recovery || (_launched && _rally.Phase==Phase.PlayerReceive),10f,"our kill, or their counter at the player");
+            if(_rally.Phase==Phase.Recovery)
+            {
+                Assert.That(_rally.Outcome,Is.EqualTo("KILL! — EXCELLENT PASS"));Assert.That(_rally.PlayerScore,Is.EqualTo(1));
+                RunUntil(()=>_launched && _rally.Phase==Phase.PlayerReceive,_rally.RallyResetSeconds+12f,"the next serve comes to the player");
+            }
+            else
+            {
+                Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero,"Dug: no point, they counter at the player.");
+                Assert.That(_rally.Cue,Does.StartWith("THEY ATTACK"));
+            }
         }
 
         [Test]
@@ -188,13 +200,26 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,Forward*9f+Vector3.up*6f,out var pass),Is.True);
             _rally.RegisterPlayerTouch();
             Fly(_destination,pass);
-            Assert.That(_rally.Phase,Is.EqualTo(Phase.Recovery),"No NPC rally after a pass that went over.");
-            Assert.That(_rally.Outcome,Does.StartWith("OVER THE NET"));
-            Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero,"Their chance ball: no point, the rally carries on.");
-            Assert.That(_rally.AttackNext,Is.True);
+            Assert.That(_rally.Phase,Is.EqualTo(Phase.MatchPlay),"Their defence digs the overpass.");
             Launch(Phase.PlayerReceive);
-            Assert.That(_rally.Cue,Is.EqualTo("DIG IT UP!"),"They attack the player instead of serving.");
-            Assert.That(_rally.AttackNext,Is.False);
+            Assert.That(_rally.Cue,Is.EqualTo("THEY ATTACK — DIG IT UP!"),"In the flow, no pause: their attack comes at the player.");
+            Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero,"Their chance ball: no point.");
+            Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.LessThan(_rally.ReceiveHeight-_rally.TheirAttackDrop+_rally.ReceiveSpread.z+.01f),"Lower than a serve.");
+        }
+
+        [TestCase(1f,1.5f,2f,"EXCELLENT")]
+        [TestCase(1f,1.5f,.6f,"GOOD")]
+        [TestCase(-2.5f,2.5f,2f,"GOOD")]
+        [TestCase(0f,4.5f,2f,"BAD")]
+        [TestCase(1f,.3f,2f,"BAD")]
+        public void PassesAreGradedByWhatTheSetterCanDoWithThem(float lateral,float offNet,float rise,string grade)
+        {
+            _rally.SetMode(Mode.Pass);
+            var right=Right;
+            var at=Net-Forward*offNet+right*lateral;at.y=2f;
+            typeof(VolleyAerialSequence).GetField("_flightTop",Private).SetValue(_rally,_drill.ReceiveNet.bounds.max.y+rise);
+            typeof(VolleyAerialSequence).GetMethod("JudgeStationPass",Private).Invoke(_rally,new object[]{at,null});
+            Assert.That(_rally.LastGrade,Is.EqualTo(grade),_rally.Cue);
         }
 
         [Test]

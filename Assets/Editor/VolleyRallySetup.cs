@@ -106,7 +106,9 @@ public static class VolleyRallySetup
         aerial.MinBlockers=aerial.MaxBlockers=3;
         aerial.HeightSpread=.15f;aerial.BlockReachAboveEye=.45f;aerial.BlockSpeed=10.5f; // readable from the body turn, always reachable
         aerial.BlockerJumpSeconds=1.3f;aerial.BlockerReactionSeconds=.05f;aerial.BlockerTimingJitter=.05f;
-        aerial.ReceiveHeight=1.3f; // forearm height: the serve came in too low to pass upward
+        aerial.ReceiveHeight=1.2f; // forearm height (1.3 m felt a little high, 0.85 m too low to pass upward)
+        aerial.TheirAttackSpeed=13f;aerial.TheirAttackDrop=.25f;
+        aerial.PassTarget=new Vector2(1f,1.5f);aerial.ExcellentPassRadius=1.3f;aerial.ExcellentPassRise=1f;
         aerial.SetLiftBase=1f;aerial.SetLiftGain=2.6f;aerial.SetAimGain=2.2f; // the held push, not a bounce, lifts the set
         // Block spot: eyes 0.5 m from the net (0.3 m put raised arms through it); the spike stance stays 1.5 m from the net.
         aerial.BlockStandDistance=.5f;aerial.SpikeStandBackDistance=1f;

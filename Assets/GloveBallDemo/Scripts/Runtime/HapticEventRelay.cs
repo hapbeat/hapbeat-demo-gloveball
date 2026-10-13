@@ -206,6 +206,19 @@ namespace GloveBallDemo.Runtime
             if (Instance != null) Instance.ReportHapticOnlyInstance(evt, position, gain);
         }
 
+        /// <summary>The audio clip and volume bound to <paramref name="evt"/>, for callers that play it on their own (e.g. 3D) source.</summary>
+        public static bool TryGetClip(DemoHapticEvent evt, out AudioClip clip, out float volume)
+        {
+            clip = null; volume = 0f;
+            if (Instance == null || Instance._bindings == null) return false;
+            foreach (var binding in Instance._bindings)
+            {
+                if (binding == null || binding.Event != evt || binding.Clip == null) continue;
+                clip = binding.Clip; volume = binding.Volume; return true;
+            }
+            return false;
+        }
+
         /// <summary>Requests only the event's bound audio clip; no Hapbeat trigger is fired.</summary>
         public static void PlayAudioOnly(DemoHapticEvent evt, Vector3 position, float gain = 1f)
         {
