@@ -96,6 +96,10 @@ namespace GloveBallDemo.Runtime
         [Min(0f)] public float SetCatchHapticScale = .5f;
         [Min(0f)] public float SetReleaseHapticScale = .8f;
         readonly VolleySetHold _setHold = new VolleySetHold();
+        [Tooltip("A spike takes the fastest hand velocity of this many physics steps (the swing, not one late sample).")]
+        [Range(1,8)] public int SwingHistorySteps = 4;
+        readonly Vector3[][] _swing = { new Vector3[8], new Vector3[8] };
+        int _swingIndex;
         VolleyTrackedHand _setHand;
         bool _setBoth;
         /// <summary>True while a set is held on the hands.</summary>
@@ -373,6 +377,9 @@ namespace GloveBallDemo.Runtime
         private void FixedUpdate()
         {
             Left.BeginPhysicsSample(); Right.BeginPhysicsSample();
+            _swingIndex = (_swingIndex + 1) % 8;
+            _swing[0][_swingIndex] = Left.Ready ? Left.Velocity : Vector3.zero;
+            _swing[1][_swingIndex] = Right.Ready ? Right.Velocity : Vector3.zero;
             if(JoinedHands!=null) JoinedHands.Sample(Time.fixedDeltaTime);
             if (_setHold.Holding && (_ball == null || !_ball.gameObject.activeInHierarchy)) _setHold.Cancel();
             if (_setHold.Holding)
@@ -410,8 +417,11 @@ namespace GloveBallDemo.Runtime
                         {
                         var incoming = _ball.Body.linearVelocity;
                         var handVelocity = joined ? JoinedHands.Velocity : hand.Velocity;
-                        var velocity = firstSpikeTouch && handVelocity.magnitude >= SpikeSwingSpeed
-                            ? VolleyMath.SpikeVelocity(handVelocity,SpikePower,SpikeMinimumSpeed,SpikeMaximumSpeed,SpikeMaximumRise)
+                        var swing = joined ? handVelocity : SwingVelocity(hand == Left ? 0 : 1);
+                        bool spikeSwing = firstSpikeTouch && swing.magnitude >= SpikeSwingSpeed;
+                        var velocity = spikeSwing
+                            ? (Aerial != null ? Aerial.SpikeShot(_ball.Body.position, swing, Mathf.Clamp(swing.magnitude * SpikePower, SpikeMinimumSpeed, SpikeMaximumSpeed))
+                                : VolleyMath.SpikeVelocity(swing,SpikePower,SpikeMinimumSpeed,SpikeMaximumSpeed,SpikeMaximumRise))
                             : ReturnForBall(_ball.Feel,incoming,handVelocity,normal);
                         // Spike and block: fingertips only graze the ball, the palm and wrist meet it solidly.
                         float zone = joined ? 0f : HandZone(hand, Vector3.Lerp(previous, current, hand == Left ? lt : rt));
@@ -419,6 +429,9 @@ namespace GloveBallDemo.Runtime
                         bool zoned = touch == VolleyAerialSequence.PlayerTouch.Spike || touch == VolleyAerialSequence.PlayerTouch.Block;
                         bool tip = zoned && zone >= FingertipZone;
                         if (tip) velocity = touch == VolleyAerialSequence.PlayerTouch.Spike ? velocity * FingertipSpikeScale : Vector3.Lerp(velocity, incoming, FingertipBlockPassThrough);
+                        else if (touch == VolleyAerialSequence.PlayerTouch.Block && Aerial != null) velocity = Aerial.BlockShot(_ball.Body.position, velocity);
+                        if (zoned)
+                            Debug.Log($"[VolleyTouch] {touch} zone={zone:F2} tip={tip} swing={swing.magnitude:F1}m/s pitch={Mathf.Atan2(swing.y, new Vector2(swing.x, swing.z).magnitude) * Mathf.Rad2Deg:F0} out={velocity.magnitude:F1}m/s pitch={Mathf.Atan2(velocity.y, new Vector2(velocity.x, velocity.z).magnitude) * Mathf.Rad2Deg:F0}");
                         if(Aerial!=null && Aerial.OverrideTouchVelocity(handVelocity,_ball.Body.position,velocity,out var modelled))velocity=modelled; // serve / set / pass
                         if (_ball.Deflect(velocity))
                         {
@@ -465,6 +478,17 @@ namespace GloveBallDemo.Runtime
             Left.EndPhysicsSample(); Right.EndPhysicsSample();
         }
 
+        /// <summary>The fastest hand velocity of the last <see cref="SwingHistorySteps"/> physics steps (tracking can lag the swing at contact).</summary>
+        Vector3 SwingVelocity(int side)
+        {
+            var best = _swing[side][_swingIndex];
+            for (int k = 1; k < SwingHistorySteps; k++)
+            {
+                var v = _swing[side][(_swingIndex - k + 8) % 8];
+                if (v.sqrMagnitude > best.sqrMagnitude) best = v;
+            }
+            return best;
+        }
         Vector3 SetHandsCentre(out Vector3 velocity)
         {
             // Both hands carry the ball when both are on it; otherwise the hand that caught it.

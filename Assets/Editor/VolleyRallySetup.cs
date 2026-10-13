@@ -36,6 +36,16 @@ public static class VolleyRallySetup
         for(int i=1;i<drill.FeedLaunchers.Length;i++)drill.FeedLaunchers[i].gameObject.SetActive(false);
 
         var opponent=aerial.Opponent;
+        // The hitter stands so its right (hitting) hand, not its body, is on the block spot's line: the body turn still
+        // tells the shot, and the shots spread evenly to both sides of the player (they all went to the player's left).
+        {
+            var role=opponent.Role;opponent.Role=VolleyOpponentPrototype.MotionRole.Spike;
+            var courtRight=Vector3.Cross(Vector3.up,Vector3.ProjectOnPlane(drill.CourtFrame.forward,Vector3.up).normalized);
+            var spot=aerial.Jump.Floor.RepositionTarget!=null ? aerial.Jump.Floor.RepositionTarget.position : drill.CourtFrame.position;
+            float handOffset=Vector3.Dot(opponent.ReleasePosition-spot,courtRight);
+            opponent.transform.position-=courtRight*handOffset;
+            opponent.Role=role;EditorUtility.SetDirty(opponent.transform);
+        }
         opponent.OverrideKit=true;opponent.JerseyColour=aerial.OpponentJersey;opponent.ShortsColour=aerial.OpponentShorts;opponent.ApplyKit();
 
         var actors=UnityEngine.Object.FindObjectsByType<VolleyOpponentPrototype>(FindObjectsInactive.Include,FindObjectsSortMode.None);
@@ -98,8 +108,11 @@ public static class VolleyRallySetup
         aerial.BlockerJumpSeconds=1.3f;aerial.BlockerReactionSeconds=.05f;aerial.BlockerTimingJitter=.05f;
         aerial.ReceiveHeight=1.3f; // forearm height: the serve came in too low to pass upward
         aerial.SetLiftBase=1f;aerial.SetLiftGain=2.6f;aerial.SetAimGain=2.2f; // the held push, not a bounce, lifts the set
-        // Block spot: eyes 0.6 m from the net (0.3 m put raised arms through it); the spike stance stays 1.5 m from the net.
-        aerial.BlockStandDistance=.6f;aerial.SpikeStandBackDistance=.9f;
+        // Block spot: eyes 0.5 m from the net (0.3 m put raised arms through it); the spike stance stays 1.5 m from the net.
+        aerial.BlockStandDistance=.5f;aerial.SpikeStandBackDistance=1f;
+        // Their attack: centred on the player, a narrower spread (fingertip blocks only graze, so it must stay reachable).
+        aerial.AttackBodyYaw=10f;aerial.AttackShotDeviation=3f;aerial.BlockLateralLimit=.45f;
+        drill.FingertipZone=.75f;
         PlaceBlockSpot(aerial,net,forward);
         aerial.TargetMaterial=TargetMaterial();
         // The rally is tuned on the volleyball first; the other balls come back once its feel is right.

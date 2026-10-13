@@ -75,7 +75,16 @@ namespace GloveBallDemo.Runtime
         [Min(.1f)] public float BlockerJumpMax=1.1f;
         public float BlockerNetDistance=.35f;
         [Tooltip("The player's eyes from the net at the block spot (the Block Reposition Point); arms reach about this far forward.")]
-        [Min(.2f)] public float BlockStandDistance=.6f;
+        [Min(.2f)] public float BlockStandDistance=.5f;
+        [Header("Player spike and block: where the ball goes")]
+        [Tooltip("Pull of a spike from the swing's own direction toward a shot that clears the net and comes down sharply in their court (0 = the swing only).")]
+        [Range(0f,1f)] public float SpikeAimAssist=.6f;
+        [Tooltip("Landing depth past the net for the steepest swing (60° down) and for a flat one: a steeper swing lands shorter.")]
+        public Vector2 SpikeLandingDepth=new Vector2(1.5f,7.5f);
+        [Range(0f,60f)] public float SpikeMaximumYaw=35f;
+        [Tooltip("Pull of a palm block toward a rebound that clears the net into their court (0 = the hands' physics only). Fingertips never get it.")]
+        [Range(0f,1f)] public float BlockAssist=.8f;
+        public Vector2 BlockLandingDepth=new Vector2(.8f,3f);
         public float BlockerStandbyDistance=3.2f;
         [Tooltip("Blocker airtime; the arms stay up over the net for most of it.")]
         [Min(.4f)] public float BlockerJumpSeconds=1.3f;
@@ -924,6 +933,70 @@ namespace GloveBallDemo.Runtime
             return Mathf.Clamp(lateral,-BlockLateralLimit,BlockLateralLimit);
         }
         public Vector3 GroundedEye=>Drill.Head.position-Vector3.up*Jump.Floor.VirtualLift;
+
+        /// <summary>
+        /// The player's spike: the swing decides speed, side and how steep it is (a steeper swing lands shorter); the
+        /// direction is pulled by <see cref="SpikeAimAssist"/> toward a flight that clears the tape and comes down sharply
+        /// inside their court, so a downward swing never floats.
+        /// </summary>
+        public Vector3 SpikeShot(Vector3 ball,Vector3 swing,float speed)
+        {
+            var forward=Forward;
+            var flat=Vector3.ProjectOnPlane(swing,Vector3.up);
+            if(flat.sqrMagnitude<1e-4f || Vector3.Dot(flat.normalized,forward)<.2f)flat=forward;
+            float yaw=Mathf.Clamp(Vector3.SignedAngle(forward,flat.normalized,Vector3.up),-SpikeMaximumYaw,SpikeMaximumYaw);
+            var direction=Quaternion.AngleAxis(yaw,Vector3.up)*forward;
+            float pitch=Mathf.Atan2(swing.y,Vector3.ProjectOnPlane(swing,Vector3.up).magnitude)*Mathf.Rad2Deg;
+            float depth=Mathf.Lerp(SpikeLandingDepth.x,SpikeLandingDepth.y,Mathf.InverseLerp(-60f,10f,pitch));
+            float toNet=Mathf.Max(0f,Vector3.Dot(NetCentre-ball,forward));
+            var target=ball+direction*((toNet+depth)/Mathf.Max(.3f,Vector3.Dot(direction,forward)));
+            target=NetCentre+Right*Mathf.Clamp(Vector3.Dot(target-NetCentre,Right),-CourtHalfWidth+.3f,CourtHalfWidth-.3f)
+                +forward*Mathf.Clamp(Vector3.Dot(target-NetCentre,forward),.5f,CourtDepth-.3f);
+            target.y=Drill.CourtFrame.position.y;
+            float netTop=Drill.ReceiveNet!=null ? Drill.ReceiveNet.bounds.max.y : 2.43f;
+            var aimed=GloveBallDemo.Core.VolleyMath.FlightOver(ball,target,NetCentre,forward,netTop+.15f,speed,Physics.gravity);
+            var raw=GloveBallDemo.Core.VolleyMath.SpikeVelocity(swing,1f,speed,speed,Drill.SpikeMaximumRise);
+            // A solid spike stays in: when the swing's own share would send it into the net or past the end line,
+            // the aim takes over more.
+            foreach(float assist in new[]{SpikeAimAssist,.8f,1f})
+            {
+                var velocity=Vector3.Slerp(raw,aimed,Mathf.Max(assist,SpikeAimAssist));
+                float lands=LandingDepth(ball,velocity);
+                if(ClearsNet(ball,velocity,netTop+.05f) && lands>.3f && lands<CourtDepth)return velocity;
+            }
+            return aimed;
+        }
+        /// <summary>How far past the net a ball from <paramref name="start"/> lands (no drag).</summary>
+        float LandingDepth(Vector3 start,Vector3 velocity)
+        {
+            float g=Mathf.Abs(Physics.gravity.y),h=Mathf.Max(0f,start.y-Drill.CourtFrame.position.y);
+            float t=(velocity.y+Mathf.Sqrt(velocity.y*velocity.y+2f*g*h))/g;
+            return Vector3.Dot(start+Vector3.ProjectOnPlane(velocity,Vector3.up)*t-NetCentre,Forward);
+        }
+        /// <summary>
+        /// A palm block: the hands' physical rebound pulled by <see cref="BlockAssist"/> toward a flight that clears the
+        /// tape into their court (the block spot is half a metre off the net, so a plain rebound often dropped on our side).
+        /// The rebound's sideways and forward speed still choose where it lands.
+        /// </summary>
+        public Vector3 BlockShot(Vector3 ball,Vector3 physical)
+        {
+            var forward=Forward;
+            float lateral=Mathf.Clamp(Vector3.Dot(ball-NetCentre,Right)+Mathf.Clamp(Vector3.Dot(physical,Right)*.25f,-1.5f,1.5f),-CourtHalfWidth+.3f,CourtHalfWidth-.3f);
+            float depth=Mathf.Lerp(BlockLandingDepth.x,BlockLandingDepth.y,Mathf.InverseLerp(0f,8f,Vector3.Dot(physical,forward)));
+            var target=NetCentre+Right*lateral+forward*depth;target.y=Drill.CourtFrame.position.y;
+            float netTop=Drill.ReceiveNet!=null ? Drill.ReceiveNet.bounds.max.y : 2.43f;
+            var aimed=GloveBallDemo.Core.VolleyMath.FlightOver(ball,target,NetCentre,forward,netTop+.1f,Mathf.Clamp(physical.magnitude,5f,12f),Physics.gravity);
+            var velocity=Vector3.Lerp(physical,aimed,BlockAssist);
+            return ClearsNet(ball,velocity,netTop+.05f) ? velocity : aimed;
+        }
+        bool ClearsNet(Vector3 start,Vector3 velocity,float height)
+        {
+            float toward=Vector3.Dot(velocity,Forward),distance=Vector3.Dot(NetCentre-start,Forward);
+            if(distance<=0f)return true;
+            if(toward<=.01f)return false;
+            float t=distance/toward;
+            return start.y+velocity.y*t+.5f*Physics.gravity.y*t*t>=height;
+        }
         public float SolveBlockShot(Vector3 start,ref Vector3 destination)
         {
             // A spike is a fast descending shot, not the receive feeder's net-clearing lob.

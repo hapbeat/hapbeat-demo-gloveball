@@ -48,6 +48,32 @@ namespace GloveBallDemo.Core
             return direction*Mathf.Clamp(handVelocity.magnitude*power,minimumSpeed,maximumSpeed);
         }
 
+        /// <summary>
+        /// Ballistic velocity from <paramref name="start"/> to <paramref name="target"/> whose speed is closest to
+        /// <paramref name="speed"/> while it passes the net plane (through <paramref name="netPoint"/>, facing
+        /// <paramref name="netForward"/>) no lower than <paramref name="netTop"/>. Flight times 0.12-2 s are tried; the
+        /// fastest flights come first, so among equal speeds the flattest-arc, sharpest one wins.
+        /// </summary>
+        public static Vector3 FlightOver(Vector3 start, Vector3 target, Vector3 netPoint, Vector3 netForward, float netTop, float speed, Vector3 gravity)
+        {
+            float a = Vector3.Dot(start - netPoint, netForward), b = Vector3.Dot(target - netPoint, netForward);
+            bool crosses = a < 0f && b > 0f;
+            float fraction = crosses ? -a / (b - a) : 0f;
+            var best = Vector3.zero; float bestCost = float.MaxValue;
+            for (float seconds = .12f; seconds <= 2f; seconds += .01f)
+            {
+                var velocity = (target - start - .5f * gravity * seconds * seconds) / seconds;
+                if (crosses)
+                {
+                    float t = fraction * seconds;
+                    if (start.y + velocity.y * t + .5f * gravity.y * t * t < netTop) continue;
+                }
+                float cost = Mathf.Abs(velocity.magnitude - speed);
+                if (cost < bestCost) { bestCost = cost; best = velocity; }
+            }
+            return bestCost < float.MaxValue ? best : ServeVelocity(start, target + Vector3.up * Mathf.Max(0f, netTop - target.y), 1f, gravity);
+        }
+
         public static Vector3 ServeVelocity(Vector3 start, Vector3 destination, float seconds, Vector3 gravity)
         {
             seconds = Mathf.Max(.1f, seconds);

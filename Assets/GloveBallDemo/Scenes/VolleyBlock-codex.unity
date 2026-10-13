@@ -3284,7 +3284,7 @@ Transform:
   m_GameObject: {fileID: 211642766}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0.6}
+  m_LocalPosition: {x: 0, y: 0, z: -0.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -7453,7 +7453,7 @@ Transform:
   m_GameObject: {fileID: 631991368}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0.6}
+  m_LocalPosition: {x: 0, y: 0, z: -0.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -12797,7 +12797,7 @@ Transform:
   m_GameObject: {fileID: 1011802255}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
-  m_LocalPosition: {x: 0, y: 0, z: 1.1}
+  m_LocalPosition: {x: 0.25000003, y: 0, z: 1.1}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -15110,7 +15110,7 @@ MonoBehaviour:
   SpikeMaximumRise: 0.1
   ImpactReferenceSpeed: 8
   MinimumImpactGain: 0.2
-  FingertipZone: 0.7
+  FingertipZone: 0.75
   FingertipSpikeScale: 0.55
   FingertipBlockPassThrough: 0.65
   FingertipHapticScale: 0.4
@@ -15119,6 +15119,7 @@ MonoBehaviour:
   SetReleaseSpeed: 0.8
   SetCatchHapticScale: 0.5
   SetReleaseHapticScale: 0.8
+  SwingHistorySteps: 4
   MaximumImpactGain: 1.5
   NearHandDistance: 0.45
   ServeLimit: 0
@@ -15186,7 +15187,7 @@ MonoBehaviour:
   SpikeJumpHeight: 1.5
   SpikeJumpSeconds: 1.4
   Ally: {fileID: 623465753}
-  SpikeStandBackDistance: 0.9
+  SpikeStandBackDistance: 1
   AllyNetOffset: {x: 1.4, y: -0.35}
   AllyDropHeight: 3.4
   AllyDropBehind: 0.8
@@ -15208,7 +15209,12 @@ MonoBehaviour:
   BlockerJumpMin: 0.8
   BlockerJumpMax: 1.1
   BlockerNetDistance: 0.35
-  BlockStandDistance: 0.6
+  BlockStandDistance: 0.5
+  SpikeAimAssist: 0.6
+  SpikeLandingDepth: {x: 1.5, y: 7.5}
+  SpikeMaximumYaw: 35
+  BlockAssist: 0.8
+  BlockLandingDepth: {x: 0.8, y: 3}
   BlockerStandbyDistance: 3.2
   BlockerJumpSeconds: 1.3
   BlockerReactionSeconds: 0.05
@@ -15241,9 +15247,9 @@ MonoBehaviour:
   BlockSpeed: 10.5
   FaceShotChance: 0.6
   HorizontalSpread: 0.85
-  AttackBodyYaw: 15
-  AttackShotDeviation: 5
-  BlockLateralLimit: 0.7
+  AttackBodyYaw: 10
+  AttackShotDeviation: 3
+  BlockLateralLimit: 0.45
   HeightSpread: 0.15
   SpikeReachAboveEye: 0.5
   BlockReachAboveEye: 0.45
@@ -19369,7 +19375,7 @@ Transform:
   m_GameObject: {fileID: 1540327376}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -0.6}
+  m_LocalPosition: {x: 0, y: 0, z: -0.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
