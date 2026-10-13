@@ -417,7 +417,14 @@ namespace GloveBallDemo.Runtime
                         {
                         var incoming = _ball.Body.linearVelocity;
                         var handVelocity = joined ? JoinedHands.Velocity : hand.Velocity;
-                        var swing = joined ? handVelocity : SwingVelocity(hand == Left ? 0 : 1);
+                        // A spike leaves along the hand's motion at contact (the tangent of the arm's arc); only its speed
+                        // takes the fastest recent sample, because tracking reads the hand slow at the moment of contact.
+                        var swing = handVelocity;
+                        if (!joined)
+                        {
+                            var fastest = SwingVelocity(hand == Left ? 0 : 1);
+                            swing = handVelocity.sqrMagnitude > .25f ? handVelocity.normalized * Mathf.Max(handVelocity.magnitude, fastest.magnitude) : fastest;
+                        }
                         bool spikeSwing = firstSpikeTouch && swing.magnitude >= SpikeSwingSpeed;
                         var velocity = spikeSwing
                             ? (Aerial != null ? Aerial.SpikeShot(_ball.Body.position, swing, Mathf.Clamp(swing.magnitude * SpikePower, SpikeMinimumSpeed, SpikeMaximumSpeed))

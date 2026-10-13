@@ -115,6 +115,10 @@ public static class VolleyRallySetup
         // Their attack: centred on the player, a narrower spread (fingertip blocks only graze, so it must stay reachable).
         aerial.AttackBodyYaw=10f;aerial.AttackShotDeviation=3f;aerial.BlockLateralLimit=.45f;
         drill.FingertipZone=.75f;
+        // A fingertip block is a deflection that slows and turns the ball, not a ball that passes clean through.
+        drill.FingertipBlockPassThrough=.3f;
+        // A palm block mostly keeps the hands' own rebound (palms facing their court already send it back over).
+        aerial.BlockAssist=.35f;
         PlaceBlockSpot(aerial,net,forward);
         aerial.TargetMaterial=TargetMaterial();
         // The rally is tuned on the volleyball first; the other balls come back once its feel is right.
@@ -136,6 +140,7 @@ public static class VolleyRallySetup
         drill.Targets.gameObject.SetActive(false);
         ApplySkinHands(drill);
         ApplyStanceAnchor(aerial.Jump.Floor);
+        ApplyAttackLines(net,forward);
         EditorUtility.SetDirty(aerial);
         EditorSceneManager.MarkSceneDirty(scene);
         if(!EditorSceneManager.SaveScene(scene))throw new InvalidOperationException("Failed to save VolleyBlock-codex.");
@@ -151,6 +156,44 @@ public static class VolleyRallySetup
         var origin=floor.Origin.transform;
         origin.position=new Vector3(origin.position.x,origin.position.y,position.z);
         EditorUtility.SetDirty(spot);EditorUtility.SetDirty(origin);
+    }
+    const string AttackLinesName="Volley attack lines (3 m)";
+    const string LineMaterialPath="Assets/GloveBallDemo/Art/VolleyCourtLine.mat";
+    /// <summary>
+    /// The stadium court's markings put the attack lines 2.25 m from the net (the outer 9 x 18 m lines and the 2.43 m net
+    /// are true to scale). Covers those two lines in the court colour and draws them at 3 m: 5 cm wide, the rear edge
+    /// 3 m from the centre line, as the rules mark them.
+    /// </summary>
+    static void ApplyAttackLines(Vector3 net,Vector3 forward)
+    {
+        var old=GameObject.Find(AttackLinesName);
+        if(old!=null)UnityEngine.Object.DestroyImmediate(old);
+        var court=UnityEngine.Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Include,FindObjectsSortMode.None).FirstOrDefault(r=>r.name=="court");
+        if(court==null)throw new InvalidOperationException("The stadium court renderer is missing.");
+        var line=AssetDatabase.LoadAssetAtPath<Material>(LineMaterialPath);
+        if(line==null)
+        {
+            line=new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            AssetDatabase.CreateAsset(line,LineMaterialPath);
+        }
+        line.SetColor("_BaseColor",new Color(.95f,.95f,.95f,1f));EditorUtility.SetDirty(line);
+        var root=new GameObject(AttackLinesName).transform;
+        var rotation=Quaternion.LookRotation(Vector3.down,forward); // a quad lying on the floor, facing up
+        foreach(float side in new[]{-1f,1f})
+        {
+            Strip(root,"Cover 2.25 m",net+forward*(side*2.25f)+Vector3.up*.002f,rotation,9.12f,.14f,court.sharedMaterial);
+            Strip(root,"Attack line 3 m",net+forward*(side*2.975f)+Vector3.up*.003f,rotation,9f,.05f,line);
+        }
+    }
+    static void Strip(Transform root,string name,Vector3 position,Quaternion rotation,float length,float width,Material material)
+    {
+        var quad=GameObject.CreatePrimitive(PrimitiveType.Quad);quad.name=name;
+        UnityEngine.Object.DestroyImmediate(quad.GetComponent<Collider>());
+        quad.transform.SetParent(root,false);
+        quad.transform.SetPositionAndRotation(position,rotation);
+        quad.transform.localScale=new Vector3(length,width,1f);
+        var renderer=quad.GetComponent<MeshRenderer>();renderer.sharedMaterial=material;
+        renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;renderer.receiveShadows=false;
     }
     const string TargetMaterialPath="Assets/GloveBallDemo/Art/VolleyTargetGhost.mat";
     /// <summary>Transparent unlit material for the TOSS ghost targets (an asset, so the transparent variant ships).</summary>

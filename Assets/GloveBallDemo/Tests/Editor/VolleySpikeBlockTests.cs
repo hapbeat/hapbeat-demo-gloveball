@@ -85,6 +85,25 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
+        public void AttackLinesAre3MetresFromTheNet()
+        {
+            var root=GameObject.Find("Volley attack lines (3 m)");
+            Assert.That(root,Is.Not.Null);
+            int lines=0;
+            foreach(Transform strip in root.transform)
+            {
+                if(!strip.name.StartsWith("Attack line"))continue;
+                lines++;
+                float rearEdge=Mathf.Abs(Vector3.Dot(strip.position-Net,Forward))+strip.lossyScale.y*.5f;
+                Assert.That(rearEdge,Is.EqualTo(3f).Within(.005f),"Rear edge 3 m from the centre line.");
+                Assert.That(strip.lossyScale.y,Is.EqualTo(.05f).Within(.001f));
+                Assert.That(strip.lossyScale.x,Is.EqualTo(9f).Within(.01f));
+            }
+            Assert.That(lines,Is.EqualTo(2));
+            Assert.That(NetTop,Is.EqualTo(2.43f).Within(.005f),"Men's net height.");
+        }
+
+        [Test]
         public void TheirAttackIsCentredOnThePlayerWithANarrowSpread()
         {
             var field=typeof(VolleyAerialSequence).GetField("_attackYaw",Private);
