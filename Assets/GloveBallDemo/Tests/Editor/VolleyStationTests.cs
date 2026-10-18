@@ -18,7 +18,7 @@ namespace GloveBallDemo.Tests
         VolleyAerialSequence _rally;
         VolleyArmJump _jump;
         Vector3 _start,_destination;
-        float _scale;
+        float _scale,_flight;
         bool _launched;
         Random.State _random;
 
@@ -45,7 +45,7 @@ namespace GloveBallDemo.Tests
         {
             _jump.Tick(.01f,true,.2f,.2f,false);
             if(!_rally.TickRally(.01f,_drill.ActiveBall!=null,out var s,out var d,out var f))return;
-            _launched=true;_start=s;_destination=d;
+            _launched=true;_start=s;_destination=d;_flight=f;
             typeof(VolleyDrillController).GetMethod("LaunchAerialBall",Private).Invoke(_drill,new object[]{s,d,f});
         }
         void RunUntil(System.Func<bool> done,float limit,string what)
@@ -203,9 +203,8 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.LastGrade,Is.EqualTo("BAD"));Assert.That(_rally.Cue,Does.StartWith("BAD PASS"));
             Assert.That(_rally.Touches(VolleyAerialSequence.Team.Us),Is.EqualTo(2),"Second touch over, no set.");
             Launch(Phase.PlayerReceive);
-            Assert.That(_rally.Cue,Is.EqualTo("THEY ATTACK HARD — DIG IT UP!").Or.StartsWith("BLOCK TOUCH"),"Hard, unless one of our blockers touched it.");
-            if(!_rally.Cue.StartsWith("BLOCK TOUCH"))
-                Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.LessThan(_rally.ReceiveHeight-_rally.TheirStrongAttackDrop+_rally.ReceiveSpread.z+.01f));
+            Assert.That(_rally.Cue,Is.EqualTo("THEY ATTACK HARD — DIG IT UP!"),"After a free ball: always a clean hard attack, never a block touch.");
+            Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.LessThan(_rally.ReceiveHeight-_rally.TheirStrongAttackDrop+_rally.ReceiveSpread.z+.01f));
             Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero);
         }
 
@@ -235,6 +234,48 @@ namespace GloveBallDemo.Tests
             Fly(_destination,pass);
             Assert.That(_rally.Phase,Is.EqualTo(Phase.MatchPlay));
             Assert.That(_rally.LastGrade,Is.EqualTo("GOOD"),_rally.Cue);
+            // Only EXCELLENT is put away: GOOD's spike is dug and they counter at the player, no point.
+            _rally.StationKillMin=0f;
+            Launch(Phase.PlayerReceive);
+            Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero,_rally.Outcome);
+            Assert.That(_rally.Cue,Is.EqualTo("THEY ATTACK — DIG IT UP!").Or.StartsWith("BLOCK TOUCH"));
+        }
+
+        [Test]
+        public void ALobDyingIntoTheNetIsPlayedByTheFrontRowBeforeItGetsThere()
+        {
+            _rally.SetMode(Mode.Pass);_rally.PassAssist=0f;
+            Launch(Phase.PlayerReceive);
+            // A loopy pass over a front-row player that would come down into the net (not over it).
+            var middle=_rally.Teammates[0];
+            var net=Net+Right*Vector3.Dot(middle.transform.position-Net,Right);
+            float floor=_drill.CourtFrame.position.y;net.y=floor+2.1f;
+            var lob=Arc(_destination,net,floor+3.6f);
+            Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,lob/_rally.PassReboundScale,out var pass),Is.True);
+            _rally.RegisterPlayerTouch();
+            Fly(_destination,pass);
+            Assert.That(_rally.Phase,Is.EqualTo(Phase.MatchPlay),"The front row plays it ("+_rally.Outcome+")");
+            Assert.That(_rally.LastGrade,Is.EqualTo("GOOD").Or.EqualTo("BAD"),_rally.Cue);
+            Assert.That(_rally.OpponentScore,Is.Zero);
+        }
+
+        [Test]
+        public void ServesVaryInSpeedAndArcButComeToTheSameArea()
+        {
+            _rally.SetMode(Mode.Pass);_rally.PassAssist=0f;
+            var flights=new System.Collections.Generic.HashSet<float>();
+            for(int rep=0;rep<8;rep++)
+            {
+                Launch(Phase.PlayerReceive);
+                flights.Add(Mathf.Round(_flight*10f)/10f);
+                Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.EqualTo(_rally.ReceiveHeight).Within(_rally.ReceiveSpread.z+.01f));
+                // Let it drop: the point is lost and the next serve comes.
+                Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,Vector3.down*2f,out var pass),Is.True);
+                _rally.RegisterPlayerTouch();
+                Fly(_destination,pass);
+                Assert.That(_rally.Phase,Is.EqualTo(Phase.Recovery));
+            }
+            Assert.That(flights.Count,Is.GreaterThanOrEqualTo(3),"Hard, normal and soft serves: "+string.Join(",",flights));
         }
         static Vector3 Arc(Vector3 from,Vector3 to,float apex)
         {
@@ -249,7 +290,7 @@ namespace GloveBallDemo.Tests
         {
             _rally.SetMode(Mode.Pass);_rally.PassAssist=0f;_rally.TheirDigSuccess=1f;_rally.TheirDigReach=5f;_rally.TheirDigSpeed=20f;
             Launch(Phase.PlayerReceive);
-            Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,Forward*9f+Vector3.up*6f,out var pass),Is.True);
+            Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,(Forward*9f+Vector3.up*6f)/_rally.PassReboundScale,out var pass),Is.True);
             _rally.RegisterPlayerTouch();
             Fly(_destination,pass);
             Assert.That(_rally.Phase,Is.EqualTo(Phase.MatchPlay),"Their defence digs the overpass.");

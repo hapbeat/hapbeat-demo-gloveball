@@ -45,6 +45,8 @@ namespace GloveBallDemo.Runtime
         [Min(0f)] public float ServeDelaySeconds=1f;
         [Min(.4f)] public float PassSeconds=1.15f;
         [Min(.6f)] public float ServeSeconds=1.5f;
+        [Tooltip("RECEIVE: a pass about to hit the net is played this far (m) in front of it, above the hands if need be.")]
+        [Min(.2f)] public float NetLobPlayDistance=.35f;
         [Min(5f)] public float NpcAttackSpeed=13f;
         [Min(1f)] public float NpcRunSpeed=4.5f;
         [Tooltip("Random offset of each opponent from its formation spot every rally (ours move much less).")]
@@ -557,8 +559,10 @@ namespace GloveBallDemo.Runtime
             var receiving=Other(server.Team);
             if(receiving==Team.Us && _roleTouch==PlayerTouch.Receive && _embodied!=null)
             {
-                LaunchToForearms(release,ServeSeconds,0f);
-                Cue="RECEIVE — FOREARMS TOGETHER";
+                // Same landing area every time, but a different serve: hard and flat, normal, or soft and loopy.
+                int kind=Random.Range(0,3);
+                LaunchToForearms(release,ServeFlightSeconds[kind],0f);
+                Cue=kind==0 ? "HARD SERVE — FOREARMS TOGETHER" : kind==2 ? "HIGH FLOATER — FOREARMS TOGETHER" : "RECEIVE — FOREARMS TOGETHER";
                 return;
             }
             var receiver=ChooseReceiver(receiving);
@@ -663,8 +667,9 @@ namespace GloveBallDemo.Runtime
                 // Their counter-attack goes at the player, lower and faster than a serve: a poor pass makes it harder.
                 // After a free ball they had every option: a harder, lower attack than after a dug spike.
                 float attackSpeed=_counterStrong ? TheirStrongAttackSpeed : TheirAttackSpeed;
-                // One of our jumping blockers in the line touches it: it slows and pops up, then still comes to the player.
-                var touched=OurBlockTouch(hit);
+                // Sometimes one of our jumping blockers in the line touches it: it slows and pops up, then still comes to
+                // the player. After a BAD pass (a free ball) they had every option: always a clean, hard attack.
+                var touched=!_counterStrong && Random.value<OurBlockTouchChance ? OurBlockTouch(hit) : null;
                 if(touched.HasValue)
                 {
                     var touch=touched.Value;
@@ -889,18 +894,27 @@ namespace GloveBallDemo.Runtime
         void PlanMatchIntercept(Vector3 position,Vector3 velocity,float damping)
         {
             var p=position;var v=velocity;float t=0f;const float dt=.02f;
-            bool found=false;var side=Team.Us;float height=DigHeight;
+            bool found=false,atNet=false;var side=Team.Us;float height=DigHeight;
+            // RECEIVE: a pass that would die into the net is played by the front row just before it gets there.
+            bool passing=Mode==RallyMode.Pass && _touches[0]==1,nearNet=false;var netPoint=p;float netTime=0f;
             _flightTop=Mathf.Max(_flightTop,position.y);float top=_flightTop;
             for(int i=0;i<200;i++)
             {
                 side=SideOf(p);height=_touches[(int)side]==1 ? (Station ? SetterHandsHeight : SetHeight) : DigHeight;
+                if(passing && side==Team.Us)
+                {
+                    // Played where it first comes within reach of the net, if it then hits the net or comes down there.
+                    float off=-Vector3.Dot(p-NetCentre,Forward);
+                    if(!nearNet && off<NetLobPlayDistance){nearNet=true;netPoint=p;netTime=t;}
+                    if(nearNet && ((off<.12f && p.y<NetTop+.12f) || (v.y<0f && p.y-FloorY<=height))){p=netPoint;t=netTime;found=atNet=true;break;}
+                }
                 if(v.y<0f && p.y-FloorY<=height){found=true;break;}
                 v+=Physics.gravity*dt;v*=Mathf.Clamp01(1f-damping*dt);p+=v*dt;t+=dt;
                 top=Mathf.Max(top,p.y);
             }
             if(!found || !InsideCourt(p,.3f)){ClearIntercept();return;}
             int touches=_touches[(int)side];
-            if(Mode==RallyMode.Pass && side==Team.Us && touches==1){PlanStationPass(p,t,top);return;}
+            if(Mode==RallyMode.Pass && side==Team.Us && touches==1){PlanStationPass(p,t,top,atNet);return;}
             // PASS: only our setter plays the player's pass, and only one that rose clearly above the net.
             // Stations play on only what the rally needs: our setter takes the player's pass (risen clearly over the
             // tape), and in RECEIVE a pass that went over is their chance ball - they dig it and attack the player.

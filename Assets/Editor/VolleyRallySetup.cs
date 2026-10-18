@@ -107,6 +107,9 @@ public static class VolleyRallySetup
         aerial.HeightSpread=.15f;aerial.BlockReachAboveEye=.45f;aerial.BlockSpeed=10.5f; // readable from the body turn, always reachable
         aerial.BlockerJumpSeconds=1.3f;aerial.BlockerReactionSeconds=.05f;aerial.BlockerTimingJitter=.05f;
         aerial.TheirAttackSpeed=12f;aerial.TheirAttackDrop=.15f;aerial.TheirStrongAttackSpeed=15f;aerial.TheirStrongAttackDrop=.35f;
+        // RECEIVE: only EXCELLENT scores; GOOD is dug and countered (our block touches it half the time); BAD gets a clean hard counter.
+        aerial.StationKillMin=.08f;aerial.StationKillMax=.95f;aerial.OurBlockTouchChance=.5f;
+        aerial.ServeFlightSeconds=new Vector3(1.05f,1.5f,2.2f);aerial.NetLobPlayDistance=.35f;
         aerial.SetterLateralRange=new Vector2(-.5f,2.5f);aerial.SetterOffNetRange=new Vector2(1f,2.5f);
         aerial.ExcellentPassMove=.8f;aerial.ExcellentPassHang=.9f;aerial.GoodPassOffNet=new Vector2(.5f,3f);
         // A lob just over the tape is still settable; a little higher serve is kinder (no deep knee bend every time).

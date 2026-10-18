@@ -86,6 +86,10 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Kill chance of our attack after the worst and the best pass.")]
         [Range(0f,1f)] public float StationKillMin=.3f;
         [Range(0f,1f)] public float StationKillMax=.9f;
+        [Tooltip("RECEIVE: chance one of our jumping blockers gets a touch on their counter-attack (only after a GOOD rep; after a BAD pass they attack freely).")]
+        [Range(0f,1f)] public float OurBlockTouchChance=.5f;
+        [Tooltip("RECEIVE serve flight times (s): hard and flat, normal, soft and loopy. One is picked per serve; the landing area stays the same.")]
+        public Vector3 ServeFlightSeconds=new Vector3(1.05f,1.5f,2.2f);
 
         float _stationQuality=-1f, _setArrival, _setClock;
         bool _setPlanned, _passTooLow, _passHitNet, _counterStrong;
@@ -205,7 +209,7 @@ namespace GloveBallDemo.Runtime
         /// player: whoever can reach it plays it over as a free ball, and they attack hard; nobody can reach it - lost.
         /// A pass that touched the net is never played.
         /// </summary>
-        void PlanStationPass(Vector3 p,float t,float top)
+        void PlanStationPass(Vector3 p,float t,float top,bool atNet=false)
         {
             if(_passHitNet){_passClass=0;ClearIntercept();return;}
             float hang=_sinceTouch+t,off=-Vector3.Dot(p-NetCentre,Forward);
@@ -213,6 +217,8 @@ namespace GloveBallDemo.Runtime
             MatchActor best=null;float bestDistance=float.MaxValue;
             bool settable=!_passTooLow && off>=GoodPassOffNet.x && off<=GoodPassOffNet.y;
             float moving=t-Mathf.Max(0f,.1f-_sinceTouch);
+            // A lob dying into the net is played above the hands (a jump set) just before it gets there.
+            float hands=atNet ? Mathf.Max(SetterHandsHeight,p.y) : SetterHandsHeight;
             if(settable)
                 for(int slot=0;slot<3;slot++)
                 {
@@ -228,7 +234,7 @@ namespace GloveBallDemo.Runtime
                 bool excellent=best==ActorAt(Team.Us,0) && Flat(p-SetWindowAt(best)).magnitude<=allowed && hang>=ExcellentPassHang;
                 _passClass=excellent ? 3 : 2;
                 _icActor=best;_icSuccess=true;_icTeam=Team.Us;_icPoint=new Vector3(p.x,FloorY,p.z);
-                _icHeight=SetterHandsHeight;_icReach=SetterReach;_icReaction=.1f;_icSpeed=SetterSpeed;
+                _icHeight=hands;_icReach=SetterReach;_icReaction=.1f;_icSpeed=SetterSpeed;
                 // The setter stands where its hands meet the ball and its set pose grows as it arrives.
                 best.Facing=TeamFacing(Team.Us);
                 best.A.Role=VolleyOpponentPrototype.MotionRole.Set;best.Anim=Anim.Set;best.Clock=-1f;
@@ -250,7 +256,7 @@ namespace GloveBallDemo.Runtime
             if(best!=_icActor && _icActor!=null && _icActor.Anim==Anim.Set){_icActor.Anim=Anim.Ready;_icActor.Clock=-1f;}
             _passClass=1;
             _icActor=best;_icSuccess=true;_icTeam=Team.Us;_icPoint=new Vector3(p.x,FloorY,p.z);
-            _icHeight=SetterHandsHeight;_icReach=OurDigReach;_icReaction=OurDigReaction;_icSpeed=OurDigSpeed;_icRootOffset=Vector3.zero;
+            _icHeight=hands;_icReach=OurDigReach;_icReaction=OurDigReaction;_icSpeed=OurDigSpeed;_icRootOffset=Vector3.zero;
         }
         /// <summary>RECEIVE, a BAD pass: the second touch just sends it over; they will attack hard.</summary>
         void StationFreeBall(MatchActor actor,Vector3 position)
@@ -492,9 +498,10 @@ namespace GloveBallDemo.Runtime
                 }
                 if(_setBlockers>0)shot+=_setBlockers>1 ? " INTO A DOUBLE BLOCK" : " PAST ONE BLOCKER";
             }
+            // RECEIVE: only an EXCELLENT pass is put away; a GOOD one is attacked but they (almost always) dig it and counter.
             else if(q>=PerfectSetQuality){speed=NpcAttackSpeed+7f;kill=StationKillMax;shot="HARD SPIKE";}
-            else if(q>=GoodSetQuality){speed=NpcAttackSpeed+1f;kill=Mathf.Lerp(StationKillMin,StationKillMax,.5f);shot="SPIKE";clearance=.7f;}
-            else{speed=8f;kill=StationKillMin;shot="HIGH BALL — A SOFT ATTACK";}
+            else if(q>=GoodSetQuality){speed=NpcAttackSpeed+1f;kill=StationKillMin;shot="SPIKE";clearance=.7f;}
+            else{speed=8f;kill=0f;shot="HIGH BALL — A SOFT ATTACK";}
             string touch=GradeWord(q)+(toss ? " SET" : " PASS");
             var them=Team.Them;
             bool killed=Random.value<kill;
