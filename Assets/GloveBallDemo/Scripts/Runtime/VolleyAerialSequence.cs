@@ -51,6 +51,15 @@ namespace GloveBallDemo.Runtime
         [Tooltip("The pass comes from this far behind the setter (toward the player's back court).")]
         [Min(0f)] public float AllyDropBehind=.8f;
         [Min(.4f)] public float AllyDropSeconds=1f;
+        [Header("SPIKE + BLOCK: the rally carries on")]
+        [Tooltip("SPIKE + BLOCK: a dug ball carries the rally on instead of ending the point. A comfortable dig and they set and attack (you block); a diving dig only gets it back over (your setter, left or right, sets you).")]
+        public bool FlowRally=true;
+        [Tooltip("The glide between the block spot and the spike stance during a flowing rally (real seconds, behind the comfort vignette).")]
+        [Min(.1f)] public float FlowGlideSeconds=.45f;
+        float _dropSeconds=1f, _turnGlide=-1f;
+        Vector3 _glideStart, _glideEnd;
+        float _allySide=1f;
+        bool Flowing=>FlowRally && Mode==RallyMode.Alternate;
         [Tooltip("Set flight from the setter's hands to the spike contact point.")]
         [Min(.4f)] public float AllyFlightSeconds=1.4f;
         [Min(0f)] public float AllySetLateralSpread=.35f;
@@ -145,6 +154,8 @@ namespace GloveBallDemo.Runtime
         [Header("Opponent attack tell (block turn)")]
         [Tooltip("The attacker turns its body up to this many degrees toward the shot at the start of the attack, so the direction can be read.")]
         [Range(0f,30f)] public float AttackBodyYaw=15f;
+        [Tooltip("A player spike off their block keeps this share of its rebound speed.")]
+        [Range(.1f,1f)] public float BlockerReboundScale=.5f;
         [Tooltip("Their hitter's spot along the net moves this far either way every attack (m).")]
         [Min(0f)] public float AttackerShift=1.2f;
         [Tooltip("The shot leaves within this many degrees of the body direction.")]
@@ -403,7 +414,7 @@ namespace GloveBallDemo.Runtime
         void PlaceAlly()
         {
             if(Ally==null)return;
-            Ally.transform.position=NetCentre+Right*AllyNetOffset.x+Forward*AllyNetOffset.y;
+            Ally.transform.position=NetCentre+Right*(AllyNetOffset.x*_allySide)+Forward*AllyNetOffset.y;
             FaceAlly();
         }
         void FaceAlly()
@@ -431,6 +442,7 @@ namespace GloveBallDemo.Runtime
             CaptureHome();
             if(Phase==RallyPhase.Disabled)Phase=RallyPhase.Idle;
             if(MatchEngine)return TickMatch(dt,ballInPlay,out start,out destination,out seconds);
+            TickTurnGlide(dt);
             TickCast(dt);
             switch(Phase)
             {
@@ -535,6 +547,8 @@ namespace GloveBallDemo.Runtime
                 _opponentFollow=-1f;Act(Opponent,0f);
             }
             if(Ally!=null)Ally.gameObject.SetActive(spikeTurn);
+            // Our setter stands on the player's right or left, a different side now and then.
+            if(Flowing)_allySide=Random.value<.5f ? -1f : 1f;
             PlaceAlly();Act(Ally,0f);_followSetter=null;_setterFollow=-1f;
             var facing=Quaternion.LookRotation(-Forward,Vector3.up);
             if(Defenders!=null)for(int i=0;i<Defenders.Length;i++)
@@ -587,7 +601,7 @@ namespace GloveBallDemo.Runtime
         }
 
         /// <summary>Block turn: the pass drops onto the opponent setter, who sets the attacker (no feeder).</summary>
-        bool BeginOpponentReceive()
+        bool BeginOpponentReceive(Vector3? from=null)
         {
             if(_preparedBall!=null)return false;
             var setter=OpponentSetter;
@@ -605,7 +619,8 @@ namespace GloveBallDemo.Runtime
             var toward=Vector3.ProjectOnPlane(Opponent.ReleasePosition-setter.transform.position,Vector3.up);
             if(toward.sqrMagnitude>.001f)setter.transform.rotation=Quaternion.LookRotation(toward,Vector3.up);
             _tossEnd=setter.ReleasePosition;
-            _tossStart=_tossEnd+Vector3.up*AllyDropHeight+Forward*AllyDropBehind;
+            _tossStart=from ?? _tossEnd+Vector3.up*AllyDropHeight+Forward*AllyDropBehind;
+            _dropSeconds=from.HasValue ? Mathf.Max(AllyDropSeconds,Vector3.Distance(_tossStart,_tossEnd)/5f) : AllyDropSeconds;
             if(!StageBall(_tossStart))return false;
             _rallyTimer=0f;_setterFollow=-1f;_windup=-1f;
             Act(setter,0f);
@@ -616,10 +631,10 @@ namespace GloveBallDemo.Runtime
             var setter=OpponentSetter;
             if(_preparedBall==null || setter==null){Phase=RallyPhase.Idle;return;}
             _rallyTimer+=dt;
-            Act(setter,Mathf.Clamp01(_rallyTimer/AllyDropSeconds)*VolleyOpponentPrototype.SetContactPhase);
-            var position=TossPosition(_tossStart,_tossEnd,_rallyTimer,AllyDropSeconds);
+            Act(setter,Mathf.Clamp01(_rallyTimer/_dropSeconds)*VolleyOpponentPrototype.SetContactPhase);
+            var position=TossPosition(_tossStart,_tossEnd,_rallyTimer,_dropSeconds);
             _preparedBall.transform.position=position;_preparedBall.Body.position=position;
-            if(_rallyTimer<AllyDropSeconds)return;
+            if(_rallyTimer<_dropSeconds)return;
             // The set now travels from the setter's hands to the attacker's hitting hand during the wind-up.
             _tossStart=_tossEnd;_tossEnd=Opponent.ReleasePosition;
             _followSetter=setter;_setterFollow=0f;
@@ -627,13 +642,15 @@ namespace GloveBallDemo.Runtime
             Cue="OPPONENT SETTING — READ THE ATTACKER";
         }
 
-        bool BeginAllyReceive()
+        bool BeginAllyReceive(Vector3? from=null)
         {
             if(_preparedBall!=null)return false;
             if(Ally==null || Drill==null || Drill.Pool==null)return false;
             FaceAlly();
             _tossEnd=Ally.ReleasePosition;
-            _tossStart=_tossEnd+Vector3.up*AllyDropHeight-Forward*AllyDropBehind;
+            _tossStart=from ?? _tossEnd+Vector3.up*AllyDropHeight-Forward*AllyDropBehind;
+            // A ball coming back over the net flies a high arc to the setter (a free ball), not a drop from above.
+            _dropSeconds=from.HasValue ? Mathf.Max(1.4f,Vector3.Distance(_tossStart,_tossEnd)/5f) : AllyDropSeconds;
             if(!StageBall(_tossStart))return false;
             _rallyTimer=0f;_setterFollow=-1f;
             Act(Ally,0f);
@@ -676,10 +693,10 @@ namespace GloveBallDemo.Runtime
             start=destination=Vector3.zero;seconds=0f;
             if(_preparedBall==null){Phase=RallyPhase.Idle;return false;}
             _rallyTimer+=dt;
-            Act(Ally,Mathf.Clamp01(_rallyTimer/AllyDropSeconds)*VolleyOpponentPrototype.SetContactPhase);
-            var position=TossPosition(_tossStart,_tossEnd,_rallyTimer,AllyDropSeconds);
+            Act(Ally,Mathf.Clamp01(_rallyTimer/_dropSeconds)*VolleyOpponentPrototype.SetContactPhase);
+            var position=TossPosition(_tossStart,_tossEnd,_rallyTimer,_dropSeconds);
             _preparedBall.transform.position=position;_preparedBall.Body.position=position;
-            if(_rallyTimer<AllyDropSeconds)return false;
+            if(_rallyTimer<_dropSeconds)return false;
             start=_tossEnd;
             destination=SpikeContactPoint(_allyLateral);
             seconds=AllyFlightSeconds;
@@ -842,8 +859,85 @@ namespace GloveBallDemo.Runtime
             DigVelocity=Vector3.up*5.5f-Forward*Mathf.Clamp(Vector3.Dot(position-NetCentre,Forward)*.35f,0f,2.5f);
             Act(defender,1f);
             PlaySpikeAudio(position);
+            if(Flowing){ContinueRally(position,!_digDive);return false;}
             Award(false,Phase==RallyPhase.OpponentSpike ? "BLOCK DUG" : "DUG",position);
             return true;
+        }
+        /// <summary>
+        /// SPIKE + BLOCK, their defender dug the player's spike or block: no point, the play goes on from the dig. Dug
+        /// comfortably, they set and attack - the player glides to the block spot and blocks. Dug diving, it only gets back
+        /// over - our setter (left or right) takes it and sets the player, who glides back to the spike stance.
+        /// </summary>
+        void ContinueRally(Vector3 from,bool comfortable)
+        {
+            Drill.RetireRallyBall(); // a scripted ball carries on from the same spot
+            var turn=comfortable ? RallyTurn.Block : RallyTurn.Spike;
+            StartFlowTurn(turn);
+            if(turn==RallyTurn.Block)
+            {
+                if(!BeginOpponentReceive(from)){Phase=RallyPhase.Idle;return;}
+                Phase=RallyPhase.OpponentReceive;
+                Cue="THEY DUG IT — THEY ATTACK: BLOCK!";
+            }
+            else
+            {
+                if(!BeginAllyReceive(from)){Phase=RallyPhase.Idle;return;}
+                Phase=RallyPhase.AllyReceive;
+                Cue="SAVED, BUT ONLY BACK OVER — YOUR SETTER SETS YOU";
+            }
+        }
+        /// <summary>The turn changes inside the rally: no blank, the stance glides there behind the comfort vignette.</summary>
+        void StartFlowTurn(RallyTurn turn)
+        {
+            bool spikeTurn=turn==RallyTurn.Spike;
+            CurrentTurn=turn;TurnStarted=true;_attemptsInTurn=1;
+            if(Jump!=null)
+            {
+                Jump.ResetJump();
+                Jump.JumpHeight=spikeTurn ? SpikeJumpHeight : BlockJumpHeight;
+                Jump.Duration=spikeTurn ? SpikeJumpSeconds : BlockJumpSeconds;
+            }
+            if(Jump!=null && Jump.Floor!=null)
+            {
+                _glideStart=Jump.Floor.StanceOffset;_glideEnd=spikeTurn ? SpikeStance : Vector3.zero;_turnGlide=0f;
+            }
+            if(Opponent!=null){Opponent.gameObject.SetActive(!spikeTurn);_opponentFollow=-1f;Act(Opponent,0f);}
+            if(Ally!=null)
+            {
+                if(spikeTurn && !Ally.gameObject.activeSelf){_allySide=Random.value<.5f ? -1f : 1f;PlaceAlly();}
+                Ally.gameObject.SetActive(spikeTurn);Act(Ally,0f);
+            }
+            _followSetter=null;_setterFollow=-1f;_digger=-1;
+            // Their front row walks to the new jobs (no teleport): three blockers, or setter + middle for their attack.
+            if(Blockers!=null)for(int i=0;i<Blockers.Length;i++)
+            {
+                if(Blockers[i]==null)continue;
+                var blocker=Blockers[i];
+                _blockerActive[i]=false;_blockerTargets[i]=BlockerStandby(i);
+                blocker.Role=VolleyOpponentPrototype.MotionRole.Block;
+                if(!spikeTurn && i==0){blocker.Role=VolleyOpponentPrototype.MotionRole.Set;_blockerTargets[i]=NetCentre+Right*OpponentSetterOffset.x+Forward*OpponentSetterOffset.y;}
+                if(!spikeTurn && i==1)_blockerTargets[i]=NetCentre+Right*MiddleBlockerOffset+Forward*BlockerNetDistance;
+                blocker.gameObject.SetActive(spikeTurn || i<2);
+                SetSolid(blocker,false);Act(blocker,0f);
+            }
+            _blockersFresh=false;
+            TurnAnnounced?.Invoke(turn);
+        }
+        void TickTurnGlide(float dt)
+        {
+            if(_turnGlide<0f)
+            {
+                if(!MatchEngine && VignetteAlpha>0f)VignetteAlpha=Mathf.MoveTowards(VignetteAlpha,0f,dt/VignetteOutSeconds);
+                return;
+            }
+            _turnGlide+=dt;
+            VignetteAlpha=Mathf.MoveTowards(VignetteAlpha,1f,dt/VignetteInSeconds);
+            float u=Mathf.Clamp01((_turnGlide-VignetteInSeconds)/FlowGlideSeconds);
+            if(Jump!=null && Jump.Floor!=null)Jump.Floor.SetStanceOffset(Vector3.Lerp(_glideStart,_glideEnd,Mathf.SmoothStep(0f,1f,u)));
+            if(u<1f)return;
+            _turnGlide=-1f;
+            // End exactly on the spot (absolute), whatever the player's own steps did meanwhile.
+            if(Jump!=null && Jump.Floor!=null)Jump.Floor.PlaceStance(_glideEnd);
         }
         /// <summary>The first floor contact decides the point; the ball itself keeps bouncing until the reset.</summary>
         void TickLanding()
@@ -999,6 +1093,8 @@ namespace GloveBallDemo.Runtime
         {
             if(!IsPlayerSpike || !_playerTouched || _blockerTouched || ball==null || ball!=Drill.ActiveBall)return false;
             _blockerTouched=true;
+            // Their hands absorb much of it: the physics bounce off the kinematic colliders came off far too lively.
+            ball.Body.linearVelocity*=BlockerReboundScale;
             // After a block the attacking side has three touches again; the blocking side touched it last.
             _lastTouchTeam=Team.Them;_touches[0]=0;
             PlaySpikeAudio(point);

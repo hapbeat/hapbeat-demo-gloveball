@@ -116,7 +116,7 @@ public static class VolleyRallySetup
         // Block spot: eyes 0.5 m from the net (0.3 m put raised arms through it); the spike stance stays 1.5 m from the net.
         aerial.BlockStandDistance=.5f;aerial.SpikeStandBackDistance=1f;
         // Their attack: centred on the player, a narrower spread (fingertip blocks only graze, so it must stay reachable).
-        aerial.AttackBodyYaw=10f;aerial.AttackShotDeviation=3f;aerial.BlockLateralLimit=.45f;
+        aerial.AttackShotDeviation=3f;
         drill.FingertipZone=.75f;
         // A fingertip block is a deflection that slows and turns the ball, not a ball that passes clean through.
         drill.FingertipBlockPassThrough=.3f;
@@ -129,6 +129,9 @@ public static class VolleyRallySetup
         aerial.SpikeHeightWeight=.65f;aerial.SpikeHeightWindow=.8f;aerial.SpikeFullSwing=7f;
         drill.BlockForearms=true;
         aerial.AttackerShift=1.2f;
+        // Their attack within reach of a block made standing still: narrower.
+        aerial.AttackBodyYaw=7f;aerial.BlockLateralLimit=.3f;
+        aerial.BlockerReboundScale=.5f;aerial.FlowRally=true;aerial.FlowGlideSeconds=.45f;
         aerial.CoverMaxSpeed=11f;aerial.DiveReach=.9f;aerial.DiveChance=.45f;
         // Their defence: two deep, one covering short balls; hard-driven balls are often shanked, soft ones rarely.
         aerial.DefenderDepth=6.5f;aerial.CoverDepth=3.3f;

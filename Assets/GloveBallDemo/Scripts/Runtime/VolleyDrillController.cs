@@ -548,10 +548,37 @@ namespace GloveBallDemo.Runtime
             for (int side = 0; side < 2; side++)
             {
                 var hand = side == 0 ? Left : Right;
-                if (!block && _forearmVisual[side] == null) continue;
+                if (!block && _forearmVisual[side] == null && _arms[side] == null) continue;
                 Forearm(side);
-                if (_forearmVisual[side] != null) _forearmVisual[side].enabled = block && hand.Ready;
+                bool shown = block && hand.Ready;
+                // The Energy Duel tutorial's forearm (the shared package's, in the shared hands' look); the capsule only without it.
+                var arm = shown ? Arm(side) : _arms[side];
+                if (arm != null)
+                {
+                    arm.gameObject.SetActive(shown);
+                    if (shown)
+                    {
+                        arm.ApplyPose(hand.transform.position, hand.transform.rotation, 0f, Hapbeat.DemoSwitch.DemoTutorialHand.StraightArm(hand.transform.rotation), ForearmFadeStart);
+                        // Only its forearm: the hand itself is the shared tracked hand.
+                        foreach (var mesh in arm.GetComponentsInChildren<SkinnedMeshRenderer>(true)) mesh.enabled = false;
+                    }
+                }
+                if (_forearmVisual[side] != null) _forearmVisual[side].enabled = shown && arm == null;
             }
+        }
+        readonly Hapbeat.DemoSwitch.DemoTutorialHand[] _arms = new Hapbeat.DemoSwitch.DemoTutorialHand[2];
+        [Tooltip("The drawn forearm stays opaque this far past the wrist, then fades out over the package's fade length.")]
+        [Min(0f)] public float ForearmFadeStart = .18f;
+        Hapbeat.DemoSwitch.DemoTutorialHand Arm(int side)
+        {
+            if (_arms[side] != null) return _arms[side];
+            var shared = Hapbeat.DemoSwitch.DemoHands.Instance;
+            if (!Application.isPlaying || shared == null || !shared.IsResolved || !shared.UsesMetaModel) return null;
+            var go = new GameObject(side == 0 ? "Left block forearm" : "Right block forearm");
+            go.transform.SetParent(transform, false);
+            var arm = go.AddComponent<Hapbeat.DemoSwitch.DemoTutorialHand>();
+            arm.Left = side == 0; arm.ShowForearm = true; arm.Scale = 1f;
+            return _arms[side] = arm;
         }
 
         /// <summary>The fastest hand velocity of the last <see cref="SwingHistorySteps"/> physics steps (tracking can lag the swing at contact).</summary>

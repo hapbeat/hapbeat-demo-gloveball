@@ -58,6 +58,29 @@ namespace GloveBallDemo.Tests
         Vector3 Forward=>Vector3.ProjectOnPlane(_drill.CourtFrame.forward,Vector3.up).normalized;
         void DiscardPrepared(){var ball=_rally.TakePreparedBall();if(ball!=null)_drill.Pool.Return(ball,"test");}
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void SpikeAndBlockDugBallsCarryTheRallyOnWithoutABlank(bool comfortable)
+        {
+            _rally.Mode=Mode.Alternate;_rally.FlowRally=true;
+            RunUntil(()=>_rally.Phase==Phase.AllyReceive || _rally.Phase==Phase.OpponentReceive,4f,"first attempt");
+            DiscardPrepared();
+            var dig=_drill.ReceiveNet.transform.position+Forward*6f+Vector3.up*.8f;
+            typeof(VolleyAerialSequence).GetMethod("ContinueRally",Private).Invoke(_rally,new object[]{dig,comfortable});
+            Assert.That(_rally.Phase,Is.EqualTo(comfortable ? Phase.OpponentReceive : Phase.AllyReceive),"In the flow, no turn change blink.");
+            Assert.That(_rally.CurrentTurn,Is.EqualTo(comfortable ? Turn.Block : Turn.Spike));
+            Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero,"A dig is not a point.");
+            Assert.That(_rally.FadeAlpha,Is.Zero);
+            RunFor(.3f);
+            Assert.That(_rally.VignetteAlpha,Is.GreaterThan(0f),"The stance glides behind the vignette.");
+            RunFor(.6f);
+            var expected=comfortable ? Vector3.zero : -Forward*_rally.SpikeStandBackDistance;
+            Assert.That(Vector3.Distance(_jump.Floor.StanceOffset,expected),Is.LessThan(.01f),"At the "+(comfortable ? "block spot" : "spike stance"));
+            _launched=false;
+            RunUntil(()=>_launched,6f,comfortable ? "their attack" : "our set to the player");
+            Assert.That(_rally.Phase,Is.EqualTo(comfortable ? Phase.OpponentSpike : Phase.PlayerSpike));
+        }
+
         [Test]
         public void SceneHasColouredTeamsASetterAndThreeSolidBlockers()
         {
