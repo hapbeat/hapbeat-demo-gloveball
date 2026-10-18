@@ -84,6 +84,8 @@ namespace GloveBallDemo.Runtime
         [Range(0f,1f)] public float FingertipSpikeScale = .55f;
         [Tooltip("A fingertip block only partly turns the ball: 0 = full rebound, 1 = the ball carries on unchanged.")]
         [Range(0f,1f)] public float FingertipBlockPassThrough = .65f;
+        [Tooltip("A block off the side of the hand (not the palm face, or the outer 20% of its width) barely changes the ball's path: it carries on, slightly turned.")]
+        [Range(0f,1f)] public float EdgeBlockPassThrough = .85f;
         [Tooltip("Haptic strength multiplier for a fingertip graze and for a solid palm / wrist contact.")]
         [Min(0f)] public float FingertipHapticScale = .4f;
         [Min(0f)] public float PalmHapticScale = 1.3f;
@@ -434,11 +436,13 @@ namespace GloveBallDemo.Runtime
                         float zone = joined ? 0f : HandZone(hand, Vector3.Lerp(previous, current, hand == Left ? lt : rt));
                         var touch = Aerial != null ? Aerial.CurrentPlayerTouch : VolleyAerialSequence.PlayerTouch.None;
                         bool zoned = touch == VolleyAerialSequence.PlayerTouch.Spike || touch == VolleyAerialSequence.PlayerTouch.Block;
-                        bool tip = zoned && zone >= FingertipZone;
-                        if (tip) velocity = touch == VolleyAerialSequence.PlayerTouch.Spike ? velocity * FingertipSpikeScale : Vector3.Lerp(velocity, incoming, FingertipBlockPassThrough);
+                        bool edge = zoned && !joined && HandEdge(hand, Vector3.Lerp(previous, current, hand == Left ? lt : rt), normal);
+                        bool tip = zoned && (zone >= FingertipZone || edge);
+                        if (tip) velocity = touch == VolleyAerialSequence.PlayerTouch.Spike ? velocity * FingertipSpikeScale
+                            : Vector3.Lerp(velocity, incoming, edge ? EdgeBlockPassThrough : FingertipBlockPassThrough);
                         else if (touch == VolleyAerialSequence.PlayerTouch.Block && Aerial != null) velocity = Aerial.BlockShot(_ball.Body.position, velocity);
                         if (zoned)
-                            Debug.Log($"[VolleyTouch] {touch} zone={zone:F2} tip={tip} swing={swing.magnitude:F1}m/s pitch={Mathf.Atan2(swing.y, new Vector2(swing.x, swing.z).magnitude) * Mathf.Rad2Deg:F0} out={velocity.magnitude:F1}m/s pitch={Mathf.Atan2(velocity.y, new Vector2(velocity.x, velocity.z).magnitude) * Mathf.Rad2Deg:F0}");
+                            Debug.Log($"[VolleyTouch] {touch} zone={zone:F2} tip={tip} edge={edge} swing={swing.magnitude:F1}m/s pitch={Mathf.Atan2(swing.y, new Vector2(swing.x, swing.z).magnitude) * Mathf.Rad2Deg:F0} out={velocity.magnitude:F1}m/s pitch={Mathf.Atan2(velocity.y, new Vector2(velocity.x, velocity.z).magnitude) * Mathf.Rad2Deg:F0}");
                         if(Aerial!=null && Aerial.OverrideTouchVelocity(handVelocity,_ball.Body.position,velocity,out var modelled))velocity=modelled; // serve / set / pass
                         if (_ball.Deflect(velocity))
                         {
@@ -548,6 +552,21 @@ namespace GloveBallDemo.Runtime
             }
             if (_setBoth || _setHand == Left) HapticEventRelay.ReportHapticOnly(_ball.ImpactEvent(DemoHapticEvent.LeftArmCollide), Left.transform.position, strength);
             if (_setBoth || _setHand == Right) HapticEventRelay.ReportHapticOnly(_ball.ImpactEvent(DemoHapticEvent.RightArmCollide), Right.transform.position, strength);
+        }
+
+        /// <summary>
+        /// True for a contact off the side of the hand: the swept sphere hit a side face of the box (its normal is not
+        /// along the palm normal), or the point is in the outer 20% of the hand's width.
+        /// </summary>
+        public static bool HandEdge(VolleyTrackedHand hand, Vector3 point, Vector3 normal)
+        {
+            var box = hand.ContactVolume;
+            if (box == null) return false;
+            if (Mathf.Abs(Vector3.Dot(normal.normalized, box.transform.up)) < .5f) return true;
+            var size = Vector3.Scale(box.size, box.transform.lossyScale);
+            int width = Mathf.Abs(size.x) <= Mathf.Abs(size.z) ? 0 : 2; // the shorter of the two in-plane axes
+            var local = box.transform.InverseTransformPoint(point) - box.center;
+            return Mathf.Abs(local[width]) > box.size[width] * .5f * .8f;
         }
 
         /// <summary>

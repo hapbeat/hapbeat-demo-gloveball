@@ -118,7 +118,13 @@ public static class VolleyRallySetup
         // A fingertip block is a deflection that slows and turns the ball, not a ball that passes clean through.
         drill.FingertipBlockPassThrough=.3f;
         // A palm block mostly keeps the hands' own rebound (palms facing their court already send it back over).
-        aerial.BlockAssist=.35f;
+        aerial.BlockAssist=.35f;aerial.BlockMaximumYaw=20f;
+        drill.EdgeBlockPassThrough=.85f;
+        // Their defence: two deep, one covering short balls; hard-driven balls are often shanked, soft ones rarely.
+        aerial.DefenderDepth=6.5f;aerial.CoverDepth=3.3f;
+        aerial.DigSpeedRange=new Vector2(8f,20f);aerial.DigEasyChance=.95f;aerial.DigHardChance=.3f;
+        // One blocker reads the hitter closely.
+        aerial.ReadingBlockerRange=.3f;
         PlaceBlockSpot(aerial,net,forward);
         aerial.TargetMaterial=TargetMaterial();
         // The rally is tuned on the volleyball first; the other balls come back once its feel is right.

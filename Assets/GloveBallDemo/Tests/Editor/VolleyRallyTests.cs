@@ -232,8 +232,8 @@ namespace GloveBallDemo.Tests
             RunUntil(()=>_rally.Phase==Phase.AllyReceive,3f,"spike attempt");
             var net=_drill.ReceiveNet.transform.position;
             LaunchLive();_rally.RegisterPlayerTouch();
-            // Soft push toward the middle defender (depth 6): about a second in the air.
-            Fly(net+new Vector3(0f,3f,-.3f),new Vector3(0f,3.4f,5.4f));
+            // Soft push short behind the block (about 2.7 m): about a second in the air, the cover defender (3.3 m) plays it.
+            Fly(net+new Vector3(0f,3f,-.3f),new Vector3(0f,2.5f,3f));
             Assert.That(_rally.Outcome,Is.EqualTo("DUG"));Assert.That(_rally.OpponentScore,Is.EqualTo(1));
             RunUntil(()=>_rally.Phase==Phase.AllyReceive,6f,"next spike");
 

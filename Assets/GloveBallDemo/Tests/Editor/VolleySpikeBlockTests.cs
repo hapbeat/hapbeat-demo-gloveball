@@ -85,6 +85,38 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
+        public void ASidewaysReboundIsTurnedBackNoMoreThan20Degrees()
+        {
+            var contact=Net-Forward*_rally.BlockStandDistance+Forward*_drill.ContactForwardDistance+Vector3.up*2.9f;
+            var right=Vector3.Cross(Vector3.up,Forward);
+            // Off an angled hand: the rebound goes almost as much sideways as forward.
+            var v=_rally.BlockShot(contact,Forward*3f-right*3f+Vector3.down*1f);
+            Fly(contact,v,out _,out var landing);
+            var flat=Vector3.ProjectOnPlane(landing-contact,Vector3.up);
+            Assert.That(Vector3.Angle(flat,Forward),Is.LessThanOrEqualTo(_rally.BlockMaximumYaw+1f),"Never a 45° deflection.");
+            Assert.That(Depth(landing),Is.GreaterThan(0f));
+        }
+
+        [Test]
+        public void TheSideOfTheHandIsAnEdgeThePalmFaceIsNot()
+        {
+            var hand=_drill.Right;var box=hand.ContactVolume;
+            var centre=box.transform.TransformPoint(box.center);
+            Assert.That(VolleyDrillController.HandEdge(hand,centre,box.transform.up),Is.False,"Palm face, middle of the hand.");
+            Assert.That(VolleyDrillController.HandEdge(hand,centre,box.transform.right),Is.True,"A side face.");
+            var size=box.size;int width=Mathf.Abs(size.x)<=Mathf.Abs(size.z) ? 0 : 2;
+            var local=box.center;local[width]+=size[width]*.5f*.95f;
+            Assert.That(VolleyDrillController.HandEdge(hand,box.transform.TransformPoint(local),box.transform.up),Is.True,"The outer rim of the palm.");
+        }
+
+        [Test]
+        public void TheirDefenceCoversShortBallsAndHardBallsAreOftenShanked()
+        {
+            Assert.That(_rally.CoverDepth,Is.LessThan(_rally.DefenderDepth-2f),"One defender plays short behind the block.");
+            Assert.That(_rally.DigHardChance,Is.LessThan(_rally.DigEasyChance-.4f));
+        }
+
+        [Test]
         public void AttackLinesAre3MetresFromTheNet()
         {
             var root=GameObject.Find("Volley attack lines (3 m)");

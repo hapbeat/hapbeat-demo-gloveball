@@ -84,6 +84,7 @@ namespace GloveBallDemo.Runtime
         [Range(0f,60f)] public float SpikeMaximumYaw=35f;
         [Tooltip("Pull of a palm block toward a rebound that clears the net into their court (0 = the hands' physics only). Fingertips never get it.")]
         [Range(0f,1f)] public float BlockAssist=.8f;
+        [Range(0f,45f)] public float BlockMaximumYaw=20f;
         public Vector2 BlockLandingDepth=new Vector2(.8f,3f);
         public float BlockerStandbyDistance=3.2f;
         [Tooltip("Blocker airtime; the arms stay up over the net for most of it.")]
@@ -105,6 +106,12 @@ namespace GloveBallDemo.Runtime
         [Min(.1f)] public float DigReach=.8f;
         [Tooltip("Height at which a defender plays the ball.")]
         [Min(.2f)] public float DigHeight=.8f;
+        [Tooltip("The middle defender covers short balls (tips, soft shots behind the block) from this depth; the others defend deep.")]
+        [Min(1f)] public float CoverDepth=3.3f;
+        [Tooltip("Chance to dig a reachable ball: easy at or below the first speed, hard at or above the second (m/s at the dig).")]
+        public Vector2 DigSpeedRange=new Vector2(8f,20f);
+        [Range(0f,1f)] public float DigEasyChance=.95f;
+        [Range(0f,1f)] public float DigHardChance=.3f;
         [Tooltip("Opponent setter feet in the block turn: x = court right, y = court forward (positive is the opponent side).")]
         public Vector2 OpponentSetterOffset=new Vector2(-1.4f,.4f);
         [Tooltip("Idle middle blocker position along the net in the block turn.")]
@@ -199,7 +206,8 @@ namespace GloveBallDemo.Runtime
         public float AttackYaw=>_attackYaw;
         VolleyOpponentPrototype _followSetter;
         float _setterFollow=-1f, _sinceTouch;
-        int _digger=-1;
+        int _digger=-1, _digRolledFor=-1;
+        bool _digSuccess, _digMissShown, _netCrossLogged;
         Vector3 _digTarget;
         Vector3[] _defenderHome=new Vector3[0];
         /// <summary>Defender index committed to the current ball, or -1.</summary>
@@ -357,7 +365,12 @@ namespace GloveBallDemo.Runtime
             for(int i=0;i<count;i++)_blockerTargets[i]=BlockerStandby(i);
             int defenders=Defenders!=null ? Defenders.Length : 0;
             _defenderHome=new Vector3[defenders];
-            for(int i=0;i<defenders;i++)_defenderHome[i]=NetCentre+Forward*DefenderDepth+Right*((i-(defenders-1)*.5f)*DefenderSpacing);
+            for(int i=0;i<defenders;i++)
+            {
+                // Perimeter defence: the middle one plays short behind the block, the others deep in the corners.
+                bool cover=defenders>=3 && i==(defenders-1)/2;
+                _defenderHome[i]=NetCentre+Forward*(cover ? CoverDepth : DefenderDepth)+Right*(cover ? 0f : (i-(defenders-1)*.5f)*DefenderSpacing);
+            }
             PlaceAlly();
         }
         Vector3 BlockerStandby(int index)
@@ -672,7 +685,7 @@ namespace GloveBallDemo.Runtime
         {
             _lastBallPosition=start;_havePhysicsSample=false;
             _playerTouched=_blockerTouched=_handLostNear=_handReadyNear=false;
-            _digger=-1;_sinceTouch=0f;
+            _digger=-1;_digRolledFor=-1;_digSuccess=false;_digMissShown=false;_netCrossLogged=false;_sinceTouch=0f;
         }
         /// <summary>
         /// Physics-rate landing check. A fast ball can bounce between two samples without ever being seen near the floor,
@@ -686,11 +699,27 @@ namespace GloveBallDemo.Runtime
             if(_playerTouched)
             {
                 _sinceTouch+=step;
+                if(Phase==RallyPhase.PlayerSpike)LogNetCrossing(position);
                 PlanDig(position,velocity,damping);
                 if(TryDig(position))return true;
             }
             if(DetectLanding(position,velocity,radius,step,out var landing)){_lastBallPosition=landing;Resolve(landing);}
             return false;
+        }
+        /// <summary>Tuning log: where the player's spike crossed the net and how far the nearest jumping blocker's hands were.</summary>
+        void LogNetCrossing(Vector3 position)
+        {
+            if(_netCrossLogged || !_havePhysicsSample || Blockers==null)return;
+            if(Vector3.Dot(_previousBallPosition-NetCentre,Forward)>=0f || Vector3.Dot(position-NetCentre,Forward)<0f)return;
+            _netCrossLogged=true;
+            float lateral=Vector3.Dot(position-NetCentre,Right),nearest=float.MaxValue,hands=0f;
+            for(int i=0;i<Blockers.Length;i++)
+            {
+                if(Blockers[i]==null || !_blockerActive[i])continue;
+                float gap=Mathf.Abs(Vector3.Dot(Blockers[i].transform.position-NetCentre,Right)-lateral);
+                if(gap<nearest){nearest=gap;hands=Mathf.Max(Blockers[i].LeftHand!=null?Blockers[i].LeftHand.position.y:0f,Blockers[i].RightHand!=null?Blockers[i].RightHand.position.y:0f);}
+            }
+            Debug.Log($"[VolleySpike] net crossing height={position.y:F2} lateral={lateral:F2} nearestBlocker={nearest:F2}m hands={hands:F2} blocked={_blockerTouched}");
         }
         /// <summary>First floor contact, including a bounce that happened between two samples (touchdown extrapolated).</summary>
         bool DetectLanding(Vector3 position,Vector3 velocity,float radius,float step,out Vector3 landing)
@@ -730,6 +759,7 @@ namespace GloveBallDemo.Runtime
                 v+=Physics.gravity*dt;v*=Mathf.Clamp01(1f-damping*dt);p+=v*dt;t+=dt;
             }
             if(!reached)return;
+            float arriving=v.magnitude;
             var local=p-NetCentre;
             float depth=Vector3.Dot(local,Forward),side=Vector3.Dot(local,Right);
             // Defend only balls coming down inside the opponent court; out balls are left alone.
@@ -743,6 +773,12 @@ namespace GloveBallDemo.Runtime
                 float need=Mathf.Max(0f,offset.magnitude-DigReach)/DefenderSpeed;
                 if(need<=moving && need<best){best=need;_digger=i;_digTarget=new Vector3(p.x,floor,p.z);}
             }
+            // One roll per defender and ball: a hard-driven ball is often shanked even when reached, a soft one rarely.
+            if(_digger>=0 && _digger!=_digRolledFor)
+            {
+                _digRolledFor=_digger;
+                _digSuccess=Random.value<Mathf.Lerp(DigEasyChance,DigHardChance,Mathf.InverseLerp(DigSpeedRange.x,DigSpeedRange.y,arriving));
+            }
         }
         bool TryDig(Vector3 position)
         {
@@ -751,6 +787,12 @@ namespace GloveBallDemo.Runtime
             float height=position.y-Drill.CourtFrame.position.y;
             if(height>DigHeight+.6f || height<.15f)return false;
             if(Vector3.ProjectOnPlane(position-defender.transform.position,Vector3.up).magnitude>DigReach)return false;
+            if(!_digSuccess)
+            {
+                // Got there but could not control it: the dig motion, and the ball plays on to the floor.
+                if(!_digMissShown){_digMissShown=true;Act(defender,.8f);}
+                return false;
+            }
             // Pop the ball up toward the opponent's own front court, as a real dig would.
             DigVelocity=Vector3.up*5.5f-Forward*Mathf.Clamp(Vector3.Dot(position-NetCentre,Forward)*.35f,0f,2.5f);
             Act(defender,1f);
@@ -981,12 +1023,20 @@ namespace GloveBallDemo.Runtime
         public Vector3 BlockShot(Vector3 ball,Vector3 physical)
         {
             var forward=Forward;
-            float lateral=Mathf.Clamp(Vector3.Dot(ball-NetCentre,Right)+Mathf.Clamp(Vector3.Dot(physical,Right)*.25f,-1.5f,1.5f),-CourtHalfWidth+.3f,CourtHalfWidth-.3f);
             float depth=Mathf.Lerp(BlockLandingDepth.x,BlockLandingDepth.y,Mathf.InverseLerp(0f,8f,Vector3.Dot(physical,forward)));
+            // Sideways only as far as the rebound itself turns, never more than BlockMaximumYaw off straight back.
+            float yaw=Mathf.Clamp(Mathf.Atan2(Vector3.Dot(physical,Right),Mathf.Max(.5f,Vector3.Dot(physical,forward)))*Mathf.Rad2Deg,-BlockMaximumYaw,BlockMaximumYaw);
+            float toNet=Mathf.Max(0f,Vector3.Dot(NetCentre-ball,forward));
+            float lateral=Mathf.Clamp(Vector3.Dot(ball-NetCentre,Right)+Mathf.Tan(yaw*Mathf.Deg2Rad)*(toNet+depth),-CourtHalfWidth+.3f,CourtHalfWidth-.3f);
             var target=NetCentre+Right*lateral+forward*depth;target.y=Drill.CourtFrame.position.y;
             float netTop=Drill.ReceiveNet!=null ? Drill.ReceiveNet.bounds.max.y : 2.43f;
             var aimed=GloveBallDemo.Core.VolleyMath.FlightOver(ball,target,NetCentre,forward,netTop+.1f,Mathf.Clamp(physical.magnitude,5f,12f),Physics.gravity);
             var velocity=Vector3.Lerp(physical,aimed,BlockAssist);
+            // The hands' own share must not turn it more than that either.
+            var flat=Vector3.ProjectOnPlane(velocity,Vector3.up);
+            float turned=Vector3.SignedAngle(forward,flat,Vector3.up);
+            if(flat.sqrMagnitude>1e-4f && Mathf.Abs(turned)>BlockMaximumYaw)
+                velocity=Quaternion.AngleAxis(Mathf.Clamp(turned,-BlockMaximumYaw,BlockMaximumYaw),Vector3.up)*forward*flat.magnitude+Vector3.up*velocity.y;
             return ClearsNet(ball,velocity,netTop+.05f) ? velocity : aimed;
         }
         bool ClearsNet(Vector3 start,Vector3 velocity,float height)
