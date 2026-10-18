@@ -106,11 +106,12 @@ public static class VolleyRallySetup
         aerial.MinBlockers=aerial.MaxBlockers=3;
         aerial.HeightSpread=.15f;aerial.BlockReachAboveEye=.45f;aerial.BlockSpeed=10.5f; // readable from the body turn, always reachable
         aerial.BlockerJumpSeconds=1.3f;aerial.BlockerReactionSeconds=.05f;aerial.BlockerTimingJitter=.05f;
-        aerial.ReceiveHeight=1.2f; // forearm height (1.3 m felt a little high, 0.85 m too low to pass upward)
         aerial.TheirAttackSpeed=12f;aerial.TheirAttackDrop=.15f;aerial.TheirStrongAttackSpeed=15f;aerial.TheirStrongAttackDrop=.35f;
         aerial.SetterLateralRange=new Vector2(-.5f,2.5f);aerial.SetterOffNetRange=new Vector2(1f,2.5f);
         aerial.ExcellentPassMove=.8f;aerial.ExcellentPassHang=.9f;aerial.GoodPassOffNet=new Vector2(.5f,3f);
-        aerial.PassMinClearance=.4f;aerial.ReceiveSpread=new Vector3(.45f,.25f,.1f);
+        // A lob just over the tape is still settable; a little higher serve is kinder (no deep knee bend every time).
+        aerial.PassMinClearance=.1f;aerial.GoodPassOffNet=new Vector2(.2f,3f);aerial.ExcellentMovePerSecond=1.5f;aerial.SoftBlockWidth=.45f;
+        aerial.ReceiveSpread=new Vector3(.45f,.25f,.1f);aerial.ReceiveHeight=1.3f;
         aerial.SetLiftBase=1f;aerial.SetLiftGain=2.6f;aerial.SetAimGain=2.2f; // the held push, not a bounce, lifts the set
         // Block spot: eyes 0.5 m from the net (0.3 m put raised arms through it); the spike stance stays 1.5 m from the net.
         aerial.BlockStandDistance=.5f;aerial.SpikeStandBackDistance=1f;
@@ -124,7 +125,7 @@ public static class VolleyRallySetup
         drill.EdgeBlockPassThrough=.85f;
         // Spike: a high contact is a good shot; an open hand is not a fingertip tip unless it is the very tips.
         drill.SpikeSwingSpeed=1.8f;drill.SpikeMinimumSpeed=11f;drill.SpikeMaximumSpeed=22f;
-        drill.SpikeFingertipZone=.85f;drill.FingertipSpikeScale=.65f;
+        drill.SpikeFingertipZone=.85f;drill.FingertipSpikeScale=.8f; // an open hand is the normal spike: little difference to a fist
         aerial.SpikeHeightWeight=.65f;aerial.SpikeHeightWindow=.8f;aerial.SpikeFullSwing=7f;
         drill.BlockForearms=true;
         aerial.AttackerShift=1.2f;

@@ -73,6 +73,10 @@ namespace GloveBallDemo.Runtime
         [Tooltip("EXCELLENT: the setter plays it moving at most this far (m), and it was in the air at least this long since the pass (s).")]
         [Min(0f)] public float ExcellentPassMove=.8f;
         [Min(0f)] public float ExcellentPassHang=.9f;
+        [Tooltip("Every second the pass hangs longer than that lets the setter move this much further (m) for EXCELLENT.")]
+        [Min(0f)] public float ExcellentMovePerSecond=1.5f;
+        [Tooltip("Their attack is touched by one of our jumping blockers when it passes within this of their hands' line (m): it slows and pops up.")]
+        [Min(0f)] public float SoftBlockWidth=.45f;
         [Tooltip("GOOD: it rose clearly over the tape and comes down in this band off the net (inside the 3 m line), where a front-row player can set it.")]
         public Vector2 GoodPassOffNet=new Vector2(.5f,3f);
         [Tooltip("Height above the floor where the serve reaches the player's forearms.")]
@@ -219,7 +223,9 @@ namespace GloveBallDemo.Runtime
                 }
             if(best!=null)
             {
-                bool excellent=best==ActorAt(Team.Us,0) && Flat(p-SetWindowAt(best)).magnitude<=ExcellentPassMove && hang>=ExcellentPassHang;
+                // The higher the pass (the longer it hangs), the further the setter may move and still have every option.
+                float allowed=ExcellentPassMove+ExcellentMovePerSecond*Mathf.Max(0f,hang-ExcellentPassHang);
+                bool excellent=best==ActorAt(Team.Us,0) && Flat(p-SetWindowAt(best)).magnitude<=allowed && hang>=ExcellentPassHang;
                 _passClass=excellent ? 3 : 2;
                 _icActor=best;_icSuccess=true;_icTeam=Team.Us;_icPoint=new Vector3(p.x,FloorY,p.z);
                 _icHeight=SetterHandsHeight;_icReach=SetterReach;_icReaction=.1f;_icSpeed=SetterSpeed;

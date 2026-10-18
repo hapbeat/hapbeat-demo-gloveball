@@ -203,8 +203,9 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.LastGrade,Is.EqualTo("BAD"));Assert.That(_rally.Cue,Does.StartWith("BAD PASS"));
             Assert.That(_rally.Touches(VolleyAerialSequence.Team.Us),Is.EqualTo(2),"Second touch over, no set.");
             Launch(Phase.PlayerReceive);
-            Assert.That(_rally.Cue,Is.EqualTo("THEY ATTACK HARD — DIG IT UP!"));
-            Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.LessThan(_rally.ReceiveHeight-_rally.TheirStrongAttackDrop+_rally.ReceiveSpread.z+.01f));
+            Assert.That(_rally.Cue,Is.EqualTo("THEY ATTACK HARD — DIG IT UP!").Or.StartsWith("BLOCK TOUCH"),"Hard, unless one of our blockers touched it.");
+            if(!_rally.Cue.StartsWith("BLOCK TOUCH"))
+                Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.LessThan(_rally.ReceiveHeight-_rally.TheirStrongAttackDrop+_rally.ReceiveSpread.z+.01f));
             Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero);
         }
 
@@ -253,9 +254,10 @@ namespace GloveBallDemo.Tests
             Fly(_destination,pass);
             Assert.That(_rally.Phase,Is.EqualTo(Phase.MatchPlay),"Their defence digs the overpass.");
             Launch(Phase.PlayerReceive);
-            Assert.That(_rally.Cue,Is.EqualTo("THEY ATTACK — DIG IT UP!"),"In the flow, no pause: their attack comes at the player.");
+            Assert.That(_rally.Cue,Is.EqualTo("THEY ATTACK — DIG IT UP!").Or.StartsWith("BLOCK TOUCH"),"In the flow, no pause: their attack comes at the player.");
             Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero,"Their chance ball: no point.");
-            Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.LessThan(_rally.ReceiveHeight-_rally.TheirAttackDrop+_rally.ReceiveSpread.z+.01f),"Lower than a serve.");
+            if(!_rally.Cue.StartsWith("BLOCK TOUCH"))
+                Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.LessThan(_rally.ReceiveHeight-_rally.TheirAttackDrop+_rally.ReceiveSpread.z+.01f),"Lower than a serve.");
         }
 
         [Test]

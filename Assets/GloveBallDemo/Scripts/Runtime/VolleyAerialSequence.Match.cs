@@ -394,6 +394,9 @@ namespace GloveBallDemo.Runtime
                 actor.Target=actor.Home;actor.Anim=Anim.Ready;actor.Clock=-1f;actor.Delay=0f;actor.Speed=NpcRunSpeed;
                 actor.A.Role=actor.Slot<=2 ? VolleyOpponentPrototype.MotionRole.Block : VolleyOpponentPrototype.MotionRole.Dig;
                 Act(actor.A,0f);SetSolid(actor.A,false);
+                // Stations: everyone is simply in place for the next point (no time spent walking there).
+                if(Station && actor!=_embodied && actor!=_pendingShow && actor.A.gameObject.activeSelf)
+                {actor.A.transform.SetPositionAndRotation(actor.Home,actor.Facing);continue;}
                 if(actor==_embodied || actor==_pendingShow || actor.A.gameObject.activeSelf)continue;
                 actor.A.gameObject.SetActive(true);
                 actor.A.transform.SetPositionAndRotation(actor.Home,actor.Facing);
@@ -659,7 +662,21 @@ namespace GloveBallDemo.Runtime
             {
                 // Their counter-attack goes at the player, lower and faster than a serve: a poor pass makes it harder.
                 // After a free ball they had every option: a harder, lower attack than after a dug spike.
-                LaunchToForearms(hit,0f,_counterStrong ? TheirStrongAttackSpeed : TheirAttackSpeed,-(_counterStrong ? TheirStrongAttackDrop : TheirAttackDrop));
+                float attackSpeed=_counterStrong ? TheirStrongAttackSpeed : TheirAttackSpeed;
+                // One of our jumping blockers in the line touches it: it slows and pops up, then still comes to the player.
+                var touched=OurBlockTouch(hit);
+                if(touched.HasValue)
+                {
+                    var touch=touched.Value;
+                    _counterStrong=false;
+                    StartSegment(hit,touch,Mathf.Max(.08f,Flat(touch-hit).magnitude/attackSpeed),()=>{
+                        PlaySpikeAudio(touch);_touches[0]=0;_lastTouchTeam=Team.Us;
+                        LaunchToForearms(touch,.9f,attackSpeed*.4f);
+                        Cue="BLOCK TOUCH — SLOWED, DIG IT UP!";
+                    });
+                    return;
+                }
+                LaunchToForearms(hit,0f,attackSpeed,-(_counterStrong ? TheirStrongAttackDrop : TheirAttackDrop));
                 Cue=_counterStrong ? "THEY ATTACK HARD — DIG IT UP!" : "THEY ATTACK — DIG IT UP!";
                 _counterStrong=false;
                 return;
@@ -755,6 +772,24 @@ namespace GloveBallDemo.Runtime
                 actor.JumpAt=timeToHit+BlockerReactionSeconds-VolleyOpponentPrototype.BlockPeakPhase*BlockerJumpSeconds;
                 actor.A.JumpHeight=Random.Range(Mathf.Min(BlockerJumpMin,BlockerJumpMax),Mathf.Max(BlockerJumpMin,BlockerJumpMax));
             }
+        }
+        /// <summary>RECEIVE: where their attack meets one of our jumping front-row blockers' hands, if one is in its line.</summary>
+        Vector3? OurBlockTouch(Vector3 hit)
+        {
+            float toNet=Vector3.Dot(hit-NetCentre,Forward);
+            if(toNet<=0f)return null;
+            var aim=GroundedEye;
+            float fraction=toNet/Mathf.Max(.01f,toNet-Vector3.Dot(aim-NetCentre,Forward));
+            var cross=Vector3.Lerp(hit,aim,fraction);
+            foreach(var actor in _cast)
+            {
+                if(actor.Team!=Team.Us || actor.Slot>2 || actor==_embodied || actor.Anim!=Anim.Block)continue;
+                float gap=Mathf.Abs(Lateral(actor.Target)-Lateral(cross));
+                if(gap>SoftBlockWidth)continue;
+                var touch=NetCentre+Right*Lateral(cross)-Forward*.1f;touch.y=Mathf.Max(cross.y,NetTop+.35f);
+                return touch;
+            }
+            return null;
         }
         /// <summary>Opposing blockers placed by PlanSpike move in, go solid and jump to meet the player's spike.</summary>
         void ArmTheirBlock(float setFlightSeconds)
