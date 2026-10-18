@@ -107,8 +107,10 @@ public static class VolleyRallySetup
         aerial.HeightSpread=.15f;aerial.BlockReachAboveEye=.45f;aerial.BlockSpeed=10.5f; // readable from the body turn, always reachable
         aerial.BlockerJumpSeconds=1.3f;aerial.BlockerReactionSeconds=.05f;aerial.BlockerTimingJitter=.05f;
         aerial.ReceiveHeight=1.2f; // forearm height (1.3 m felt a little high, 0.85 m too low to pass upward)
-        aerial.TheirAttackSpeed=13f;aerial.TheirAttackDrop=.25f;
-        aerial.PassTarget=new Vector2(1f,1.5f);aerial.ExcellentPassRadius=1.3f;aerial.ExcellentPassRise=1f;
+        aerial.TheirAttackSpeed=12f;aerial.TheirAttackDrop=.15f;aerial.TheirStrongAttackSpeed=15f;aerial.TheirStrongAttackDrop=.35f;
+        aerial.SetterLateralRange=new Vector2(-.5f,2.5f);aerial.SetterOffNetRange=new Vector2(1f,2.5f);
+        aerial.ExcellentPassMove=.8f;aerial.ExcellentPassHang=.9f;aerial.GoodPassOffNet=new Vector2(.5f,3f);
+        aerial.PassMinClearance=.4f;aerial.ReceiveSpread=new Vector3(.45f,.25f,.1f);
         aerial.SetLiftBase=1f;aerial.SetLiftGain=2.6f;aerial.SetAimGain=2.2f; // the held push, not a bounce, lifts the set
         // Block spot: eyes 0.5 m from the net (0.3 m put raised arms through it); the spike stance stays 1.5 m from the net.
         aerial.BlockStandDistance=.5f;aerial.SpikeStandBackDistance=1f;

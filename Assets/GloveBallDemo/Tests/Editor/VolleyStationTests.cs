@@ -191,17 +191,56 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
-        public void PassBelowTheNetIsNotSetEvenWhenTheSetterCouldReachIt()
+        public void ALowPassIsNotSetATeammateBumpsItOverAndTheyAttackHard()
         {
             _rally.SetMode(Mode.Pass);_rally.PassAssist=0f;
             Launch(Phase.PlayerReceive);
-            // A flat pass toward the setter that never rises above the tape.
-            Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,Forward*4.5f+Vector3.up*3f,out var pass),Is.True);
+            // A flat pass toward the front row that never rises clearly over the tape.
+            Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,(Forward*4.5f+Vector3.up*3f)/_rally.PassReboundScale,out var pass),Is.True);
+            _rally.RegisterPlayerTouch();
+            Fly(_destination,pass);
+            Assert.That(_rally.Phase,Is.EqualTo(Phase.MatchPlay),"A teammate plays it ("+_rally.Outcome+")");
+            Assert.That(_rally.LastGrade,Is.EqualTo("BAD"));Assert.That(_rally.Cue,Does.StartWith("BAD PASS"));
+            Assert.That(_rally.Touches(VolleyAerialSequence.Team.Us),Is.EqualTo(2),"Second touch over, no set.");
+            Launch(Phase.PlayerReceive);
+            Assert.That(_rally.Cue,Is.EqualTo("THEY ATTACK HARD — DIG IT UP!"));
+            Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.LessThan(_rally.ReceiveHeight-_rally.TheirStrongAttackDrop+_rally.ReceiveSpread.z+.01f));
+            Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero);
+        }
+
+        [Test]
+        public void APassShankedDownAtTheFeetIsLost()
+        {
+            _rally.SetMode(Mode.Pass);_rally.PassAssist=0f;
+            Launch(Phase.PlayerReceive);
+            Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,Vector3.down*2f,out var pass),Is.True);
             _rally.RegisterPlayerTouch();
             Fly(_destination,pass);
             Assert.That(_rally.Phase,Is.EqualTo(Phase.Recovery));
-            Assert.That(_rally.Outcome,Is.EqualTo("TOO LOW FOR YOUR SETTER"));
             Assert.That(_rally.OpponentScore,Is.EqualTo(1));
+        }
+
+        [Test]
+        public void APassToAnotherFrontRowPlayerIsGoodNotExcellent()
+        {
+            _rally.SetMode(Mode.Pass);_rally.PassAssist=0f;
+            Launch(Phase.PlayerReceive);
+            // Up to the middle front player, not the setter on the disc.
+            var middle=_rally.Teammates[0];
+            var hands=middle.transform.position+Forward*.3f;hands.y=_drill.CourtFrame.position.y+1.82f;
+            var ideal=Arc(_destination,hands,_drill.CourtFrame.position.y+4f);
+            Assert.That(_rally.OverrideTouchVelocity(Vector3.zero,_destination,ideal/_rally.PassReboundScale,out var pass),Is.True);
+            _rally.RegisterPlayerTouch();
+            Fly(_destination,pass);
+            Assert.That(_rally.Phase,Is.EqualTo(Phase.MatchPlay));
+            Assert.That(_rally.LastGrade,Is.EqualTo("GOOD"),_rally.Cue);
+        }
+        static Vector3 Arc(Vector3 from,Vector3 to,float apex)
+        {
+            float g=Mathf.Abs(Physics.gravity.y);
+            float up=Mathf.Sqrt(2f*g*(apex-from.y)),seconds=up/g+Mathf.Sqrt(2f*(apex-to.y)/g);
+            var flat=Vector3.ProjectOnPlane(to-from,Vector3.up)/seconds;
+            return new Vector3(flat.x,up,flat.z);
         }
 
         [Test]
@@ -217,21 +256,6 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.Cue,Is.EqualTo("THEY ATTACK — DIG IT UP!"),"In the flow, no pause: their attack comes at the player.");
             Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero,"Their chance ball: no point.");
             Assert.That(_destination.y-_drill.CourtFrame.position.y,Is.LessThan(_rally.ReceiveHeight-_rally.TheirAttackDrop+_rally.ReceiveSpread.z+.01f),"Lower than a serve.");
-        }
-
-        [TestCase(1f,1.5f,2f,"EXCELLENT")]
-        [TestCase(1f,1.5f,.6f,"GOOD")]
-        [TestCase(-2.5f,2.5f,2f,"GOOD")]
-        [TestCase(0f,4.5f,2f,"BAD")]
-        [TestCase(1f,.3f,2f,"BAD")]
-        public void PassesAreGradedByWhatTheSetterCanDoWithThem(float lateral,float offNet,float rise,string grade)
-        {
-            _rally.SetMode(Mode.Pass);
-            var right=Right;
-            var at=Net-Forward*offNet+right*lateral;at.y=2f;
-            typeof(VolleyAerialSequence).GetField("_flightTop",Private).SetValue(_rally,_drill.ReceiveNet.bounds.max.y+rise);
-            typeof(VolleyAerialSequence).GetMethod("JudgeStationPass",Private).Invoke(_rally,new object[]{at,null});
-            Assert.That(_rally.LastGrade,Is.EqualTo(grade),_rally.Cue);
         }
 
         [Test]

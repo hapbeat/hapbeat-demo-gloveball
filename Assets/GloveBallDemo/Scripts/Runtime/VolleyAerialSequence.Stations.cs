@@ -55,30 +55,38 @@ namespace GloveBallDemo.Runtime
         [Range(0f,1f)] public float PassAssist=.5f;
         [Tooltip("The forearm rebound is scaled by this before the assist (the volleyball came off the platform too lively).")]
         [Range(.3f,1f)] public float PassReboundScale=.8f;
-        [Tooltip("Their attack at the player when the rally carries on (an overpass, a dug attack): faster and lower than a serve.")]
-        [Min(4f)] public float TheirAttackSpeed=13f;
-        [Min(0f)] public float TheirAttackDrop=.25f;
+        [Tooltip("Their attack at the player when the rally carries on after an overpass or a dug spike: faster and lower than a serve.")]
+        [Min(4f)] public float TheirAttackSpeed=12f;
+        [Min(0f)] public float TheirAttackDrop=.15f;
+        [Tooltip("Their attack after a BAD pass went over as a free ball: they had all the time, so it is harder.")]
+        [Min(4f)] public float TheirStrongAttackSpeed=15f;
+        [Min(0f)] public float TheirStrongAttackDrop=.35f;
         [Tooltip("Random offset of each of our front-row players from their spot every rep (m).")]
         [Min(0f)] public float FrontRowJitter=.6f;
         [Tooltip("Ideal pass apex above the floor.")]
         [Min(2f)] public float PassApexHeight=4f;
         [Tooltip("A pass must rise this far above the net tape for our setter to play it.")]
         [Min(0f)] public float PassMinClearance=.4f;
-        [Tooltip("The passing target (setter's spot): lateral to our right of the net centre, distance off the net. Between zones 2 and 3, a little off the net.")]
-        public Vector2 PassTarget=new Vector2(1f,1.5f);
-        [Tooltip("EXCELLENT (a 3-pass, every option): comes down within this distance of the passing target, after rising this high over the tape.")]
-        [Min(.2f)] public float ExcellentPassRadius=1.3f;
-        [Min(0f)] public float ExcellentPassRise=1f;
+        [Tooltip("Our setter (slot 0) stands somewhere new every rep: lateral to our right of the net centre, off the net. A disc under the setter is the target.")]
+        public Vector2 SetterLateralRange=new Vector2(-.5f,2.5f);
+        public Vector2 SetterOffNetRange=new Vector2(1f,2.5f);
+        [Tooltip("EXCELLENT: the setter plays it moving at most this far (m), and it was in the air at least this long since the pass (s).")]
+        [Min(0f)] public float ExcellentPassMove=.8f;
+        [Min(0f)] public float ExcellentPassHang=.9f;
+        [Tooltip("GOOD: it rose clearly over the tape and comes down in this band off the net (inside the 3 m line), where a front-row player can set it.")]
+        public Vector2 GoodPassOffNet=new Vector2(.5f,3f);
         [Tooltip("Height above the floor where the serve reaches the player's forearms.")]
         [Min(.5f)] public float ReceiveHeight=1.3f;
         [Tooltip("Random spread of the serve around that point: sideways, forward / back, height (m). The player need not step.")]
-        public Vector3 ReceiveSpread=new Vector3(.35f,.2f,.1f);
+        public Vector3 ReceiveSpread=new Vector3(.45f,.25f,.1f);
         [Tooltip("Kill chance of our attack after the worst and the best pass.")]
         [Range(0f,1f)] public float StationKillMin=.3f;
         [Range(0f,1f)] public float StationKillMax=.9f;
 
         float _stationQuality=-1f, _setArrival, _setClock;
-        bool _setPlanned, _passTooLow;
+        bool _setPlanned, _passTooLow, _passHitNet, _counterStrong;
+        /// <summary>RECEIVE: 3 EXCELLENT, 2 GOOD (a front-row player sets), 1 BAD (someone plays it over), 0 nobody can play it.</summary>
+        int _passClass;
         MatchActor _setHitter;
         Vector3 _setContact;
         readonly Vector3[] _hitterSpot=new Vector3[2];
@@ -110,7 +118,7 @@ namespace GloveBallDemo.Runtime
 
         void StartStationRep()
         {
-            _stationQuality=-1f;_setHitter=null;_setPlanned=false;_passTooLow=false;_setBlockers=0;
+            _stationQuality=-1f;_setHitter=null;_setPlanned=false;_passTooLow=false;_passHitNet=false;_counterStrong=false;_passClass=0;_setBlockers=0;
             var me=Me;
             if(me==null)return;
             // A fixed spot (no formation jitter), so the player is not moved between reps.
@@ -125,7 +133,8 @@ namespace GloveBallDemo.Runtime
             ShowRings(Mode==RallyMode.Set);ShowCrossing(false,Vector3.zero,0f);
             Cue=Mode==RallyMode.Set ? "TOSS: NEAR OR FAR HITTER? WATCH THEIR BLOCKERS, AIM FOR A GHOST BALL"
                 : "RECEIVE: PASS HIGH TO THE MARKED SPOT AT THE NET";
-            if(Mode==RallyMode.Pass)PlaceTarget(3,PassTargetPoint+Vector3.down*(SetterHandsHeight-FloorY-.02f),.6f,new Color(.3f,1f,.45f,.25f),.02f);
+            var setter=ActorAt(Team.Us,0);
+            if(Mode==RallyMode.Pass && setter!=null)PlaceTarget(3,new Vector3(setter.Home.x,FloorY+.01f,setter.Home.z),.55f,new Color(.3f,1f,.45f,.3f),.02f);
             else HideTarget(3);
             Phase=RallyPhase.MatchPlay;_serveTimer=ServeDelaySeconds;_serveWait=0f;
         }
@@ -169,18 +178,84 @@ namespace GloveBallDemo.Runtime
                 if(actor.Team==Team.Them && actor.Slot<=2 && actor.A.gameObject.activeSelf && Mathf.Abs(Lateral(actor.Home)-worldLateral)<1f)count++;
             return count;
         }
-        /// <summary>PASS: our three front-row players stand somewhere a little different every rep.</summary>
+        /// <summary>RECEIVE: our setter somewhere new inside the 3 m line, the other two front-row players a little off their spots.</summary>
         void RandomizeFrontRow()
         {
-            for(int slot=0;slot<3;slot++)
+            var setter=ActorAt(Team.Us,0);
+            if(setter!=null)setter.Home=TeamPoint(Team.Us,Random.Range(SetterLateralRange.x,SetterLateralRange.y),Random.Range(SetterOffNetRange.x,SetterOffNetRange.y));
+            for(int slot=1;slot<3;slot++)
             {
                 var actor=ActorAt(Team.Us,slot);
                 if(actor==null)continue;
-                actor.Home=TeamPoint(Team.Us,SlotBase[slot].x+Random.Range(-FrontRowJitter,FrontRowJitter),1f+Random.Range(-.2f,.4f));
+                for(int attempt=0;attempt<20;attempt++)
+                {
+                    actor.Home=TeamPoint(Team.Us,SlotBase[slot].x+Random.Range(-FrontRowJitter,FrontRowJitter),1f+Random.Range(-.2f,.4f));
+                    if(setter==null || Flat(actor.Home-setter.Home).magnitude>1.4f)break;
+                }
             }
         }
-        /// <summary>The passing target at a setter's hand height.</summary>
-        Vector3 PassTargetPoint{get{var p=TeamPoint(Team.Us,PassTarget.x,PassTarget.y);p.y=SetterHandsHeight;return p;}}
+        /// <summary>
+        /// RECEIVE, re-planned every physics step after the pass (graded by what the team can do with it, the 3-2-1 idea):
+        /// EXCELLENT - it comes to the setter (little movement) with time to spare; GOOD - it rose clearly over the tape and
+        /// comes down inside the 3 m line where a front-row player can set it; BAD - too low to set, or behind / beside the
+        /// player: whoever can reach it plays it over as a free ball, and they attack hard; nobody can reach it - lost.
+        /// A pass that touched the net is never played.
+        /// </summary>
+        void PlanStationPass(Vector3 p,float t,float top)
+        {
+            if(_passHitNet){_passClass=0;ClearIntercept();return;}
+            float hang=_sinceTouch+t,off=-Vector3.Dot(p-NetCentre,Forward);
+            _passTooLow=top<NetTop+PassMinClearance;
+            MatchActor best=null;float bestDistance=float.MaxValue;
+            bool settable=!_passTooLow && off>=GoodPassOffNet.x && off<=GoodPassOffNet.y;
+            float moving=t-Mathf.Max(0f,.1f-_sinceTouch);
+            if(settable)
+                for(int slot=0;slot<3;slot++)
+                {
+                    var actor=ActorAt(Team.Us,slot);
+                    if(actor==null || actor==_embodied || !actor.A.gameObject.activeSelf)continue;
+                    float distance=Flat(p-actor.A.transform.position).magnitude;
+                    if(Mathf.Max(0f,distance-SetterReach)/SetterSpeed<=moving && distance<bestDistance){bestDistance=distance;best=actor;}
+                }
+            if(best!=null)
+            {
+                bool excellent=best==ActorAt(Team.Us,0) && Flat(p-SetWindowAt(best)).magnitude<=ExcellentPassMove && hang>=ExcellentPassHang;
+                _passClass=excellent ? 3 : 2;
+                _icActor=best;_icSuccess=true;_icTeam=Team.Us;_icPoint=new Vector3(p.x,FloorY,p.z);
+                _icHeight=SetterHandsHeight;_icReach=SetterReach;_icReaction=.1f;_icSpeed=SetterSpeed;
+                // The setter stands where its hands meet the ball and its set pose grows as it arrives.
+                best.Facing=TeamFacing(Team.Us);
+                best.A.Role=VolleyOpponentPrototype.MotionRole.Set;best.Anim=Anim.Set;best.Clock=-1f;
+                best.Phase=VolleyOpponentPrototype.SetContactPhase*Mathf.Clamp01(1f-t/.8f);
+                _icRootOffset=-Flat(best.A.ReleasePositionAt(Vector3.zero,best.Facing));
+                if(_plannedAttacker==null)_plannedAttacker=ChooseAttacker(Team.Us,best,Vector3.zero);
+                return;
+            }
+            // BAD: anyone who can get there bumps it over.
+            float dig=t-Mathf.Max(0f,OurDigReaction-_sinceTouch);
+            for(int slot=0;slot<6;slot++)
+            {
+                var actor=ActorAt(Team.Us,slot);
+                if(actor==null || actor==_embodied || !actor.A.gameObject.activeSelf)continue;
+                float distance=Flat(p-actor.A.transform.position).magnitude;
+                if(Mathf.Max(0f,distance-OurDigReach)/OurDigSpeed<=dig && distance<bestDistance){bestDistance=distance;best=actor;}
+            }
+            if(best==null){_passClass=0;ClearIntercept();return;}
+            if(best!=_icActor && _icActor!=null && _icActor.Anim==Anim.Set){_icActor.Anim=Anim.Ready;_icActor.Clock=-1f;}
+            _passClass=1;
+            _icActor=best;_icSuccess=true;_icTeam=Team.Us;_icPoint=new Vector3(p.x,FloorY,p.z);
+            _icHeight=SetterHandsHeight;_icReach=OurDigReach;_icReaction=OurDigReaction;_icSpeed=OurDigSpeed;_icRootOffset=Vector3.zero;
+        }
+        /// <summary>RECEIVE, a BAD pass: the second touch just sends it over; they will attack hard.</summary>
+        void StationFreeBall(MatchActor actor,Vector3 position)
+        {
+            actor.A.Role=VolleyOpponentPrototype.MotionRole.Dig;actor.Anim=Anim.Dig;actor.Clock=0f;
+            _touches[0]=2;_lastTouchTeam=Team.Us;_counterStrong=true;
+            PlaySpikeAudio(position);
+            var why=Cue; // the grade's reason stays on the banner
+            FreeBall(Team.Us,position);
+            Cue=why;
+        }
         /// <summary>Whichever of our players (not the player) a pass comes down nearest: a front-row player near the net, anyone behind the 3 m line.</summary>
         MatchActor NearestTeammate(Vector3 point)
         {
@@ -284,12 +359,10 @@ namespace GloveBallDemo.Runtime
         public Vector3 StationPassVelocity(Vector3 ball,Vector3 physical)
         {
             physical*=PassReboundScale;
-            // Where the raw rebound comes down to setting height picks the player; the assist only helps toward them.
-            float g=Mathf.Abs(Physics.gravity.y),setY=SetterHandsHeight;
-            float apex=ball.y+Mathf.Max(0f,physical.y)*Mathf.Max(0f,physical.y)/(2f*g);
-            float time=Mathf.Max(0f,physical.y)/g+(apex>setY ? Mathf.Sqrt(2f*(apex-setY)/g) : 0f);
-            // The assist pulls toward the passing target (every option for the setter), not toward whoever is near.
-            return Vector3.Lerp(physical,ArcVelocity(ball,PassTargetPoint,FloorY+PassApexHeight),PassAssist);
+            // The assist pulls toward our setter's hands (the green disc), not toward whoever is near.
+            var setter=ActorAt(Team.Us,0);
+            if(setter==null)return physical;
+            return Vector3.Lerp(physical,ArcVelocity(ball,SetWindowAt(setter),FloorY+PassApexHeight),PassAssist);
         }
 
         /// <summary>TOSS, every physics step after the set leaves the hands: pick the hitter, run and jump them, hand the ball over.</summary>
@@ -381,13 +454,10 @@ namespace GloveBallDemo.Runtime
         /// </summary>
         void JudgeStationPass(Vector3 position,MatchActor player)
         {
-            float off=-Vector3.Dot(position-NetCentre,Forward);
-            float fromTarget=Flat(position-PassTargetPoint).magnitude;
-            float rise=_flightTop-NetTop;
             float q;string why;
-            if(off>=.5f && fromTarget<=ExcellentPassRadius && rise>=ExcellentPassRise){q=1f;why="EXCELLENT PASS — EVERY OPTION";}
-            else if(off>=.5f && off<=3f){q=.6f;why=rise<ExcellentPassRise && fromTarget<=ExcellentPassRadius ? "GOOD PASS — A LITTLE LOW" : "GOOD PASS — OFF THE TARGET";}
-            else{q=.2f;why=off<.5f ? "BAD PASS — TIGHT TO THE NET" : "BAD PASS — BEHIND THE 3 M LINE, HIGH BALL ONLY";}
+            if(_passClass>=3){q=1f;why="EXCELLENT PASS — RIGHT TO THE SETTER";}
+            else if(_passClass==2){q=.6f;why=player==ActorAt(Team.Us,0) ? "GOOD PASS — THE SETTER HAD TO MOVE" : "GOOD PASS — ANOTHER PLAYER SETS";}
+            else{q=.2f;why=_passTooLow ? "BAD PASS — TOO LOW TO SET: FREE BALL OVER" : "BAD PASS — OFF THE TARGET: FREE BALL OVER";}
             _stationQuality=q;ShowGrade(GradeWord(q));
             Cue=why;
         }
@@ -402,7 +472,7 @@ namespace GloveBallDemo.Runtime
         {
             float q=Mathf.Clamp01(_stationQuality);
             bool toss=Mode==RallyMode.Set;
-            float speed, kill;
+            float speed, kill, clearance=.2f; // a GOOD pass's spike is flatter: it clears the tape higher
             string shot;
             if(toss)
             {
@@ -417,7 +487,7 @@ namespace GloveBallDemo.Runtime
                 if(_setBlockers>0)shot+=_setBlockers>1 ? " INTO A DOUBLE BLOCK" : " PAST ONE BLOCKER";
             }
             else if(q>=PerfectSetQuality){speed=NpcAttackSpeed+7f;kill=StationKillMax;shot="HARD SPIKE";}
-            else if(q>=GoodSetQuality){speed=NpcAttackSpeed+2f;kill=Mathf.Lerp(StationKillMin,StationKillMax,.5f);shot="SPIKE";}
+            else if(q>=GoodSetQuality){speed=NpcAttackSpeed+1f;kill=Mathf.Lerp(StationKillMin,StationKillMax,.5f);shot="SPIKE";clearance=.7f;}
             else{speed=8f;kill=StationKillMin;shot="HIGH BALL — A SOFT ATTACK";}
             string touch=GradeWord(q)+(toss ? " SET" : " PASS");
             var them=Team.Them;
@@ -443,7 +513,7 @@ namespace GloveBallDemo.Runtime
                     if(gap>bestGap){bestGap=gap;best=spot;}
                 }
                 best.y=FloorY;
-                float seconds=Mathf.Max(Flat(best-hit).magnitude/speed,ClearNetSeconds(hit,best,.2f));
+                float seconds=Mathf.Max(Flat(best-hit).magnitude/speed,ClearNetSeconds(hit,best,clearance));
                 StartSegment(hit,best,seconds,()=>Award(true,"KILL! — "+touch,best));
                 Cue=shot;
                 return;
@@ -458,7 +528,7 @@ namespace GloveBallDemo.Runtime
             }
             if(digger==null){StartSegment(hit,aim,.6f,()=>Award(true,"KILL! — "+touch,aim));return;}
             var dig=digger.A.transform.position-TeamForward(them)*.3f;dig.y=FloorY+DigHeight;
-            float flight=Mathf.Max(Flat(dig-hit).magnitude/speed,ClearNetSeconds(hit,dig,.2f));
+            float flight=Mathf.Max(Flat(dig-hit).magnitude/speed,ClearNetSeconds(hit,dig,clearance));
             // Dug: no point. RECEIVE flows on (they pass, set and attack the player); TOSS just ends the rep there.
             if(toss){StartSegment(hit,dig,flight,()=>{digger.Anim=Anim.Dig;digger.Clock=0f;PlaySpikeAudio(dig);SetOutcome("DUG — "+touch,true);});return;}
             StartSegment(hit,dig,flight,()=>{Cue="DUG — THEY COUNTER";NpcTouch(them,digger,dig);});

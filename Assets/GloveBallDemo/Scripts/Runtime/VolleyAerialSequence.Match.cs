@@ -658,8 +658,10 @@ namespace GloveBallDemo.Runtime
             if(Mode==RallyMode.Pass && defending==Team.Us)
             {
                 // Their counter-attack goes at the player, lower and faster than a serve: a poor pass makes it harder.
-                LaunchToForearms(hit,0f,TheirAttackSpeed,-TheirAttackDrop);
-                Cue="THEY ATTACK — DIG IT UP!";
+                // After a free ball they had every option: a harder, lower attack than after a dug spike.
+                LaunchToForearms(hit,0f,_counterStrong ? TheirStrongAttackSpeed : TheirAttackSpeed,-(_counterStrong ? TheirStrongAttackDrop : TheirAttackDrop));
+                Cue=_counterStrong ? "THEY ATTACK HARD — DIG IT UP!" : "THEY ATTACK — DIG IT UP!";
+                _counterStrong=false;
                 return;
             }
             if(defending==Team.Us && PlayerBlocking)
@@ -828,6 +830,10 @@ namespace GloveBallDemo.Runtime
             _sinceTouch+=step;
             // A missed block keeps going into our court, where our defence may still dig it.
             if(Station && Phase==RallyPhase.PlayerSet && _playerTouched)return TrackStationSet(position,velocity,radius,step,damping);
+            // RECEIVE: a pass that touches the net is never played on.
+            if(Mode==RallyMode.Pass && Phase==RallyPhase.PlayerReceive && _playerTouched && !_passHitNet
+                && Mathf.Abs(Vector3.Dot(position-NetCentre,Forward))<radius+.05f && position.y<NetTop+radius*.5f && Mathf.Abs(Lateral(position))<CourtHalfWidth+.25f)
+                _passHitNet=true;
             if(Phase==RallyPhase.PlayerSet && _playerTouched)
             {
                 if(_sinceTouch>=SetHandOffSeconds)HandSetToHitter(position);
@@ -859,6 +865,7 @@ namespace GloveBallDemo.Runtime
             }
             if(!found || !InsideCourt(p,.3f)){ClearIntercept();return;}
             int touches=_touches[(int)side];
+            if(Mode==RallyMode.Pass && side==Team.Us && touches==1){PlanStationPass(p,t,top);return;}
             // PASS: only our setter plays the player's pass, and only one that rose clearly above the net.
             // Stations play on only what the rally needs: our setter takes the player's pass (risen clearly over the
             // tape), and in RECEIVE a pass that went over is their chance ball - they dig it and attack the player.
@@ -927,6 +934,7 @@ namespace GloveBallDemo.Runtime
             if(stationSet)JudgeStationPass(position,actor);
             ClearIntercept();DisarmTheirBlock();EnableReceiveVolume(false);
             AwaitedTouch=PlayerTouch.None;Phase=RallyPhase.MatchPlay;
+            if(stationSet && _passClass==1){StationFreeBall(actor,position);return true;}
             if(stationSet)
             {
                 // The ball settles into the setter's hands before the set leaves them.
@@ -959,7 +967,7 @@ namespace GloveBallDemo.Runtime
                 // A low pass (into the net, under the tape), an out, or a set no hitter could reach: the player's miss.
                 winner=Team.Them;_stationQuality=0f;if(Mode==RallyMode.Pass)ShowGrade("BAD");
                 text=!inBounds ? "OUT" : court==Team.Them ? "OVER THE NET" : Mode==RallyMode.Set ? "SET DROPPED"
-                    : _passTooLow ? "TOO LOW FOR YOUR SETTER" : "PASS DROPPED";
+                    : _passHitNet ? "INTO THE NET" : _passTooLow ? "TOO LOW — NOBODY COULD PLAY IT" : "PASS DROPPED";
             }
             else if(Phase==RallyPhase.PlayerSet && !_playerTouched)text="SET MISSED";
             if(Mode==RallyMode.Match && winner==Team.Us && _serving==Team.Them)RotatePlayer(); // side-out

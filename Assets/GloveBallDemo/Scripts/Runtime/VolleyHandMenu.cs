@@ -103,6 +103,11 @@ namespace GloveBallDemo.Runtime
                 var ray=new GameObject(i==0?"Left menu ray":"Right menu ray").AddComponent<LineRenderer>();ray.transform.SetParent(transform,false);
                 ray.sharedMaterial=_rayMaterial;ray.positionCount=2;ray.startWidth=.003f;ray.endWidth=.0015f;ray.enabled=false;_rays[i]=ray;
             }
+            // Always in front: the net and the players must never hide the menu (no depth test, drawn last).
+            var onTop=new Material(Shader.Find("UI/Default")){name="Volley menu on top"};
+            onTop.SetInt("unity_GUIZTestMode",(int)UnityEngine.Rendering.CompareFunction.Always);
+            onTop.renderQueue=(int)UnityEngine.Rendering.RenderQueue.Overlay;
+            foreach(var graphic in go.GetComponentsInChildren<Graphic>(true))graphic.material=onTop;
             _canvas.gameObject.SetActive(false);Refresh();
         }
         Text Label(string value,RectTransform parent,Vector2 position,int size)
