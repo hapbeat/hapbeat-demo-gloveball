@@ -84,6 +84,17 @@ namespace GloveBallDemo.Runtime
         [Range(0f,1f)] public float FingertipSpikeScale = .55f;
         [Tooltip("A fingertip block only partly turns the ball: 0 = full rebound, 1 = the ball carries on unchanged.")]
         [Range(0f,1f)] public float FingertipBlockPassThrough = .65f;
+        [Tooltip("A spike counts as fingertips only from this far along the hand (an open hand meets the ball with the fingers' base).")]
+        [Range(.3f,1f)] public float SpikeFingertipZone = .85f;
+        [Header("Rally: forearms (block only)")]
+        [Tooltip("Block turns add a forearm behind each wrist (no elbow is tracked: along the wrist's back axis, as Energy Duel does), solid like the palm, drawn as a translucent arm.")]
+        public bool BlockForearms = true;
+        public Vector3 ForearmCentre = new Vector3(0f, 0f, -.15f);
+        public Vector3 ForearmSize = new Vector3(.085f, .075f, .26f);
+        public Color ForearmColour = new Color(.87f, .67f, .53f, .55f);
+        readonly BoxCollider[] _forearm = new BoxCollider[2];
+        readonly Renderer[] _forearmVisual = new Renderer[2];
+        MaterialPropertyBlock _forearmBlock;
         [Tooltip("A block off the side of the hand (not the palm face, or the outer 20% of its width) barely changes the ball's path: it carries on, slightly turned.")]
         [Range(0f,1f)] public float EdgeBlockPassThrough = .85f;
         [Tooltip("Haptic strength multiplier for a fingertip graze and for a solid palm / wrist contact.")]
@@ -181,6 +192,7 @@ namespace GloveBallDemo.Runtime
         private void Update()
         {
             TickTracking(Time.unscaledDeltaTime,Left.Ready||Right.Ready);
+            UpdateForearms();
             if(GameInputGate.IsBlocked || TrackingSuspended) return;
             bool rally=Drill==VolleyDrill.Block && Aerial!=null && Aerial.RallyEnabled;
             if (Aerial==null && FeedLaunchers != null && Head != null && CourtFrame != null)
@@ -410,6 +422,16 @@ namespace GloveBallDemo.Runtime
                         l=ContactBox(JoinedHands.Volume,JoinedHands.PreviousPosition,JoinedHands.PreviousRotation,previous,current,radius,out lt,out ln);
                         r=false; // A joined hit is solved once; never also bounce off the individual hands.
                     }
+                    // Block: the forearms are solid too (the hands come first).
+                    BoxCollider arm = null;
+                    if (!l && !r && !joined && ForearmsActive)
+                    {
+                        float flt = 0f, frt = 0f; Vector3 fln = Vector3.up, frn = Vector3.up;
+                        bool fl = Left.Ready && Forearm(0) != null && ContactBox(Forearm(0), Left.PreviousPhysicsPosition, Left.PreviousPhysicsRotation, previous, current, reach, out flt, out fln);
+                        bool fr = Right.Ready && Forearm(1) != null && ContactBox(Forearm(1), Right.PreviousPhysicsPosition, Right.PreviousPhysicsRotation, previous, current, reach, out frt, out frn);
+                        if (fl && (!fr || flt <= frt)) { l = true; lt = flt; ln = fln; arm = Forearm(0); }
+                        else if (fr) { r = true; rt = frt; rn = frn; arm = Forearm(1); }
+                    }
                     if (l || r)
                     {
                         var hand = l && (!r || lt <= rt) ? Left : Right;
@@ -428,16 +450,20 @@ namespace GloveBallDemo.Runtime
                             swing = handVelocity.sqrMagnitude > .25f ? handVelocity.normalized * Mathf.Max(handVelocity.magnitude, fastest.magnitude) : fastest;
                         }
                         bool spikeSwing = firstSpikeTouch && swing.magnitude >= SpikeSwingSpeed;
+                        // A spike's speed comes mostly from how high it is met, the swing only adds to it (fast swings lose tracking).
                         var velocity = spikeSwing
-                            ? (Aerial != null ? Aerial.SpikeShot(_ball.Body.position, swing, Mathf.Clamp(swing.magnitude * SpikePower, SpikeMinimumSpeed, SpikeMaximumSpeed))
+                            ? (Aerial != null ? Aerial.SpikeShot(_ball.Body.position, swing, Aerial.SpikeSpeed(_ball.Body.position, swing.magnitude))
                                 : VolleyMath.SpikeVelocity(swing,SpikePower,SpikeMinimumSpeed,SpikeMaximumSpeed,SpikeMaximumRise))
                             : ReturnForBall(_ball.Feel,incoming,handVelocity,normal);
                         // Spike and block: fingertips only graze the ball, the palm and wrist meet it solidly.
-                        float zone = joined ? 0f : HandZone(hand, Vector3.Lerp(previous, current, hand == Left ? lt : rt));
+                        var point = Vector3.Lerp(previous, current, hand == Left ? lt : rt);
+                        float zone = joined || arm != null ? 0f : HandZone(hand, point);
                         var touch = Aerial != null ? Aerial.CurrentPlayerTouch : VolleyAerialSequence.PlayerTouch.None;
                         bool zoned = touch == VolleyAerialSequence.PlayerTouch.Spike || touch == VolleyAerialSequence.PlayerTouch.Block;
-                        bool edge = zoned && !joined && HandEdge(hand, Vector3.Lerp(previous, current, hand == Left ? lt : rt), normal);
-                        bool tip = zoned && (zone >= FingertipZone || edge);
+                        bool spiking = touch == VolleyAerialSequence.PlayerTouch.Spike;
+                        bool edge = zoned && !spiking && !joined && arm == null && HandEdge(hand, point, normal);
+                        bool tip = zoned && (zone >= (spiking ? SpikeFingertipZone : FingertipZone) || edge);
+                        if (tip && Aerial != null) Aerial.ShowTouchFlash(point);
                         if (tip) velocity = touch == VolleyAerialSequence.PlayerTouch.Spike ? velocity * FingertipSpikeScale
                             : Vector3.Lerp(velocity, incoming, edge ? EdgeBlockPassThrough : FingertipBlockPassThrough);
                         else if (touch == VolleyAerialSequence.PlayerTouch.Block && Aerial != null) velocity = Aerial.BlockShot(_ball.Body.position, velocity);
@@ -449,7 +475,7 @@ namespace GloveBallDemo.Runtime
                             // Incoming feeds stay calibrated; returns use per-kind gameplay drag, not floor settings.
                             _ball.Body.linearDamping=ResponseFor(_ball.Feel)?.ReturnDrag ?? 0f;
                             // Place just clear of the contact volume on the outgoing side, not at an anchor.
-                            var volume = joined ? JoinedHands.Volume : hand.ContactVolume;
+                            var volume = joined ? JoinedHands.Volume : arm != null ? arm : hand.ContactVolume;
                             var localHit = volume.transform.InverseTransformPoint(Vector3.Lerp(previous, current, hand == Left ? lt : rt)) - volume.center;
                             var half = volume.size * .5f;
                             for (int axis = 0; axis < 3; axis++) localHit[axis] = Mathf.Clamp(localHit[axis], -half[axis], half[axis]);
@@ -487,6 +513,45 @@ namespace GloveBallDemo.Runtime
             }
             else _haveBallSample = false; // Never sweep across an unobserved tracking gap.
             Left.EndPhysicsSample(); Right.EndPhysicsSample();
+        }
+
+        bool ForearmsActive => BlockForearms && Aerial != null && Aerial.CurrentPlayerTouch == VolleyAerialSequence.PlayerTouch.Block;
+        /// <summary>Behind the wrist, in the hand box's own frame (that frame's previous pose is the hand's, so the sweep stays exact).</summary>
+        BoxCollider Forearm(int side)
+        {
+            if (_forearm[side] != null) return _forearm[side];
+            var hand = side == 0 ? Left : Right;
+            if (hand == null || hand.ContactVolume == null) return null;
+            var go = new GameObject(side == 0 ? "Left forearm" : "Right forearm");
+            go.transform.SetParent(hand.ContactVolume.transform, false);
+            var box = go.AddComponent<BoxCollider>(); box.isTrigger = true; box.enabled = false;
+            var scale = hand.ContactVolume.transform.lossyScale;
+            var inverse = new Vector3(1f / Mathf.Max(1e-4f, Mathf.Abs(scale.x)), 1f / Mathf.Max(1e-4f, Mathf.Abs(scale.y)), 1f / Mathf.Max(1e-4f, Mathf.Abs(scale.z)));
+            box.center = Vector3.Scale(ForearmCentre, inverse); box.size = Vector3.Scale(ForearmSize, inverse);
+            var visual = GameObject.CreatePrimitive(PrimitiveType.Capsule); visual.name = "Forearm visual";
+            if (Application.isPlaying) Destroy(visual.GetComponent<Collider>()); else DestroyImmediate(visual.GetComponent<Collider>());
+            visual.transform.SetParent(go.transform, false);
+            visual.transform.localPosition = box.center; visual.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            visual.transform.localScale = Vector3.Scale(new Vector3(ForearmSize.x, ForearmSize.z * .5f, ForearmSize.y), inverse);
+            var renderer = visual.GetComponent<Renderer>();
+            if (Aerial != null && Aerial.TargetMaterial != null) renderer.sharedMaterial = Aerial.TargetMaterial;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; renderer.receiveShadows = false;
+            if (_forearmBlock == null) _forearmBlock = new MaterialPropertyBlock();
+            renderer.GetPropertyBlock(_forearmBlock); _forearmBlock.SetColor("_BaseColor", ForearmColour); renderer.SetPropertyBlock(_forearmBlock);
+            _forearmVisual[side] = renderer;
+            return _forearm[side] = box;
+        }
+        /// <summary>The forearms are shown (and solid) only while the player blocks.</summary>
+        void UpdateForearms()
+        {
+            bool block = BlockForearms && Aerial != null && Aerial.ShowsForearms;
+            for (int side = 0; side < 2; side++)
+            {
+                var hand = side == 0 ? Left : Right;
+                if (!block && _forearmVisual[side] == null) continue;
+                Forearm(side);
+                if (_forearmVisual[side] != null) _forearmVisual[side].enabled = block && hand.Ready;
+            }
         }
 
         /// <summary>The fastest hand velocity of the last <see cref="SwingHistorySteps"/> physics steps (tracking can lag the swing at contact).</summary>

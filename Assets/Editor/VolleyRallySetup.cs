@@ -122,6 +122,13 @@ public static class VolleyRallySetup
         // A palm block mostly keeps the hands' own rebound (palms facing their court already send it back over).
         aerial.BlockAssist=.35f;aerial.BlockMaximumYaw=20f;
         drill.EdgeBlockPassThrough=.85f;
+        // Spike: a high contact is a good shot; an open hand is not a fingertip tip unless it is the very tips.
+        drill.SpikeSwingSpeed=1.8f;drill.SpikeMinimumSpeed=11f;drill.SpikeMaximumSpeed=22f;
+        drill.SpikeFingertipZone=.85f;drill.FingertipSpikeScale=.65f;
+        aerial.SpikeHeightWeight=.65f;aerial.SpikeHeightWindow=.8f;aerial.SpikeFullSwing=7f;
+        drill.BlockForearms=true;
+        aerial.AttackerShift=1.2f;
+        aerial.CoverMaxSpeed=11f;aerial.DiveReach=.9f;aerial.DiveChance=.45f;
         // Their defence: two deep, one covering short balls; hard-driven balls are often shanked, soft ones rarely.
         aerial.DefenderDepth=6.5f;aerial.CoverDepth=3.3f;
         aerial.DigSpeedRange=new Vector2(8f,20f);aerial.DigEasyChance=.95f;aerial.DigHardChance=.3f;

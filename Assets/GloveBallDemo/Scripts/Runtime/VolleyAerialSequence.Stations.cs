@@ -90,7 +90,7 @@ namespace GloveBallDemo.Runtime
         MatchActor _setHitter;
         Vector3 _setContact;
         readonly Vector3[] _hitterSpot=new Vector3[2];
-        readonly Renderer[] _targets=new Renderer[4];
+        readonly Renderer[] _targets=new Renderer[5];
         MaterialPropertyBlock _targetBlock;
         int _setBlockers;
         static readonly Color[] TargetColours={new Color(.2f,.9f,1f,.32f),new Color(1f,.85f,.2f,.32f),new Color(1f,1f,1f,.6f)};

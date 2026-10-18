@@ -117,6 +117,29 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
+        public void AHighContactMakesTheFastSpikeMoreThanAFastSwing()
+        {
+            float top=_rally.GroundedEye.y+_rally.Jump.JumpHeight+_rally.SpikeReachAboveEye;
+            float highSlow=_rally.SpikeSpeed(Vector3.up*top,_drill.SpikeSwingSpeed);
+            float lowFast=_rally.SpikeSpeed(Vector3.up*(top-_rally.SpikeHeightWindow),_rally.SpikeFullSwing);
+            Assert.That(highSlow,Is.GreaterThan(lowFast),"Height counts more than swing speed.");
+            Assert.That(_rally.SpikeSpeed(Vector3.up*top,_rally.SpikeFullSwing),Is.EqualTo(_drill.SpikeMaximumSpeed).Within(.01f));
+        }
+
+        [Test]
+        public void ResetViewAlsoSetsTheEyeHeight()
+        {
+            var menu=Object.FindFirstObjectByType<VolleyHandMenu>();var floor=_rally.Jump.Floor;var original=Time.timeScale;
+            try
+            {
+                floor.Origin.Camera.transform.localPosition=Vector3.up*1.25f;
+                menu.SetOpen(true);menu.RepositionToStart();
+                Assert.That(floor.EyeHeight,Is.EqualTo(floor.StandingEyeHeight).Within(.01f),"視線をリセット puts the eyes at the standing height too.");
+            }
+            finally{menu.SetOpen(false);Time.timeScale=original;}
+        }
+
+        [Test]
         public void AttackLinesAre3MetresFromTheNet()
         {
             var root=GameObject.Find("Volley attack lines (3 m)");

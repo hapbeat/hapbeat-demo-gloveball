@@ -271,7 +271,7 @@ namespace GloveBallDemo.Runtime
         }
         void ResetAutomaticAttempt(){if(Drill.Aerial!=null && Drill.Aerial.BeginnerBlock)Drill.Aerial.SetBeginnerBlock(true);}
         /// <summary>REPOSITION TO START, also the shared 視線をリセット (VolleySessionHost).</summary>
-        public void RepositionToStart(){ResetAutomaticAttempt();Floor.Recenter();SetOpen(false);}
+        public void RepositionToStart(){ResetAutomaticAttempt();Floor.Recenter();Floor.CalibrateStandingHeight();SetOpen(false);}
         void OnDisable(){DemoPause.PausedChanged-=OnSharedPauseChanged;if(IsOpen)SetOpen(false);}
         public bool CanExecuteControl(string action,string sceneId) =>
             action=="menu_open" || action=="menu_close" || action=="restart"
