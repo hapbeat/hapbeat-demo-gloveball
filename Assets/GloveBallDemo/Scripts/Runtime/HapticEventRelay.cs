@@ -28,6 +28,8 @@ namespace GloveBallDemo.Runtime
         FoamLeftImpact, FoamRightImpact, FoamBodyImpact,
         BasketballLeftImpact, BasketballRightImpact, BasketballBodyImpact,
         PerforatedLeftImpact, PerforatedRightImpact, PerforatedBodyImpact,
+        /// <summary>Volley: a jump's takeoff and landing, at the neck (Studio library landing clip).</summary>
+        Landing,
     }
 
     [Serializable]
@@ -288,7 +290,7 @@ namespace GloveBallDemo.Runtime
 
         private HapbeatUnityEventTrigger FindTrigger(DemoHapticEvent evt)
         {
-            if (_ballImpactBindings != null && evt >= DemoHapticEvent.BowlingLeftImpact)
+            if (_ballImpactBindings != null && evt >= DemoHapticEvent.BowlingLeftImpact && evt <= DemoHapticEvent.PerforatedBodyImpact)
                 return _ballImpactBindings.Find(evt);
             if (_hapbeatBindings == null)
             {

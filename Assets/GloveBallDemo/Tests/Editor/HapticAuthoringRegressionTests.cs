@@ -66,8 +66,14 @@ namespace GloveBallDemo.Tests
                 manifestEvents.Add(eventName, match.Groups["clip"].Value);
             }
 
-            Assert.That(entriesByEvent.Count, Is.EqualTo(definitionsByEvent.Count));
-            Assert.That(manifestEvents.Count, Is.EqualTo(definitionsByEvent.Count));
+            // Outside the catalog, each added by its own setup and nothing else: the balls' impacts (BallVariantSetup, in the
+            // manifest; their entries live in BallImpactEventMap) and Volley's jump landing (VolleyRallySetup).
+            var ballImpacts = new[] { "bowling", "volleyball", "foam", "basketball", "perforated" }
+                .SelectMany(ball => new[] { ball + "_l_arm_collide", ball + "_r_arm_collide", ball + "_body_collide" });
+            Assert.That(entriesByEvent.Keys.Where(name => !definitionsByEvent.ContainsKey(name)), Is.EquivalentTo(new[] { "landing" }),
+                "EventMap entries outside the catalog");
+            Assert.That(manifestEvents.Keys.Where(name => !definitionsByEvent.ContainsKey(name)),
+                Is.EquivalentTo(ballImpacts.Concat(new[] { "landing" })), "manifest events outside the catalog");
             foreach (var pair in definitionsByEvent)
             {
                 var eventName = pair.Key;

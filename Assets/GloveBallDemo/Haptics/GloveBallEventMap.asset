@@ -238,4 +238,19 @@ MonoBehaviour:
     notes: Fires 0.6 s before a shot. Weak on purpose - a cue, not an event.
     manifestOverride: {fileID: 0}
     _cachedManifestIntensity: 1
+  - _id: 857e60c308344d978ba290ded1f3ff53
+    mode: 1
+    displayName: Landing
+    category: gloveball-kit
+    eventName: landing
+    streamClip: {fileID: 8300000, guid: f8b823cd136b03045b9e175ddda136ba, type: 3}
+    loop: 0
+    bindings: []
+    gain: 1
+    target: '*/pos_neck'
+    delayOffsetSeconds: 0
+    notes: 'Volley: a jump''s takeoff (light) and landing (stronger), at the neck
+      (Hapbeat Studio library fps-sample/landing).'
+    manifestOverride: {fileID: 0}
+    _cachedManifestIntensity: 1
   revertPlayModeChanges: 0

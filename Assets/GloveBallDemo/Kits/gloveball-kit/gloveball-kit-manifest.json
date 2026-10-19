@@ -253,6 +253,14 @@
         "intensity": 1,
         "loop": false
       }
+    },
+    "gloveball-kit.landing": {
+      "clip": "landing.wav",
+      "description": "Volley: a jump's takeoff (light) and landing (stronger), at the neck",
+      "parameters": {
+        "intensity": 1,
+        "loop": false
+      }
     }
   }
 }

@@ -161,6 +161,25 @@ namespace GloveBallDemo.Tests
         [Test]
         public void AJumpSaysWhenItTakesOffAndLandsForItsLightHaptics()
         {
+            // Felt at the neck: the Kit's landing clip (the trigger beside the relay, bound to DemoHapticEvent.Landing).
+            var relay=Object.FindFirstObjectByType<HapticEventRelay>();
+            var bindings=new UnityEditor.SerializedObject(relay).FindProperty("_hapbeatBindings");
+            Object trigger=null;
+            for(int i=0;i<bindings.arraySize;i++)
+            {
+                var element=bindings.GetArrayElementAtIndex(i);
+                if(element.FindPropertyRelative("Event").intValue==(int)DemoHapticEvent.Landing)
+                    trigger=element.FindPropertyRelative("Trigger").objectReferenceValue;
+            }
+            Assert.That(trigger,Is.Not.Null,"Bound on the relay.");
+            var entries=new UnityEditor.SerializedObject(UnityEditor.AssetDatabase.LoadMainAssetAtPath("Assets/GloveBallDemo/Haptics/GloveBallEventMap.asset")).FindProperty("entries");
+            UnityEditor.SerializedProperty landing=null;
+            for(int i=0;i<entries.arraySize;i++)
+                if(entries.GetArrayElementAtIndex(i).FindPropertyRelative("eventName").stringValue=="landing")landing=entries.GetArrayElementAtIndex(i);
+            Assert.That(landing,Is.Not.Null,"gloveball-kit.landing in the EventMap.");
+            Assert.That(landing.FindPropertyRelative("target").stringValue,Is.EqualTo("*/pos_neck"));
+            Assert.That(landing.FindPropertyRelative("streamClip").objectReferenceValue.name,Is.EqualTo("landing"));
+            Assert.That(new UnityEditor.SerializedObject(trigger).FindProperty("_entryId").stringValue,Is.EqualTo(landing.FindPropertyRelative("_id").stringValue));
             Assert.That(_drill.JumpHapticGain,Is.EqualTo(.3f).Within(.001f));
             Assert.That(_drill.LandHapticGain,Is.EqualTo(.6f).Within(.001f));
             var jump=_rally.Jump;

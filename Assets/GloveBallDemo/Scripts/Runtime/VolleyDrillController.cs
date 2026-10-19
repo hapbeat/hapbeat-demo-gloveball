@@ -99,7 +99,7 @@ namespace GloveBallDemo.Runtime
         public bool HapticsAtMaximum;
         [Tooltip("A receive is felt at least this strong (gain), wherever on the arms it is met: the feel of a good receive every time.")]
         [Min(0f)] public float ReceiveMinimumGain = 1.2f;
-        [Tooltip("A jump's takeoff and landing, felt lightly in both wrists (the Kit's grab clip, no sound): the streamed gain (a ball hit is 2).")]
+        [Tooltip("A jump's takeoff (light) and landing (stronger), felt at the neck (the Kit's landing clip, no sound): the streamed gain (a ball hit is 2).")]
         [Range(0f, 2f)] public float JumpHapticGain = .3f;
         [Range(0f, 2f)] public float LandHapticGain = .6f;
         [Header("Rally: set (toss) - caught, carried and pushed")]
@@ -183,12 +183,11 @@ namespace GloveBallDemo.Runtime
         }
         void OnTookOff() => JumpHaptic(JumpHapticGain);
         void OnLanded() => JumpHaptic(LandHapticGain);
-        /// <summary>Both wrists, the grab clip at <paramref name="gain"/> (streamed), no sound.</summary>
+        /// <summary>At the neck, the landing clip at <paramref name="gain"/> (streamed), no sound.</summary>
         public void JumpHaptic(float gain)
         {
             if (gain <= 0f) return;
-            HapticEventRelay.ReportHapticAtGain(DemoHapticEvent.LeftGrab, Left != null ? Left.transform.position : transform.position, gain);
-            HapticEventRelay.ReportHapticAtGain(DemoHapticEvent.RightGrab, Right != null ? Right.transform.position : transform.position, gain);
+            HapticEventRelay.ReportHapticAtGain(DemoHapticEvent.Landing, Head != null ? Head.position : transform.position, gain);
         }
 
         private bool HeadIsTracked()

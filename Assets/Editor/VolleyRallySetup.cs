@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using GloveBallDemo.Runtime;
+using Hapbeat;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -16,6 +17,43 @@ public static class VolleyRallySetup
     const string TeammatePrefix="Rally teammate ";
 
     const string NarrationFolder="Assets/GloveBallDemo/Audio/Narration/ja";
+    const string LandingClipPath="Assets/GloveBallDemo/Kits/gloveball-kit/stream-clips/landing.wav";
+    const string GloveBallEventMapPath="Assets/GloveBallDemo/Haptics/GloveBallEventMap.asset";
+    /// <summary>
+    /// The jump's landing haptic (Hapbeat Studio library fps-sample/landing.wav, in the Kit as gloveball-kit.landing): its
+    /// EventMap entry (neck, StreamClip), a trigger beside the relay and the relay's binding for DemoHapticEvent.Landing.
+    /// Outside DemoHapticCatalog, like the ball impacts.
+    /// </summary>
+    static void SetUpLandingHaptic(VolleyDrillController drill)
+    {
+        var map=AssetDatabase.LoadAssetAtPath<HapbeatEventMap>(GloveBallEventMapPath);
+        var clip=AssetDatabase.LoadAssetAtPath<AudioClip>(LandingClipPath);
+        if(map==null || clip==null)throw new InvalidOperationException("Landing haptic: event map or clip missing.");
+        var entry=map.entries.Find(e=>e.category=="gloveball-kit" && e.eventName=="landing");
+        if(entry==null){entry=new HapbeatEventEntry();entry.RegenerateId();map.entries.Add(entry);}
+        entry.mode=HapticMode.StreamClip;entry.displayName="Landing";entry.category="gloveball-kit";entry.eventName="landing";
+        entry.streamClip=clip;entry.loop=false;entry.gain=1f;entry.target="*/pos_neck";entry.delayOffsetSeconds=0f;
+        entry.notes="Volley: a jump's takeoff (light) and landing (stronger), at the neck (Hapbeat Studio library fps-sample/landing).";
+        entry.SetCachedManifestIntensity(1f);
+        EditorUtility.SetDirty(map);
+        var relay=UnityEngine.Object.FindFirstObjectByType<HapticEventRelay>();
+        if(relay==null)throw new InvalidOperationException("Landing haptic: no HapticEventRelay in the scene.");
+        var holder=relay.transform.Find("Landing haptic");
+        if(holder==null){holder=new GameObject("Landing haptic").transform;holder.SetParent(relay.transform,false);}
+        var trigger=holder.GetComponent<HapbeatUnityEventTrigger>();
+        if(trigger==null)trigger=holder.gameObject.AddComponent<HapbeatUnityEventTrigger>();
+        trigger.EditorSetupEntry(map,entry.id);
+        EditorUtility.SetDirty(trigger);
+        var relaySo=new SerializedObject(relay);var bindings=relaySo.FindProperty("_hapbeatBindings");
+        int at=-1;
+        for(int i=0;i<bindings.arraySize;i++)
+            if(bindings.GetArrayElementAtIndex(i).FindPropertyRelative("Event").intValue==(int)DemoHapticEvent.Landing){at=i;break;}
+        if(at<0){at=bindings.arraySize;bindings.arraySize++;}
+        var element=bindings.GetArrayElementAtIndex(at);
+        element.FindPropertyRelative("Event").intValue=(int)DemoHapticEvent.Landing;
+        element.FindPropertyRelative("Trigger").objectReferenceValue=trigger;
+        relaySo.ApplyModifiedPropertiesWithoutUndo();
+    }
     const string MusicPath="Assets/GloveBallDemo/Audio/Music/energetic_bigbeat_drum_loop.wav";
     const string LeftPlaceholderPath="Assets/GloveBallDemo/Art/FallbackHands/LeftHandPlaceholder.prefab";
     const string RightPlaceholderPath="Assets/GloveBallDemo/Art/FallbackHands/RightHandPlaceholder.prefab";
@@ -145,8 +183,9 @@ public static class VolleyRallySetup
         // For now every hand touch at the full gain: is the clip itself strong enough (or must it change)? Without it a
         // receive is never weaker than a good one (where on the arms it was met never matters to the feel).
         drill.HapticsAtMaximum=true;drill.ReceiveMinimumGain=1.2f;
-        // A jump's takeoff and landing, lightly in both wrists (the grab clip): landing stronger.
+        // A jump's takeoff (light) and landing (stronger), at the neck: the landing clip.
         drill.JumpHapticGain=.3f;drill.LandHapticGain=.6f;
+        SetUpLandingHaptic(drill);
         if(drill.JoinedHands!=null){drill.JoinedHands.JoinDistance=.24f;drill.JoinedHands.SeparateDistance=.32f;EditorUtility.SetDirty(drill.JoinedHands);}
         // The tutorials (menu TUTORIAL rows, CONTROL tutorial_start) and their voice.
         var tutorial=drill.GetComponent<VolleyTutorial>();
