@@ -57,7 +57,7 @@ namespace GloveBallDemo.Runtime
             float l=space.InverseTransformPoint(Left.transform.position).y-head,r=space.InverseTransformPoint(Right.transform.position).y-head;
             bool up=l>=JumpHeightFromEyes && r>=JumpHeightFromEyes;
             _blockedLog-=Time.unscaledDeltaTime;
-            if(!up || Airborne || _blockedLog>0f)return;
+            if(!up || Airborne || _blockedLog>0f || GameInputGate.IsBlocked || Left.Source=="lost" && Right.Source=="lost")return;
             _blockedLog=2f;
             Debug.Log($"[VolleyJump] hands up, no jump: paused={GameInputGate.IsBlocked} dt={Time.deltaTime:F3} scale={Time.timeScale:F2} auto={AutomaticJump} suppressed={Suppressed} cooldown={_cooldown:F2} armed={_armed} " +
                 $"L ready={Left.Ready} est={Left.IsEstimated} src={Left.Source} y={l:F2} / R ready={Right.Ready} est={Right.IsEstimated} src={Right.Source} y={r:F2}");

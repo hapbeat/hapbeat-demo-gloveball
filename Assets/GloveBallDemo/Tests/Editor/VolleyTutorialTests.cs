@@ -97,14 +97,16 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
-        public void WithoutTheirDigTheSpikesGoOnUntilThePlayGoingOnHasBeenShown()
+        public void WithoutTheirDigTheSecondStrongSpikeStillGoesOnToTheBlocks()
         {
             _rally.Jump.AutomaticJump=true;
             _tutorial.Begin(VolleyTutorial.Course.SpikeBlock);
             Spike(.9f,true,"POINT!");Spike(.9f,true,"POINT!");
-            Assert.That(_tutorial.Step,Is.EqualTo("sb_spike_auto"),"Their dig must be seen: one more.");
-            Assert.That(_tutorial.Count,Is.EqualTo(1));
-            Assert.That(_rally.ScriptedDefence,Is.EqualTo(Script.DigStrongSpikes));
+            Assert.That(_tutorial.Step,Is.EqualTo("sb_block_plain"),"Two strong spikes count, dug or not: never a third.");
+            Assert.That(_tutorial.Count,Is.Zero);
+            Assert.That(_rally.ScriptedDefence,Is.EqualTo(Script.NeverDig));
+            Wait(.1f);
+            Assert.That(_rally.Mode,Is.EqualTo(Mode.BlockOnly),"BLOCK from the next rep.");
         }
 
         [Test]

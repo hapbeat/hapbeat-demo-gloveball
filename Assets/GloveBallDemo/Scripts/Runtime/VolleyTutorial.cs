@@ -220,10 +220,8 @@ namespace GloveBallDemo.Runtime
                     Hint("sb_nice");
                     return;
                 }
-                // Their dig could not get there: the play going on must still be shown, so one more strong spike.
-                Count--;
-                SetCounter(Count + " / " + SpikesRequired);
-                Hint("sb_nice");
+                // Their dig did not get it (a point): on to the block all the same, the tutorial never waits for a dig.
+                StartBlocks(false);
                 return;
             }
             if (Move == DemoMove.Block && block)

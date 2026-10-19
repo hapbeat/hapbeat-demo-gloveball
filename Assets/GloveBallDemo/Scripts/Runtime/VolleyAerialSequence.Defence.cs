@@ -29,7 +29,9 @@ namespace GloveBallDemo.Runtime
         public Vector2 DiveRecoverSeconds=new Vector2(.6f,.5f);
 
         enum DigKind { None, Platform, Dive }
-        const float PlanStep=.02f, MinDiveFall=.12f;
+        // PlanLockSeconds: the plan holds over the last moments before the contact. A hard spike moves farther in one physics
+        // step than HandContactRadius, so a plan re-aimed at the next sample every step kept the hands a step ahead of the ball.
+        const float PlanStep=.02f, MinDiveFall=.12f, PlanLockSeconds=.1f;
         const int PlanSamples=200;
         readonly Vector3[] _planPosition=new Vector3[PlanSamples], _planVelocity=new Vector3[PlanSamples];
         DigKind _digKind;
@@ -75,6 +77,7 @@ namespace GloveBallDemo.Runtime
         void PlanDig(Vector3 position,Vector3 velocity,float damping)
         {
             if(_digResolved || _diveStarted)return;
+            if(_digger>=0 && _digContactAt-_sinceTouch<=PlanLockSeconds)return;
             _digger=-1;_digKind=DigKind.None;
             if(Defenders==null || Defenders.Length==0)return;
             // The tutorial: no dig at all, or a strong spike always dug (to show the play going on).
