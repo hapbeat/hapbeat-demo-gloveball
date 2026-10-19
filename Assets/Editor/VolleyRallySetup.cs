@@ -112,7 +112,9 @@ public static class VolleyRallySetup
         aerial.BlockerJumpSeconds=1.3f;aerial.BlockerReactionSeconds=.05f;aerial.BlockerTimingJitter=.05f;
         aerial.TheirAttackSpeed=12f;aerial.TheirAttackDrop=.15f;aerial.TheirStrongAttackSpeed=15f;aerial.TheirStrongAttackDrop=.35f;
         // RECEIVE: only EXCELLENT scores; GOOD is dug and countered (our block touches it half the time); BAD gets a clean hard counter.
-        aerial.StationKillMin=.08f;aerial.StationKillMax=.95f;aerial.OurBlockTouchChance=.5f;
+        aerial.StationKillMin=.08f;aerial.OurBlockTouchChance=.5f;
+        // An EXCELLENT pass is always put away, hammered steeply into their court: the payoff of a good receive.
+        aerial.StationKillMax=1f;aerial.ExcellentSpikeExtraSpeed=14f;aerial.ExcellentKillDepth=new Vector2(2.2f,4.5f);
         aerial.ServeFlightSeconds=new Vector3(1.05f,1.5f,2.2f);aerial.NetLobPlayDistance=.35f;
         aerial.SetterLateralRange=new Vector2(-3f,3f);aerial.FrontRowLateral=3.6f;aerial.HitterSetterGap=2f;aerial.SetterRushRange=1.2f; // the setter anywhere along the net, clear of the hitters
         aerial.SetterOffNetRange=new Vector2(1f,2.5f);
@@ -125,12 +127,8 @@ public static class VolleyRallySetup
         aerial.BlockStandDistance=.5f;aerial.SpikeStandBackDistance=1f;
         // Their attack: centred on the player, a narrower spread (fingertip blocks only graze, so it must stay reachable).
         aerial.AttackShotDeviation=3f;
-        drill.FingertipZone=.75f;
-        // A fingertip block is a deflection that slows and turns the ball, not a ball that passes clean through.
-        drill.FingertipBlockPassThrough=.3f;
         // A palm block mostly keeps the hands' own rebound (palms facing their court already send it back over).
         aerial.BlockAssist=.35f;aerial.BlockMaximumYaw=20f;
-        drill.EdgeBlockPassThrough=.85f;
         // Spike: a high contact is a good shot; an open hand is not a fingertip tip unless it is the very tips.
         drill.SpikeSwingSpeed=1.8f;drill.SpikeMinimumSpeed=11f;drill.SpikeMaximumSpeed=22f;
         drill.SpikeFingertipZone=.85f;drill.FingertipSpikeScale=.8f; // an open hand is the normal spike: little difference to a fist
@@ -144,6 +142,9 @@ public static class VolleyRallySetup
         aerial.Jump.AutomaticJump=false;EditorUtility.SetDirty(aerial.Jump);aerial.JumpTimingTolerance=.18f;
         // Haptics: how hard the hand hit the ball (its change of velocity), up to the trigger's full x2; a receive in both arms.
         drill.ImpactReferenceSpeed=10f;drill.MaximumImpactGain=2f;drill.ReceiveBothArmsDistance=.45f;
+        // For now spike and block at the full gain: is the clip itself strong enough (or must it change)? A receive is
+        // never weaker than a good one (where on the arms it was met never matters to the feel).
+        drill.HapticsAtMaximum=true;drill.ReceiveMinimumGain=1.2f;
         if(drill.JoinedHands!=null){drill.JoinedHands.JoinDistance=.24f;drill.JoinedHands.SeparateDistance=.32f;EditorUtility.SetDirty(drill.JoinedHands);}
         // The tutorials (menu TUTORIAL rows, CONTROL tutorial_start) and their voice.
         var tutorial=drill.GetComponent<VolleyTutorial>();

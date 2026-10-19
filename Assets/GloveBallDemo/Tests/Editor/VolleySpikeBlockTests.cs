@@ -98,25 +98,6 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
-        public void TheSideOfTheHandIsAnEdgeThePalmFaceIsNot()
-        {
-            var hand=_drill.Right;var box=hand.ContactVolume;
-            var centre=box.transform.TransformPoint(box.center);
-            Assert.That(VolleyDrillController.HandEdge(hand,centre,box.transform.up),Is.False,"Palm face, middle of the hand.");
-            Assert.That(VolleyDrillController.HandEdge(hand,centre,box.transform.right),Is.True,"A side face.");
-            var size=box.size;int width=Mathf.Abs(size.x)<=Mathf.Abs(size.z) ? 0 : 2;
-            var local=box.center;local[width]+=size[width]*.5f*.95f;
-            Assert.That(VolleyDrillController.HandEdge(hand,box.transform.TransformPoint(local),box.transform.up),Is.True,"The outer rim of the palm.");
-        }
-
-        [Test]
-        public void TheirDefenceCoversShortBallsAndHardBallsAreOftenShanked()
-        {
-            Assert.That(_rally.CoverDepth,Is.LessThan(_rally.DefenderDepth-2f),"One defender plays short behind the block.");
-            Assert.That(_rally.DigHardChance,Is.LessThan(_rally.DigEasyChance-.4f));
-        }
-
-        [Test]
         public void AHardSpikeStraightAtADefenderIsPlayableEvenBeforeItCouldReact()
         {
             var plan=typeof(VolleyAerialSequence).GetMethod("PlanDig",Private);
@@ -311,6 +292,45 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.Music,Is.Not.Null,"A CC0 drum loop (Audio/Music/sources.json).");
             Assert.That(_rally.Music.length,Is.EqualTo(7.5f).Within(.01f),"Cut to the loop's own length: no gap when it repeats.");
             Assert.That(_rally.MusicVolume,Is.InRange(.1f,.35f),"Under the voice and the ball's sounds.");
+        }
+
+        [Test]
+        public void WithTheHandJumpTheirAttackComesWhereTheHandsWillBe()
+        {
+            _rally.Jump.AutomaticJump=false;_rally.Jump.ResetJump();
+            var lift=typeof(VolleyAerialSequence).GetMethod("BlockLiftAtArrival",Private);
+            Assert.That((float?)lift.Invoke(_rally,null),Is.EqualTo(0f),"On the ground: at raised hands, not over them.");
+            var grounded=_rally.Destination(0f,0f,false,0f);
+            Assert.That(grounded.y-_rally.GroundedEye.y,Is.EqualTo(_rally.BlockReachAboveEye).Within(.001f));
+            _rally.Jump.AutomaticJump=true;
+            Assert.That(lift.Invoke(_rally,null),Is.Null,"AUTO JUMP: the full jump (it times the jump itself).");
+        }
+
+        [Test]
+        public void TheJumpIsCalledHalfwayToTheSetsApex()
+        {
+            _rally.SetMode(VolleyAerialSequence.RallyMode.SpikeOnly);
+            typeof(BallPool).GetMethod("Awake",Private).Invoke(_drill.Pool,null);
+            typeof(VolleyAerialSequence).GetMethod("CaptureHome",Private).Invoke(_rally,null);
+            Assert.That(typeof(VolleyAerialSequence).GetMethod("BeginAllyReceive",Private).Invoke(_rally,new object[]{null}),Is.True);
+            typeof(VolleyAerialSequence).GetField("_rallyTimer",Private).SetValue(_rally,99f);
+            var args=new object[]{.02f,null,null,null};
+            Assert.That(typeof(VolleyAerialSequence).GetMethod("TickAllyReceive",Private).Invoke(_rally,args),Is.True,"The set leaves.");
+            var start=(Vector3)args[1];var destination=(Vector3)args[2];float seconds=(float)args[3];
+            float g=Mathf.Abs(Physics.gravity.y),apex=((destination.y-start.y)/seconds+.5f*g*seconds)/g;
+            float call=(float)typeof(VolleyAerialSequence).GetField("_spikeCallAt",Private).GetValue(_rally);
+            Assert.That(call,Is.EqualTo(apex*.5f).Within(.01f));
+            Assert.That(call,Is.LessThan(_rally.SpikeJumpTime-.2f),"Well before the automatic jump: time to act on it.");
+        }
+
+        [Test]
+        public void ABlockIsSolidWhereverTheHandMeetsIt()
+        {
+            Assert.That(typeof(VolleyDrillController).GetField("FingertipBlockPassThrough"),Is.Null,"No fingertip block that lets the ball through.");
+            Assert.That(typeof(VolleyDrillController).GetField("EdgeBlockPassThrough"),Is.Null);
+            Assert.That(_drill.HapticsAtMaximum,Is.True,"For now spike and block at the full gain (the clip's own strength).");
+            Assert.That(typeof(VolleyDrillController).GetField("FingertipHapticScale"),Is.Null,"Where on the hand never weakens the feel.");
+            Assert.That(_drill.ReceiveMinimumGain,Is.GreaterThanOrEqualTo(1f),"A receive is felt like a good one.");
         }
 
         [Test]

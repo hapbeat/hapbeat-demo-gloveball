@@ -242,17 +242,20 @@ namespace GloveBallDemo.Runtime
             _attemptClock=-1f;
         }
         /// <summary>
-        /// The moments to act, for the tutorial's call-outs, with AUTO JUMP on or off: (spike, jump). Spike turn: jump = the
-        /// automatic jump's start, then not jump = the set reaching the top of the reach. Block turn: the jump's start.
+        /// When to call "ジャンプ" (spike turn = true), early enough to act on: a spike halfway from the set to its apex, a
+        /// block <see cref="BlockCallLeadSeconds"/> before the automatic jump would start.
         /// </summary>
-        public event System.Action<bool,bool> ActMoment;
+        public event System.Action<bool> JumpCall;
+        [Tooltip("Block: the jump is called this long (s) before the automatic jump would start (the player needs a moment).")]
+        [Min(0f)] public float BlockCallLeadSeconds=.35f;
+        float _spikeCallAt;
         /// <summary>The tutorial's hold on their defence: as in play, never a dig, or every strong spike dug (the play goes on).</summary>
         public enum DefenceScript { Natural, NeverDig, DigStrongSpikes }
         [System.NonSerialized] public DefenceScript ScriptedDefence;
         [Tooltip("A spike of at least this quality (mostly how high it was met) counts as strong.")]
         [Range(0f,1f)] public float StrongSpikeQuality=.5f;
         public bool LastSpikeStrong=>LastSpikeQuality>=StrongSpikeQuality;
-        bool _jumpMomentSent, _hitMomentSent, _blockMomentSent;
+        bool _jumpCallSent, _blockCallSent;
         public event System.Action<bool> MatchEnded;
         public bool PlayerTouched=>_playerTouched;
         public bool BlockerTouched=>_blockerTouched;
@@ -733,7 +736,8 @@ namespace GloveBallDemo.Runtime
         {
             if(contactLateral==null)_allyLateral=Random.Range(-AllySetLateralSpread,AllySetLateralSpread);
             if(Blockers==null || Blockers.Length==0)return;
-            int wanted=Mathf.Clamp(Random.Range(Mathf.Min(MinBlockers,MaxBlockers),Mathf.Max(MinBlockers,MaxBlockers)+1),0,Blockers.Length);
+            int wanted=ScriptedDefence==DefenceScript.DigStrongSpikes ? 0
+                : Mathf.Clamp(Random.Range(Mathf.Min(MinBlockers,MaxBlockers),Mathf.Max(MinBlockers,MaxBlockers)+1),0,Blockers.Length);
             float contact=contactLateral ?? Vector3.Dot(GroundedEye-NetCentre,Right)+_allyLateral;
             float limit=Drill.ReceiveNet!=null ? Mathf.Max(.5f,Drill.ReceiveNet.bounds.extents.x-.5f) : CourtHalfWidth;
             var placed=new List<float>();
@@ -775,7 +779,10 @@ namespace GloveBallDemo.Runtime
                 _blockerJumpAt[i]=AllyFlightSeconds+BlockerReactionSeconds+Random.Range(-BlockerTimingJitter,BlockerTimingJitter)
                     -VolleyOpponentPrototype.BlockPeakPhase*BlockerJumpSeconds;
             _blockerClock=0f;_followSetter=Ally;_setterFollow=0f;
-            _rallyTimer=0f;_spikeJumpIssued=false;_jumpMomentSent=_hitMomentSent=false;
+            // Halfway from the set to its apex: the call comes early enough for the player's jump to meet the top.
+            float g=Mathf.Abs(Physics.gravity.y),up=(destination.y-start.y)/seconds+.5f*g*seconds;
+            _spikeCallAt=Mathf.Clamp(up/g,0f,seconds)*.5f;
+            _rallyTimer=0f;_spikeJumpIssued=false;_jumpCallSent=false;
             BeginBallInPlay(start);
             Phase=RallyPhase.PlayerSpike;
             Cue=BeginnerBlock ? "AUTO JUMP — SPIKE PAST THE BLOCKERS" : "JUMP: RAISE BOTH HANDS — SPIKE PAST THE BLOCKERS";
@@ -787,9 +794,7 @@ namespace GloveBallDemo.Runtime
             _rallyTimer+=dt;
             if(BeginnerBlock && !_spikeJumpIssued && _rallyTimer>=SpikeJumpTime)
                 _spikeJumpIssued=Jump.TryStartAutomaticJump();
-            if(!_jumpMomentSent && _rallyTimer>=SpikeJumpTime){_jumpMomentSent=true;ActMoment?.Invoke(true,true);}
-            // A little ahead of the set's arrival at the top of the reach: a call-out takes a moment to act on.
-            if(!_hitMomentSent && _rallyTimer>=AllyFlightSeconds-.15f){_hitMomentSent=true;ActMoment?.Invoke(true,false);}
+            if(!_jumpCallSent && _rallyTimer>=_spikeCallAt){_jumpCallSent=true;JumpCall?.Invoke(true);}
             TickApproach();
             TickLanding();
         }
@@ -1238,29 +1243,42 @@ namespace GloveBallDemo.Runtime
             destination.y=Mathf.Clamp(destination.y,Mathf.Min(minimum,maximum),maximum);
             return seconds;
         }
-        public Vector3 Destination(float horizontal,float vertical,bool faceShot)
+        /// <param name="lift">The block's jump height at the ball's arrival (default: the full jump).</param>
+        public Vector3 Destination(float horizontal,float vertical,bool faceShot,float? lift=null)
         {
             var forward=Vector3.ProjectOnPlane(Drill.CourtFrame.forward,Vector3.up).normalized;
             var right=Vector3.Cross(Vector3.up,forward);
             var result=GroundedEye+forward*Drill.ContactForwardDistance+right*horizontal;
             result.y+=Drill.Drill==VolleyDrill.Spike ? Jump.JumpHeight+SpikeReachAboveEye
-                : faceShot ? Jump.Floor.VirtualLift : Jump.JumpHeight+BlockReachAboveEye;
+                : faceShot ? Jump.Floor.VirtualLift : (lift ?? Jump.JumpHeight)+BlockReachAboveEye;
             result.y+=vertical;return result;
         }
+        /// <summary>
+        /// With AUTO JUMP off, where the player's jump will be when their attack arrives (about 0.3 s): in the air, its
+        /// height then; on the ground, none - the shot comes at raised hands, so a late jump or no jump can still block.
+        /// AUTO JUMP times the jump itself: null (the full jump).
+        /// </summary>
+        float? BlockLiftAtArrival()
+        {
+            if(BeginnerBlock || Jump==null)return null;
+            if(!Jump.Airborne)return 0f;
+            return VolleyArmJump.HeightAt(Jump.Progress*Jump.Duration+BlockArrivalSeconds,Jump.Duration,Jump.JumpHeight);
+        }
+        const float BlockArrivalSeconds=.3f;
         public bool TickFeed(float dt,out Vector3 start,out Vector3 destination,out float seconds)
         {
             start=destination=Vector3.zero;seconds=0;
             if(dt<=0f)return false;
             if(_windup<0)
             {
-                _windup=0;_follow=-1;_sinceRelease=-1;_autoJumpIssued=false;_blockMomentSent=false;
+                _windup=0;_follow=-1;_sinceRelease=-1;_autoJumpIssued=false;_blockCallSent=false;
                 float lead=AutoJumpLeadSeconds+Random.Range(-AutoJumpTimingJitter,AutoJumpTimingJitter);
                 _autoJumpAt=Mathf.Max(0,WindupSeconds-Mathf.Clamp(lead,0,Jump.Duration*.75f));
             }
             _windup+=dt;
             if(BeginnerBlock && !_autoJumpIssued && _windup>=_autoJumpAt)
                 _autoJumpIssued=Jump.TryStartAutomaticJump();
-            if(!_blockMomentSent && _windup>=_autoJumpAt){_blockMomentSent=true;ActMoment?.Invoke(false,true);}
+            if(!_blockCallSent && _windup>=_autoJumpAt-BlockCallLeadSeconds){_blockCallSent=true;JumpCall?.Invoke(false);}
             if(_preparedBall!=null)
             {
                 var position=TossPosition(_tossStart,_tossEnd,_windup,WindupSeconds);
@@ -1276,7 +1294,7 @@ namespace GloveBallDemo.Runtime
             if(block)
             {
                 Opponent.Pose(.52f);start=Opponent.ReleasePosition;
-                destination=Destination(AttackLateral(start),Random.Range(-HeightSpread,HeightSpread),LastWasFaceShot);
+                destination=Destination(AttackLateral(start),Random.Range(-HeightSpread,HeightSpread),LastWasFaceShot,BlockLiftAtArrival());
                 seconds=SolveBlockShot(start,ref destination);
                 PlaySpikeAudio(start);
                 _follow=0;

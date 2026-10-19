@@ -107,7 +107,12 @@ namespace GloveBallDemo.Runtime
             _placed = false; _finishing = false; _pendingMode = null; _lingerUntil = -1f; _queued = null;
             GotExcellent = GotGood = _explainedBad = _explainedLost = false;
             ShowPanel(true);
-            if (course == Course.Receive) { Practice("rc_pass", DemoMove.Receive, VolleyAerialSequence.RallyMode.Pass, VolleyAerialSequence.DefenceScript.Natural); UpdateReceiveCounter(); }
+            if (course == Course.Receive)
+            {
+                Aerial.PracticeServes = true;
+                Practice("rc_pass", DemoMove.Receive, VolleyAerialSequence.RallyMode.Pass, VolleyAerialSequence.DefenceScript.Natural);
+                UpdateReceiveCounter();
+            }
             else if (!AutoJump)
             {
                 // The jump is practised where it is used (a RECEIVE never jumps).
@@ -129,6 +134,7 @@ namespace GloveBallDemo.Runtime
             if (Aerial != null)
             {
                 Aerial.ScriptedDefence = VolleyAerialSequence.DefenceScript.Natural;
+                Aerial.PracticeServes = false;
                 Aerial.MatchPoints = _savedMatchPoints;
                 if (play) Aerial.SetMode(course == Course.Receive ? VolleyAerialSequence.RallyMode.Pass : VolleyAerialSequence.RallyMode.Alternate);
             }
@@ -192,8 +198,8 @@ namespace GloveBallDemo.Runtime
         {
             if (Aerial == null || on == _subscribed) return;
             _subscribed = on;
-            if (on) { Aerial.TurnRepResolved += OnRep; Aerial.PointScored += OnPoint; Aerial.RallyContinued += OnContinued; Aerial.ActMoment += OnActMoment; }
-            else { Aerial.TurnRepResolved -= OnRep; Aerial.PointScored -= OnPoint; Aerial.RallyContinued -= OnContinued; Aerial.ActMoment -= OnActMoment; }
+            if (on) { Aerial.TurnRepResolved += OnRep; Aerial.PointScored += OnPoint; Aerial.RallyContinued += OnContinued; Aerial.JumpCall += OnJumpCall; }
+            else { Aerial.TurnRepResolved -= OnRep; Aerial.PointScored -= OnPoint; Aerial.RallyContinued -= OnContinued; Aerial.JumpCall -= OnJumpCall; }
         }
 
         // ------------------------------------------------------------ events
@@ -214,8 +220,10 @@ namespace GloveBallDemo.Runtime
                     Hint("sb_nice");
                     return;
                 }
-                // Their scripted dig could not get there: the point is ours, the blocks start from the next rep.
-                StartBlocks(false);
+                // Their dig could not get there: the play going on must still be shown, so one more strong spike.
+                Count--;
+                SetCounter(Count + " / " + SpikesRequired);
+                Hint("sb_nice");
                 return;
             }
             if (Move == DemoMove.Block && block)
@@ -260,12 +268,12 @@ namespace GloveBallDemo.Runtime
             Explain("rc_lost");
         }
 
-        void OnActMoment(bool spike, bool jump)
+        void OnJumpCall(bool spike)
         {
             if (Running != Course.SpikeBlock || _finishing || _cue == null) return;
-            // "ジャンプ" at the moment to jump, with AUTO JUMP off (spike and block).
+            // "ジャンプ" early enough to act on, with AUTO JUMP off (spike and block).
             if (spike && Move != DemoMove.Spike || !spike && Move != DemoMove.Block) return;
-            var clip = jump && !AutoJump ? Clip("jump_cue") : null;
+            var clip = !AutoJump ? Clip("jump_cue") : null;
             if (clip == null) return;
             DemoNarration.Apply(_cue);
             if (Application.isPlaying) _cue.PlayOneShot(clip);
@@ -325,8 +333,8 @@ namespace GloveBallDemo.Runtime
 
         // ------------------------------------------------------------ frame
 
-        void OnEnable() => DemoRecenter.Recentered += OnRecentered;
-        void OnDisable() { DemoRecenter.Recentered -= OnRecentered; if (Running != Course.None) Stop(false); }
+        void OnEnable() { DemoRecenter.Recentered += OnRecentered; VolleyHandMenu.Repositioned += OnRecentered; }
+        void OnDisable() { DemoRecenter.Recentered -= OnRecentered; VolleyHandMenu.Repositioned -= OnRecentered; if (Running != Course.None) Stop(false); }
         void OnRecentered() => _placed = false;
 
         void Update()
@@ -362,12 +370,16 @@ namespace GloveBallDemo.Runtime
                 if (Aerial.Phase == VolleyAerialSequence.RallyPhase.Recovery || Aerial.Phase == VolleyAerialSequence.RallyPhase.Idle) Stop(true);
                 return;
             }
-            if (Move == DemoMove.Jump && Aerial.Jump != null && Aerial.Jump.Jumps > _jumps)
+            if (Move == DemoMove.Jump && Aerial.Jump != null)
             {
-                _jumps = Aerial.Jump.Jumps;
-                Count++;
-                SetCounter(Count + " / " + JumpsRequired);
-                if (Count >= JumpsRequired) StartSpikes();
+                if (Aerial.Jump.Jumps > _jumps)
+                {
+                    _jumps = Aerial.Jump.Jumps;
+                    Count++;
+                    SetCounter(Count + " / " + JumpsRequired);
+                }
+                // On to the spikes once the last jump has landed (not the moment it takes off).
+                if (Count >= JumpsRequired && !Aerial.Jump.Airborne) StartSpikes();
                 return;
             }
             if (Move == DemoMove.Receive && Aerial.GradeSerial != _gradeSerial)

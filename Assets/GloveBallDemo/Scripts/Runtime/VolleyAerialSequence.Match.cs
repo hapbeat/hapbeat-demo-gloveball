@@ -571,8 +571,8 @@ namespace GloveBallDemo.Runtime
             if(receiving==Team.Us && _roleTouch==PlayerTouch.Receive && _embodied!=null)
             {
                 // Same landing area every time, but a different serve: hard and flat, normal, or soft and loopy.
-                int kind=NextServeKind();
-                LaunchToForearms(release,ServeFlightSeconds[kind],0f);
+                int kind=PracticeServes ? 1 : NextServeKind(); // the tutorial: the same normal serve every time
+                LaunchToForearms(release,ServeFlightSeconds[kind],0f,0f,PracticeServes);
                 Cue=kind==0 ? "HARD SERVE — FOREARMS TOGETHER" : kind==2 ? "HIGH FLOATER — FOREARMS TOGETHER" : "RECEIVE — FOREARMS TOGETHER";
                 return;
             }

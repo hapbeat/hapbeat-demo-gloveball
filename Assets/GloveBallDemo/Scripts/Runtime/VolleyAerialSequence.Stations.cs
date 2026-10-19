@@ -92,6 +92,10 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Kill chance of our attack after the worst and the best pass.")]
         [Range(0f,1f)] public float StationKillMin=.3f;
         [Range(0f,1f)] public float StationKillMax=.9f;
+        [Tooltip("RECEIVE: an EXCELLENT pass's spike is this much faster than their usual attack (m/s)...")]
+        [Min(0f)] public float ExcellentSpikeExtraSpeed=14f;
+        [Tooltip("...and comes down this far into their court (m from the net): short, so it goes steeply down.")]
+        public Vector2 ExcellentKillDepth=new Vector2(2.2f,4.5f);
         [Tooltip("RECEIVE: chance one of our jumping blockers gets a touch on their counter-attack (only after a GOOD rep; after a BAD pass they attack freely).")]
         [Range(0f,1f)] public float OurBlockTouchChance=.5f;
         [Tooltip("RECEIVE serve flight times (s): hard and flat, normal, soft and loopy. One is picked per serve; the landing area stays the same.")]
@@ -140,7 +144,8 @@ namespace GloveBallDemo.Runtime
             _serving=Team.Them;
             var server=Server(Team.Them);
             // The service zone is the whole 9 m behind their end line: serve from anywhere along it.
-            if(server!=null)server.Home=server.Target=TeamPoint(Team.Them,Random.Range(-CourtHalfWidth+.8f,CourtHalfWidth-.8f),CourtDepth+.7f);
+            float serveFrom=PracticeServes ? (_practiceServe++%2==0 ? -1.8f : 1.8f) : Random.Range(-CourtHalfWidth+.8f,CourtHalfWidth-.8f);
+            if(server!=null)server.Home=server.Target=TeamPoint(Team.Them,serveFrom,CourtDepth+.7f);
             if(Mode==RallyMode.Set){RandomizeHitters();StackTheirBlockers();}
             else RandomizeFrontRow();
             EmbodyRequest(me.Home,Mode==RallyMode.Set ? PlayerTouch.Set : PlayerTouch.Receive,true);
@@ -196,6 +201,14 @@ namespace GloveBallDemo.Runtime
         void RandomizeFrontRow()
         {
             var setter=ActorAt(Team.Us,0);
+            if(PracticeServes)
+            {
+                // The tutorial: one setter spot in front of the player, the hitters well to the sides.
+                if(setter!=null)setter.Home=TeamPoint(Team.Us,.5f,1.6f);
+                var near=ActorAt(Team.Us,1);if(near!=null)near.Home=TeamPoint(Team.Us,-2.2f,1.2f);
+                var far=ActorAt(Team.Us,2);if(far!=null)far.Home=TeamPoint(Team.Us,2.8f,1.2f);
+                return;
+            }
             if(setter!=null)setter.Home=TeamPoint(Team.Us,Random.Range(SetterLateralRange.x,SetterLateralRange.y),Random.Range(SetterOffNetRange.x,SetterOffNetRange.y));
             for(int slot=1;slot<3;slot++)
             {
@@ -547,7 +560,7 @@ namespace GloveBallDemo.Runtime
                 if(_setBlockers>0)shot+=_setBlockers>1 ? " INTO A DOUBLE BLOCK" : " PAST ONE BLOCKER";
             }
             // RECEIVE: only an EXCELLENT pass is put away; a GOOD one is attacked but they (almost always) dig it and counter.
-            else if(q>=PerfectSetQuality){speed=NpcAttackSpeed+7f;kill=StationKillMax;shot="HARD SPIKE";}
+            else if(q>=PerfectSetQuality){speed=NpcAttackSpeed+ExcellentSpikeExtraSpeed;kill=StationKillMax;shot="HARD SPIKE";}
             else if(q>=GoodSetQuality){speed=NpcAttackSpeed+1f;kill=StationKillMin;shot="SPIKE";clearance=.7f;}
             else{speed=8f;kill=0f;shot="HIGH BALL — A SOFT ATTACK";}
             string touch=GradeWord(q)+(toss ? " SET" : " PASS");
@@ -564,18 +577,21 @@ namespace GloveBallDemo.Runtime
             }
             if(killed)
             {
-                // The spot in their court farthest from every one of their players.
-                Vector3 best=TeamPoint(them,0f,4f);float bestGap=-1f;
+                // The spot in their court farthest from every one of their players; after an EXCELLENT pass a short one
+                // (steeply down from the top of the jump: a hammered kill).
+                bool hammer=!toss && q>=PerfectSetQuality;
+                var depths=hammer ? ExcellentKillDepth : new Vector2(1.5f,8.2f);
+                Vector3 best=TeamPoint(them,0f,(depths.x+depths.y)*.5f);float bestGap=-1f;
                 for(int i=0;i<16;i++)
                 {
-                    var spot=TeamPoint(them,Random.Range(-3.6f,3.6f),Random.Range(1.5f,8.2f));
+                    var spot=TeamPoint(them,Random.Range(-3.6f,3.6f),Random.Range(depths.x,depths.y));
                     float gap=float.MaxValue;
                     foreach(var actor in _cast)if(actor.Team==them && actor.A.gameObject.activeSelf)gap=Mathf.Min(gap,Flat(spot-actor.A.transform.position).magnitude);
                     if(gap>bestGap){bestGap=gap;best=spot;}
                 }
                 best.y=FloorY;
                 float seconds=Mathf.Max(Flat(best-hit).magnitude/speed,ClearNetSeconds(hit,best,clearance));
-                StartSegment(hit,best,seconds,()=>Award(true,"KILL! — "+touch,best));
+                StartSegment(hit,best,seconds,()=>{if(hammer)PlaySpikeAudio(best);Award(true,"KILL! — "+touch,best);});
                 Cue=shot;
                 return;
             }
@@ -597,12 +613,17 @@ namespace GloveBallDemo.Runtime
         }
 
         /// <summary>A physical ball to the player's forearms (serve or attack), a little different each time.</summary>
-        void LaunchToForearms(Vector3 from,float minimumSeconds,float speed,float heightOffset=0f)
+        /// <summary>RECEIVE tutorial: the serves alternate between two fixed spots, straight to the forearms, to a fixed setter.</summary>
+        public bool PracticeServes { get=>_practiceServes; set{_practiceServes=value;_practiceServe=0;} }
+        [System.NonSerialized] bool _practiceServes;
+        int _practiceServe;
+        void LaunchToForearms(Vector3 from,float minimumSeconds,float speed,float heightOffset=0f,bool exact=false)
         {
             RequestLaunch(()=>{
                 // Spread so every ball is a little different, never far enough to make the player step.
-                var to=GroundedEye+Forward*(.45f+Random.Range(-ReceiveSpread.y,ReceiveSpread.y))+Right*Random.Range(-ReceiveSpread.x,ReceiveSpread.x);
-                to.y=FloorY+ReceiveHeight+heightOffset+Random.Range(-ReceiveSpread.z,ReceiveSpread.z);
+                var spread=exact ? Vector3.zero : ReceiveSpread;
+                var to=GroundedEye+Forward*(.45f+Random.Range(-spread.y,spread.y))+Right*Random.Range(-spread.x,spread.x);
+                to.y=FloorY+ReceiveHeight+heightOffset+Random.Range(-spread.z,spread.z);
                 float seconds=speed>0f ? Flat(to-from).magnitude/speed : 0f;
                 return (from,to,Mathf.Max(Mathf.Max(minimumSeconds,seconds),ClearNetSeconds(from,to,.3f)));
             },RallyPhase.PlayerReceive,PlayerTouch.Receive);

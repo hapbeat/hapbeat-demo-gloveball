@@ -29,6 +29,7 @@ namespace GloveBallDemo.Runtime
         Text _grade;
         Texture2D _triangleTexture;
         Text _tip; float _tipAge=-1f;
+        VolleyTutorial _tutorial; AudioClip _matchStart;
         AudioSource _music;
         Transform _setterLabel;
         float _gradeAge=-1f;
@@ -56,12 +57,17 @@ namespace GloveBallDemo.Runtime
             _matchWon=Chime("Match won",new[]{523.25f,659.25f,783.99f,1046.5f},.16f);
             _matchLost=Chime("Match lost",new[]{392f,329.63f,261.63f},.2f);
             Rally.TurnAnnounced+=OnTurn;Rally.PointScored+=OnPoint;Rally.MatchEnded+=OnMatch;Rally.TurnRepResolved+=OnRep;
+            _tutorial=Rally.Drill!=null ? Rally.Drill.GetComponent<VolleyTutorial>() : null;
+            if(_tutorial!=null)_tutorial.Finished+=OnTutorialFinished;
+            _matchStart=Chime("Match start",new[]{659.25f,783.99f,1046.5f},.12f);
             _outcomeSerial=Rally.OutcomeSerial;
             Refresh();
         }
         void OnDestroy()
         {
             if(Rally!=null){Rally.TurnAnnounced-=OnTurn;Rally.PointScored-=OnPoint;Rally.MatchEnded-=OnMatch;Rally.TurnRepResolved-=OnRep;}
+            if(_tutorial!=null)_tutorial.Finished-=OnTutorialFinished;
+            if(_matchStart!=null)Destroy(_matchStart);
             foreach(var clip in new[]{_spikeChime,_blockChime,_pointWon,_pointLost,_matchWon,_matchLost})if(clip!=null)Destroy(clip);
             if(_markerMaterial!=null)Destroy(_markerMaterial);
             if(_vignetteTexture!=null)Destroy(_vignetteTexture);
@@ -144,6 +150,13 @@ namespace GloveBallDemo.Runtime
                     case VolleyAerialSequence.JumpTiming.NoJump:return "両手を振り上げてジャンプしよう";
                 }
             return block ? "打つ相手の正面に、両手を前へ出そう" : "いちばん高いところで、上から下へたたこう";
+        }
+        /// <summary>The tutorial handed over to the match: say so clearly (it starts at once, the voice goes on over it).</summary>
+        void OnTutorialFinished(VolleyTutorial.Course course)
+        {
+            if(_tip==null)return;
+            _tip.text="試合開始！ "+Rally.MatchPoints+"点先取";_tipAge=0f;
+            Play(_matchStart);
         }
         void OnRep(bool block,bool success)
         {

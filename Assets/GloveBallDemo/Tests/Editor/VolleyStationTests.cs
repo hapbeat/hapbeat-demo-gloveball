@@ -178,6 +178,7 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.StationQuality,Is.EqualTo(1f));Assert.That(_rally.LastGrade,Is.EqualTo("EXCELLENT"));
             _launched=false;
             RunUntil(()=>_rally.Phase==Phase.Recovery || (_launched && _rally.Phase==Phase.PlayerReceive),10f,"our kill, or their counter at the player");
+            Assert.That(_rally.StationKillMax,Is.EqualTo(1f),"An EXCELLENT pass is always put away.");
             if(_rally.Phase==Phase.Recovery)
             {
                 Assert.That(_rally.Outcome,Is.EqualTo("KILL! — EXCELLENT PASS"));Assert.That(_rally.PlayerScore,Is.EqualTo(1));

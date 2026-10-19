@@ -68,7 +68,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Kit haptic clip grab_heavy; shared by this ball's L/R/body events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 0.8
+    _cachedManifestIntensity: 1
   - _id: 0303204a50704402a938dba26c69211a
     mode: 1
     displayName: Volleyball / r_arm_collide
@@ -82,7 +82,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Kit haptic clip grab_heavy; shared by this ball's L/R/body events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 0.8
+    _cachedManifestIntensity: 1
   - _id: a96029e805d649a0bfa815b4b5a0fc2e
     mode: 1
     displayName: Volleyball / body_collide

@@ -19,6 +19,7 @@ namespace GloveBallDemo.Tests
         VolleyDrillController _drill;
         VolleyAerialSequence _rally;
         VolleyTutorial _tutorial;
+        float _timeScale;
 
         [SetUp]
         public void Open()
@@ -26,12 +27,18 @@ namespace GloveBallDemo.Tests
             EditorSceneManager.OpenScene(Scene);
             _drill=Object.FindFirstObjectByType<VolleyDrillController>();_rally=_drill.Aerial;
             _tutorial=_drill.GetComponent<VolleyTutorial>();
+            _timeScale=Time.timeScale;
             typeof(BallPool).GetMethod("Awake",Private).Invoke(_drill.Pool,null);
             typeof(VolleyAerialSequence).GetMethod("CaptureHome",Private).Invoke(_rally,null);
             VolleyTutorial.ResetLaunchForTests();
         }
         [TearDown]
-        public void Clean(){if(_tutorial!=null)_tutorial.Stop(false);VolleyTutorial.ResetLaunchForTests();}
+        public void Clean()
+        {
+            if(_tutorial!=null)_tutorial.Stop(false);VolleyTutorial.ResetLaunchForTests();
+            // A RECEIVE rep's move to the player's spot runs in slow motion: never leave it set (it would be saved to the project).
+            _rally.CancelFeed();Time.timeScale=_timeScale;
+        }
 
         void Wait(float seconds){for(float t=0f;t<seconds;t+=.05f)_tutorial.Tick(.05f);}
         void SetPhase(Phase phase)=>typeof(VolleyAerialSequence).GetProperty("Phase").SetValue(_rally,phase);
@@ -90,14 +97,40 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
-        public void WithoutTheirDigTheSecondStrongSpikeStillLeadsToTheBlocks()
+        public void WithoutTheirDigTheSpikesGoOnUntilThePlayGoingOnHasBeenShown()
         {
             _rally.Jump.AutomaticJump=true;
             _tutorial.Begin(VolleyTutorial.Course.SpikeBlock);
             Spike(.9f,true,"POINT!");Spike(.9f,true,"POINT!");
-            Assert.That(_tutorial.Step,Is.EqualTo("sb_block_plain"));
-            Wait(.1f);
-            Assert.That(_rally.Mode,Is.EqualTo(Mode.BlockOnly));
+            Assert.That(_tutorial.Step,Is.EqualTo("sb_spike_auto"),"Their dig must be seen: one more.");
+            Assert.That(_tutorial.Count,Is.EqualTo(1));
+            Assert.That(_rally.ScriptedDefence,Is.EqualTo(Script.DigStrongSpikes));
+        }
+
+        [Test]
+        public void TheReceivePracticeServesTheSameTwoBallsInTurnToOneSetter()
+        {
+            _tutorial.Begin(VolleyTutorial.Course.Receive);
+            Assert.That(_rally.PracticeServes,Is.True);
+            var start=typeof(VolleyAerialSequence).GetMethod("StartStationRep",Private);
+            var server=typeof(VolleyAerialSequence).GetMethod("Server",Private);
+            var actorAt=typeof(VolleyAerialSequence).GetMethod("ActorAt",Private);
+            var them=VolleyAerialSequence.Team.Them;var us=VolleyAerialSequence.Team.Us;
+            Vector3 Home(object actor)=>(Vector3)actor.GetType().GetField("Home").GetValue(actor);
+            typeof(VolleyAerialSequence).GetMethod("EnsureMatchCast",Private).Invoke(_rally,null);
+            var froms=new System.Collections.Generic.List<Vector3>();var setters=new System.Collections.Generic.List<Vector3>();
+            for(int i=0;i<4;i++)
+            {
+                start.Invoke(_rally,null);
+                froms.Add(Home(server.Invoke(_rally,new object[]{them})));
+                setters.Add(Home(actorAt.Invoke(_rally,new object[]{us,0})));
+            }
+            Assert.That(Vector3.Distance(froms[0],froms[2]),Is.LessThan(.001f),"The first serve's spot every other time.");
+            Assert.That(Vector3.Distance(froms[1],froms[3]),Is.LessThan(.001f));
+            Assert.That(Vector3.Distance(froms[0],froms[1]),Is.GreaterThan(2f),"Two different spots.");
+            Assert.That(setters.TrueForAll(s=>Vector3.Distance(s,setters[0])<.001f),Is.True,"One setter spot.");
+            _tutorial.Stop(false);
+            Assert.That(_rally.PracticeServes,Is.False);
         }
 
         [Test]
@@ -110,14 +143,18 @@ namespace GloveBallDemo.Tests
             typeof(VolleyArmJump).GetProperty("Jumps").SetValue(_rally.Jump,_rally.Jump.Jumps+1);
             Wait(.1f);
             Assert.That(_tutorial.Step,Is.EqualTo("sb_jump"),"Two jumps.");Assert.That(_tutorial.PanelCounter,Is.EqualTo("1 / 2"));
+            // The second jump counts when it lands, not the moment it takes off.
+            typeof(VolleyArmJump).GetProperty("Airborne").SetValue(_rally.Jump,true);
             typeof(VolleyArmJump).GetProperty("Jumps").SetValue(_rally.Jump,_rally.Jump.Jumps+1);
+            Wait(.1f);
+            Assert.That(_tutorial.Step,Is.EqualTo("sb_jump"),"Still in the air.");Assert.That(_tutorial.PanelCounter,Is.EqualTo("2 / 2"));
+            typeof(VolleyArmJump).GetProperty("Airborne").SetValue(_rally.Jump,false);
             Wait(.1f);
             Assert.That(_tutorial.Step,Is.EqualTo("sb_spike"));Assert.That(_drill.HoldRally,Is.False);
             bool called=false;
-            _rally.ActMoment+=(spike,jump)=>called|=spike && jump;
-            // The spike turn's jump moment is raised whether or not AUTO JUMP is on.
-            typeof(VolleyAerialSequence).GetField("_jumpMomentSent",Private).SetValue(_rally,false);
-            typeof(VolleyAerialSequence).GetProperty("SpikeJumpTime").SetValue(_rally,0f);
+            _rally.JumpCall+=spike=>called|=spike;
+            typeof(VolleyAerialSequence).GetField("_jumpCallSent",Private).SetValue(_rally,false);
+            typeof(VolleyAerialSequence).GetField("_spikeCallAt",Private).SetValue(_rally,0f);
             typeof(VolleyAerialSequence).GetMethod("TickPlayerSpike",Private).Invoke(_rally,new object[]{.02f});
             Assert.That(called,Is.True);
         }

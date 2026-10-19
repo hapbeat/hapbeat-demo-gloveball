@@ -162,7 +162,7 @@
       "clip": "volleyball_impact.wav",
       "description": "volleyball / l_arm_collide (grab_heavy)",
       "parameters": {
-        "intensity": 0.8,
+        "intensity": 1,
         "loop": false
       }
     },
@@ -170,7 +170,7 @@
       "clip": "volleyball_impact.wav",
       "description": "volleyball / r_arm_collide (grab_heavy)",
       "parameters": {
-        "intensity": 0.8,
+        "intensity": 1,
         "loop": false
       }
     },

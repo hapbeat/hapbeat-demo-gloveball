@@ -62,7 +62,12 @@ namespace GloveBallDemo.Runtime
         /// <summary>Rally mode a CONTROL scene change asks for; applied once the reloaded Block scene has started.</summary>
         static VolleyAerialSequence.RallyMode? s_pendingMode;
 
-        void Start(){if(_canvas==null)Build();if(s_pendingMode.HasValue || s_pendingTutorial!=VolleyTutorial.Course.None)StartCoroutine(ApplyPendingMode());}
+        void Start()
+        {
+            if(_canvas==null)Build();
+            if(s_pendingMode.HasValue || s_pendingTutorial!=VolleyTutorial.Course.None)StartCoroutine(ApplyPendingMode());
+            if(Application.isPlaying && !s_launchRepositioned)StartCoroutine(RepositionAtLaunch());
+        }
         System.Collections.IEnumerator ApplyPendingMode()
         {
             yield return null; // let the drill and aerial sequence finish their own Start first
@@ -287,8 +292,26 @@ namespace GloveBallDemo.Runtime
             for(int i=0;i<names.Count;i++)_labels[i].text=names[i];
         }
         void ResetAutomaticAttempt(){if(Drill.Aerial!=null && Drill.Aerial.BeginnerBlock)Drill.Aerial.SetBeginnerBlock(true);}
-        /// <summary>REPOSITION TO START, also the shared 視線をリセット (VolleySessionHost).</summary>
-        public void RepositionToStart(){ResetAutomaticAttempt();Floor.Recenter();Floor.CalibrateStandingHeight();SetOpen(false);}
+        /// <summary>REPOSITION TO START, also the shared 視線をリセット (VolleySessionHost) and once at the app's start.</summary>
+        public void RepositionToStart(){ResetAutomaticAttempt();Floor.Recenter();Floor.CalibrateStandingHeight();SetOpen(false);Repositioned?.Invoke();}
+        /// <summary>The stance and eye height were set again (panels placed for the player follow).</summary>
+        public static event System.Action Repositioned;
+        static bool s_launchRepositioned;
+        [Tooltip("At the app's first start, 視線をリセット once the head has been tracked this long (s): the floor height then fits without a button.")]
+        [Min(0f)] public float LaunchRepositionSeconds=1f;
+        /// <summary>The app's first start: 視線をリセット from where the player stands, once tracking has settled.</summary>
+        System.Collections.IEnumerator RepositionAtLaunch()
+        {
+            float settled=0f;
+            while(settled<LaunchRepositionSeconds)
+            {
+                settled=Drill!=null && Drill.TrackingReady ? settled+Time.unscaledDeltaTime : 0f;
+                yield return null;
+            }
+            if(IsOpen)yield break; // the player is already in the menu
+            s_launchRepositioned=true;
+            RepositionToStart();
+        }
         void OnDisable(){DemoPause.PausedChanged-=OnSharedPauseChanged;if(IsOpen)SetOpen(false);}
         public bool CanExecuteControl(string action,string sceneId) =>
             action=="menu_open" || action=="menu_close" || action=="restart"

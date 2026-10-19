@@ -79,13 +79,9 @@ namespace GloveBallDemo.Runtime
         [Tooltip("RECEIVE: both arms feel the ball while the hands are within this of each other (m), joined or not.")]
         [Min(0f)] public float ReceiveBothArmsDistance = .45f;
         [Min(0f)] public float MinimumImpactGain = .2f;
-        [Header("Rally: where on the hand the ball is met (spike and block)")]
-        [Tooltip("Fraction of the hand length from the wrist (0) to the fingertips (1) beyond which a contact counts as fingertips.")]
-        [Range(.3f,1f)] public float FingertipZone = .7f;
+        [Header("Rally: where on the hand a spike is met (a block is solid anywhere)")]
         [Tooltip("A fingertip spike keeps this share of its speed (a tip, not a kill).")]
         [Range(0f,1f)] public float FingertipSpikeScale = .55f;
-        [Tooltip("A fingertip block only partly turns the ball: 0 = full rebound, 1 = the ball carries on unchanged.")]
-        [Range(0f,1f)] public float FingertipBlockPassThrough = .65f;
         [Tooltip("A spike counts as fingertips only from this far along the hand (an open hand meets the ball with the fingers' base).")]
         [Range(.3f,1f)] public float SpikeFingertipZone = .85f;
         [Header("Rally: forearms (block only)")]
@@ -99,11 +95,10 @@ namespace GloveBallDemo.Runtime
         readonly BoxCollider[] _forearm = new BoxCollider[2];
         readonly Renderer[] _forearmVisual = new Renderer[2];
         MaterialPropertyBlock _forearmBlock;
-        [Tooltip("A block off the side of the hand (not the palm face, or the outer 20% of its width) barely changes the ball's path: it carries on, slightly turned.")]
-        [Range(0f,1f)] public float EdgeBlockPassThrough = .85f;
-        [Tooltip("Haptic strength multiplier for a fingertip graze and for a solid palm / wrist contact.")]
-        [Min(0f)] public float FingertipHapticScale = .4f;
-        [Min(0f)] public float PalmHapticScale = 1.3f;
+        [Tooltip("Spike and block at the trigger's full gain (MaximumImpactGain) whatever the swing: is the clip itself strong enough?")]
+        public bool HapticsAtMaximum;
+        [Tooltip("A receive is felt at least this strong (gain), wherever on the arms it is met: the feel of a good receive every time.")]
+        [Min(0f)] public float ReceiveMinimumGain = 1.2f;
         [Header("Rally: set (toss) - caught, carried and pushed")]
         [Tooltip("Longest the ball may ride the hands (s); a real set is a short hold, not a bounce.")]
         [Range(.05f,.6f)] public float SetMaxHoldSeconds = .35f;
@@ -453,14 +448,13 @@ namespace GloveBallDemo.Runtime
                         var touch = Aerial != null ? Aerial.CurrentPlayerTouch : VolleyAerialSequence.PlayerTouch.None;
                         bool zoned = touch == VolleyAerialSequence.PlayerTouch.Spike || touch == VolleyAerialSequence.PlayerTouch.Block;
                         bool spiking = touch == VolleyAerialSequence.PlayerTouch.Spike;
-                        bool edge = zoned && !spiking && !joined && arm == null && HandEdge(hand, point, normal);
-                        bool tip = zoned && (zone >= (spiking ? SpikeFingertipZone : FingertipZone) || edge);
+                        // Only a spike off the very fingertips is a tip; a block is solid wherever the hand or forearm meets it.
+                        bool tip = spiking && zone >= SpikeFingertipZone;
                         if (tip && Aerial != null) Aerial.ShowTouchFlash(point);
-                        if (tip) velocity = touch == VolleyAerialSequence.PlayerTouch.Spike ? velocity * FingertipSpikeScale
-                            : Vector3.Lerp(velocity, incoming, edge ? EdgeBlockPassThrough : FingertipBlockPassThrough);
+                        if (tip) velocity *= FingertipSpikeScale;
                         else if (touch == VolleyAerialSequence.PlayerTouch.Block && Aerial != null) velocity = Aerial.BlockShot(_ball.Body.position, velocity);
                         if (zoned)
-                            Debug.Log($"[VolleyTouch] {touch} zone={zone:F2} tip={tip} edge={edge} swing={swing.magnitude:F1}m/s pitch={Mathf.Atan2(swing.y, new Vector2(swing.x, swing.z).magnitude) * Mathf.Rad2Deg:F0} out={velocity.magnitude:F1}m/s pitch={Mathf.Atan2(velocity.y, new Vector2(velocity.x, velocity.z).magnitude) * Mathf.Rad2Deg:F0}");
+                            Debug.Log($"[VolleyTouch] {touch} zone={zone:F2} tip={tip} swing={swing.magnitude:F1}m/s pitch={Mathf.Atan2(swing.y, new Vector2(swing.x, swing.z).magnitude) * Mathf.Rad2Deg:F0} out={velocity.magnitude:F1}m/s pitch={Mathf.Atan2(velocity.y, new Vector2(velocity.x, velocity.z).magnitude) * Mathf.Rad2Deg:F0}");
                         if(Aerial!=null && Aerial.OverrideTouchVelocity(handVelocity,_ball.Body.position,velocity,out var modelled))velocity=modelled; // serve / set / pass
                         if (_ball.Deflect(velocity))
                         {
@@ -478,7 +472,10 @@ namespace GloveBallDemo.Runtime
                             // How hard the hand hit it: the ball's change of velocity. (The hand's own speed reads low at the moment
                             // of contact, and the part along the contact normal fell to nearly nothing at a platform's edge.)
                             float impulse = (velocity - incoming).magnitude;
-                            float gain = ImpactGain(impulse) * (zoned ? tip ? FingertipHapticScale : PalmHapticScale : 1f);
+                            // Where on the hand it was met changes the ball (a fingertip spike is a tip), never the feel: a Hapbeat
+                            // demo's touch is felt fully every time.
+                            float gain = zoned && HapticsAtMaximum ? MaximumImpactGain : ImpactGain(impulse);
+                            if (touch == VolleyAerialSequence.PlayerTouch.Receive) gain = Mathf.Max(gain, ReceiveMinimumGain);
                             // A receive is felt in both arms unless the hands are well apart (one is often lost under the other).
                             bool bothArms = joined || touch == VolleyAerialSequence.PlayerTouch.Receive
                                 && Vector3.Distance(Left.transform.position, Right.transform.position) <= ReceiveBothArmsDistance;
@@ -644,21 +641,6 @@ namespace GloveBallDemo.Runtime
             }
             if (_setBoth || _setHand == Left) HapticEventRelay.ReportHapticOnly(_ball.ImpactEvent(DemoHapticEvent.LeftArmCollide), Left.transform.position, strength);
             if (_setBoth || _setHand == Right) HapticEventRelay.ReportHapticOnly(_ball.ImpactEvent(DemoHapticEvent.RightArmCollide), Right.transform.position, strength);
-        }
-
-        /// <summary>
-        /// True for a contact off the side of the hand: the swept sphere hit a side face of the box (its normal is not
-        /// along the palm normal), or the point is in the outer 20% of the hand's width.
-        /// </summary>
-        public static bool HandEdge(VolleyTrackedHand hand, Vector3 point, Vector3 normal)
-        {
-            var box = hand.ContactVolume;
-            if (box == null) return false;
-            if (Mathf.Abs(Vector3.Dot(normal.normalized, box.transform.up)) < .5f) return true;
-            var size = Vector3.Scale(box.size, box.transform.lossyScale);
-            int width = Mathf.Abs(size.x) <= Mathf.Abs(size.z) ? 0 : 2; // the shorter of the two in-plane axes
-            var local = box.transform.InverseTransformPoint(point) - box.center;
-            return Mathf.Abs(local[width]) > box.size[width] * .5f * .8f;
         }
 
         /// <summary>
