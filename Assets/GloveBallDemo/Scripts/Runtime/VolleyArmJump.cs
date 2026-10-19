@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace GloveBallDemo.Runtime
 {
@@ -20,14 +22,14 @@ namespace GloveBallDemo.Runtime
         public bool AutomaticJump;
         [Tooltip("No jump at all (RECEIVE and TOSS: a pass's arm swing must never launch one), whatever AutomaticJump says.")]
         public bool Suppressed;
-        [Header("Block: relaxed height-only gesture")]
-        public bool UseHeightThreshold;
-        [Tooltip("Both wrists below this eye-relative height prepare the next jump.")]
-        public float RearmHeightFromEyes=-.25f;
-        [Tooltip("Both wrists above this eye-relative height jump once. No speed or time requirement.")]
-        public float JumpHeightFromEyes=-.05f;
+        [Header("Spike / block: a quick push up of both hands")]
+        [Tooltip("Both hands moving up at least RiseDistance within RiseSeconds jump, from any height: no line to cross and no lowering first\n"
+            +"(looking up at a high ball leans the body back and raises the hands, which an eye-relative line missed).")]
+        [FormerlySerializedAs("UseHeightThreshold")] public bool UseQuickRise;
+        [Min(.01f)] public float RiseDistance=.1f;
+        [Min(.05f)] public float RiseSeconds=.3f;
         [Min(0f)] public float TrackingGraceSeconds=1.5f;
-        [Tooltip("Height threshold: a hand lost this long ago (s) still counts at its last tracked height (raised hands often leave the cameras' view).")]
+        [Tooltip("Quick rise: a hand lost this long ago (s) still counts at its last tracked height (raised hands often leave the cameras' view).")]
         [Min(0f)] public float HandHoldSeconds=.4f;
         float _lastLeftY, _lastRightY, _leftSeen=-1f, _rightSeen=-1f;
         static bool Seen(VolleyTrackedHand hand)=>hand.Ready && !hand.IsEstimated && hand.Source!="brief-loss";
@@ -38,6 +40,20 @@ namespace GloveBallDemo.Runtime
         public float Lift { get; private set; }
         /// <summary>0..1 through the current jump; 0 when grounded.</summary>
         public float Progress=>Airborne ? Mathf.Clamp01(_elapsed/Mathf.Max(.1f,Duration)) : 0f;
+        /// <summary>Quick rise: how far both hands have risen within the last RiseSeconds (the smaller of the two, m).</summary>
+        public float LastRise { get; private set; }
+        readonly List<Vector3> _rise=new List<Vector3>(96); // (clock, left y, right y) in tracking space
+        float _riseClock;
+        void TrackRise(float dt,float left,float right)
+        {
+            _riseClock+=dt;
+            _rise.Add(new Vector3(_riseClock,left,right));
+            while(_rise.Count>1 && _riseClock-_rise[0].x>RiseSeconds)_rise.RemoveAt(0);
+            float lowLeft=left,lowRight=right;
+            foreach(var sample in _rise){lowLeft=Mathf.Min(lowLeft,sample.y);lowRight=Mathf.Min(lowRight,sample.z);}
+            LastRise=Mathf.Min(left-lowLeft,right-lowRight);
+        }
+        void ClearRise(){_rise.Clear();LastRise=0f;}
         float _elapsed, _cooldown, _gestureAge, _baseLeft, _baseRight, _previousLeft, _previousRight;
         bool _sampled, _armed;
         float _trackingGap;
@@ -49,7 +65,7 @@ namespace GloveBallDemo.Runtime
             float head=space.InverseTransformPoint(Floor.Origin.Camera.transform.position).y;
             float leftY=space.InverseTransformPoint(Left.transform.position).y-head,rightY=space.InverseTransformPoint(Right.transform.position).y-head;
             bool left=Seen(Left),right=Seen(Right);
-            if(UseHeightThreshold)
+            if(UseQuickRise)
             {
                 // A raised hand that left the cameras' view a moment ago still counts where it was last seen.
                 float now=Time.unscaledTime;
@@ -58,21 +74,18 @@ namespace GloveBallDemo.Runtime
             }
             Tick(Time.deltaTime,left&&right,leftY,rightY,GameInputGate.IsBlocked,head,Time.unscaledDeltaTime);
             Floor.SetVirtualLift(Lift);
-            LogJumpState(head);
+            LogJumpState();
         }
         int _loggedJumps;float _blockedLog;
-        /// <summary>The log says why hands raised above the jump height did not jump (every 2 s at most), and each jump.</summary>
-        void LogJumpState(float head)
+        /// <summary>The log says why both hands pushed up did not jump (every 2 s at most), and each jump.</summary>
+        void LogJumpState()
         {
             if(Jumps!=_loggedJumps){_loggedJumps=Jumps;Debug.Log($"[VolleyJump] jump {Jumps} auto={AutomaticJump}");}
-            var space=Floor.Origin.CameraFloorOffsetObject.transform;
-            float l=space.InverseTransformPoint(Left.transform.position).y-head,r=space.InverseTransformPoint(Right.transform.position).y-head;
-            bool up=l>=JumpHeightFromEyes && r>=JumpHeightFromEyes;
             _blockedLog-=Time.unscaledDeltaTime;
-            if(!up || Airborne || _blockedLog>0f || GameInputGate.IsBlocked || Left.Source=="lost" && Right.Source=="lost")return;
+            if(!UseQuickRise || Airborne || LastRise<RiseDistance || _blockedLog>0f || GameInputGate.IsBlocked)return;
             _blockedLog=2f;
-            Debug.Log($"[VolleyJump] hands up, no jump: paused={GameInputGate.IsBlocked} dt={Time.deltaTime:F3} scale={Time.timeScale:F2} auto={AutomaticJump} suppressed={Suppressed} cooldown={_cooldown:F2} armed={_armed} " +
-                $"L ready={Left.Ready} est={Left.IsEstimated} src={Left.Source} y={l:F2} / R ready={Right.Ready} est={Right.IsEstimated} src={Right.Source} y={r:F2}");
+            Debug.Log($"[VolleyJump] hands pushed up {LastRise:F2} m, no jump: auto={AutomaticJump} suppressed={Suppressed} cooldown={_cooldown:F2} " +
+                $"L ready={Left.Ready} est={Left.IsEstimated} src={Left.Source} / R ready={Right.Ready} est={Right.IsEstimated} src={Right.Source}");
         }
         public static float HeightAt(float time,float duration,float height)
         {
@@ -91,23 +104,23 @@ namespace GloveBallDemo.Runtime
             {
                 _elapsed+=Mathf.Max(0,dt);Lift=HeightAt(_elapsed,Duration,JumpHeight);
                 if(_elapsed>=Duration){Airborne=false;Lift=0;_cooldown=Cooldown;Landed?.Invoke();}
-                _sampled=false;_armed=false;return;
+                _sampled=false;_armed=false;ClearRise();return;
             }
             _cooldown=Mathf.Max(0,_cooldown-dt);
+            // Tracking-space heights (head + eye-relative): a quick rise is the hands' own motion, at any height.
+            if(UseQuickRise && tracked)TrackRise(dt,leftY+headY,rightY+headY);
             if(AutomaticJump || Suppressed){_armed=false;_sampled=false;return;}
             if(!tracked)
             {
                 _trackingGap+=dt;
-                if(_trackingGap>TrackingGraceSeconds){_sampled=false;_armed=false;}
+                if(_trackingGap>TrackingGraceSeconds){_sampled=false;_armed=false;ClearRise();}
                 return;
             }
-            if(UseHeightThreshold)
+            if(UseQuickRise)
             {
                 _trackingGap=0;
-                if(_cooldown>0)return;
-                if(leftY<=RearmHeightFromEyes && rightY<=RearmHeightFromEyes)_armed=true;
-                if(_armed && leftY>=JumpHeightFromEyes && rightY>=JumpHeightFromEyes)
-                {Airborne=true;_elapsed=0;Lift=0;Jumps++;_armed=false;_sampled=false;TookOff?.Invoke();}
+                if(_cooldown>0 || LastRise<RiseDistance)return;
+                Airborne=true;_elapsed=0;Lift=0;Jumps++;_armed=false;_sampled=false;ClearRise();TookOff?.Invoke();
                 return;
             }
             if(dt>.12f){_sampled=false;_armed=false;_trackingGap=0;return;}
@@ -130,7 +143,7 @@ namespace GloveBallDemo.Runtime
         }
         public void ResetJump()
         {
-            Airborne=false;Lift=0;_elapsed=0;_sampled=false;_armed=false;_cooldown=Cooldown;_trackingGap=0;
+            Airborne=false;Lift=0;_elapsed=0;_sampled=false;_armed=false;_cooldown=Cooldown;_trackingGap=0;ClearRise();
             if(Floor!=null)Floor.SetVirtualLift(0);
         }
         public bool TryStartAutomaticJump()

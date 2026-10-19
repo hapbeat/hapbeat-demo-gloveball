@@ -16,9 +16,7 @@ public static class VolleyTrackingAndTossSetup
             if(SceneManager.GetSceneAt(i).isDirty)throw new InvalidOperationException("Save manual edits first.");
         var scene=EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyBlock-codex.unity");
         var aerial=UnityEngine.Object.FindFirstObjectByType<VolleyAerialSequence>();
-        aerial.Jump.UseHeightThreshold=true;
-        aerial.Jump.RearmHeightFromEyes=-.15f;
-        aerial.Jump.JumpHeightFromEyes=-.05f;
+        aerial.Jump.UseQuickRise=true;
         aerial.TossLauncher.GetComponent<VolleyFeederAim>().ShotClip=
             AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/UltimateGloveBall/Sound/ball_launch_bland.wav");
         const string spikePath="Assets/GloveBallDemo/Audio/BallImpacts/VolleyballImpact.wav";

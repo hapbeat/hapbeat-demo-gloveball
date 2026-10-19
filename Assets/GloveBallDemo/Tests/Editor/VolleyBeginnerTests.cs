@@ -60,7 +60,7 @@ namespace GloveBallDemo.Tests
             try
             {
                 Assert.That(a.BeginnerBlock,Is.False,"The player jumps by default (AUTO JUMP off).");
-                Assert.That(a.Jump.UseHeightThreshold,Is.True,"Hands swung up from low.");
+                Assert.That(a.Jump.UseQuickRise,Is.True,"A quick push up of both hands.");
                 menu.SetOpen(true);menu.Activate(VolleyHandMenu.AutoJumpRow);
                 Assert.That(a.BeginnerBlock,Is.True);Assert.That(a.Jump.Airborne,Is.False);
                 Assert.That(a.AttackStarted,Is.False);

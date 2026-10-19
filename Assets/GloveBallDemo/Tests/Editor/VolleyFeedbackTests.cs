@@ -14,31 +14,37 @@ namespace GloveBallDemo.Tests
             =>target.GetType().GetMethod(name,Private).Invoke(target,args);
 
         [Test]
-        public void BlockJumpsFromChestToEyesEvenWhenRaisedVerySlowly()
+        public void TheBlockSceneJumpsOnAQuickPushNotASlowRaise()
         {
             EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyBlock-codex.unity");
             var jump=Object.FindFirstObjectByType<VolleyArmJump>();
-            jump.AutomaticJump=false; // Advanced mode retains the previous height-only gesture.
-            jump.Tick(.05f,true,-.30f,-.30f,false);
+            jump.AutomaticJump=false;jump.Suppressed=false;jump.ResetJump();
+            jump.Tick(1f,true,-.30f,-.30f,false);
             for(int i=1;i<=120;i++)jump.Tick(.05f,true,-.30f+i*.0025f,-.30f+i*.0025f,false);
-            Assert.That(jump.Jumps,Is.EqualTo(1),"Height, not speed or gesture timeout, must trigger Block jump.");
-            for(int i=0;i<60;i++)jump.Tick(.05f,true,0f,0f,false);
+            Assert.That(jump.Jumps,Is.Zero,"A slow raise (5 cm a second) is not a jump.");
+            jump.Tick(.1f,true,.15f,.15f,false);
+            Assert.That(jump.Jumps,Is.EqualTo(1),"A quick push up of both hands is, from wherever they are.");
+            for(int i=0;i<60;i++)jump.Tick(.05f,true,.15f,.15f,false);
             Assert.That(jump.Jumps,Is.EqualTo(1),"Held raised hands cannot auto-repeat jump.");
         }
 
         [Test]
-        public void HeightJumpNeedsBothHandsAndSurvivesBriefLoss()
+        public void AQuickPushUpOfBothHandsJumpsFromAnyHeight()
         {
-            var go=new GameObject();var jump=go.AddComponent<VolleyArmJump>();jump.UseHeightThreshold=true;
+            var go=new GameObject();var jump=go.AddComponent<VolleyArmJump>();jump.UseQuickRise=true;
             try{
-                jump.Tick(.05f,true,0,0,false);Assert.That(jump.Jumps,Is.Zero,"Prepare at chest first.");
-                jump.Tick(.05f,true,-.3f,-.3f,false);
-                jump.Tick(.05f,true,0,-.3f,false);Assert.That(jump.Jumps,Is.Zero);
+                jump.Tick(1f,true,.3f,.3f,false);
+                jump.Tick(.05f,true,.3f,.3f,false);Assert.That(jump.Jumps,Is.Zero,"Hands held high (looking up): no jump.");
+                jump.Tick(.1f,true,.45f,.3f,false);Assert.That(jump.Jumps,Is.Zero,"One hand only.");
+                jump.Tick(.1f,true,.45f,.42f,false);Assert.That(jump.Jumps,Is.EqualTo(1),"Both up 12 cm or more within 0.3 s, above the eyes, with no lowering first.");
+                for(int i=0;i<40;i++)jump.Tick(.05f,true,.45f,.42f,false);
+                Assert.That(jump.Jumps,Is.EqualTo(1),"Held raised hands cannot repeat.");
+                for(int i=0;i<=20;i++)jump.Tick(.05f,true,.45f+i*.006f,.42f+i*.006f,false);
+                Assert.That(jump.Jumps,Is.EqualTo(1),"A slow lift (12 cm over a second) is not a jump.");
+                jump.Tick(.05f,true,.57f,.54f,false);jump.Tick(.1f,true,.7f,.67f,false);
+                Assert.That(jump.Jumps,Is.EqualTo(2),"A quick push again is, from where the hands are.");
                 for(int i=0;i<20;i++)jump.Tick(.05f,false,0,0,false);
-                jump.Tick(.05f,true,0,0,false);Assert.That(jump.Jumps,Is.EqualTo(1));
-                for(int i=0;i<40;i++)jump.Tick(.05f,true,0,0,false);
-                jump.Tick(.05f,true,-.3f,-.3f,false);jump.Tick(.05f,true,0,0,false);
-                Assert.That(jump.Jumps,Is.EqualTo(2));
+                Assert.That(jump.Jumps,Is.EqualTo(2),"Untracked hands never jump.");
             }finally{Object.DestroyImmediate(go);}
         }
 
