@@ -27,6 +27,10 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Both wrists above this eye-relative height jump once. No speed or time requirement.")]
         public float JumpHeightFromEyes=-.05f;
         [Min(0f)] public float TrackingGraceSeconds=1.5f;
+        [Tooltip("Height threshold: a hand lost this long ago (s) still counts at its last tracked height (raised hands often leave the cameras' view).")]
+        [Min(0f)] public float HandHoldSeconds=.4f;
+        float _lastLeftY, _lastRightY, _leftSeen=-1f, _rightSeen=-1f;
+        static bool Seen(VolleyTrackedHand hand)=>hand.Ready && !hand.IsEstimated && hand.Source!="brief-loss";
         public bool Airborne { get; private set; }
         /// <summary>A jump took off (the player's or an automatic one) / came down at its end (not a reset).</summary>
         public event System.Action TookOff, Landed;
@@ -43,10 +47,16 @@ namespace GloveBallDemo.Runtime
             // Use tracking-space coordinates, never the elevated world-space eye/hand positions.
             var space=Floor.Origin.CameraFloorOffsetObject.transform;
             float head=space.InverseTransformPoint(Floor.Origin.Camera.transform.position).y;
-            Tick(Time.deltaTime,Left.Ready&&Right.Ready&&!Left.IsEstimated&&!Right.IsEstimated
-                && Left.Source!="brief-loss" && Right.Source!="brief-loss",
-                space.InverseTransformPoint(Left.transform.position).y-head,
-                space.InverseTransformPoint(Right.transform.position).y-head,GameInputGate.IsBlocked,head,Time.unscaledDeltaTime);
+            float leftY=space.InverseTransformPoint(Left.transform.position).y-head,rightY=space.InverseTransformPoint(Right.transform.position).y-head;
+            bool left=Seen(Left),right=Seen(Right);
+            if(UseHeightThreshold)
+            {
+                // A raised hand that left the cameras' view a moment ago still counts where it was last seen.
+                float now=Time.unscaledTime;
+                if(left){_lastLeftY=leftY;_leftSeen=now;}else if(_leftSeen>=0f && now-_leftSeen<=HandHoldSeconds){leftY=_lastLeftY;left=true;}
+                if(right){_lastRightY=rightY;_rightSeen=now;}else if(_rightSeen>=0f && now-_rightSeen<=HandHoldSeconds){rightY=_lastRightY;right=true;}
+            }
+            Tick(Time.deltaTime,left&&right,leftY,rightY,GameInputGate.IsBlocked,head,Time.unscaledDeltaTime);
             Floor.SetVirtualLift(Lift);
             LogJumpState(head);
         }

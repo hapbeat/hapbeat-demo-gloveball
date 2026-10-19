@@ -17,7 +17,7 @@ public static class VolleyTrackingAndTossSetup
         var scene=EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyBlock-codex.unity");
         var aerial=UnityEngine.Object.FindFirstObjectByType<VolleyAerialSequence>();
         aerial.Jump.UseHeightThreshold=true;
-        aerial.Jump.RearmHeightFromEyes=-.25f;
+        aerial.Jump.RearmHeightFromEyes=-.15f;
         aerial.Jump.JumpHeightFromEyes=-.05f;
         aerial.TossLauncher.GetComponent<VolleyFeederAim>().ShotClip=
             AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/UltimateGloveBall/Sound/ball_launch_bland.wav");

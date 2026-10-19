@@ -60,6 +60,7 @@ namespace GloveBallDemo.Runtime
         bool _explainedBad, _explainedLost;
         int _gradeSerial, _jumps, _savedMatchPoints;
         float _hintAge = 99f;
+        bool _holdForVoice; // the match waits until its announcement has been said
         bool _finishing, _subscribed;
         VolleyAerialSequence.RallyMode _expected;
         VolleyAerialSequence.RallyMode? _pendingMode;
@@ -147,6 +148,9 @@ namespace GloveBallDemo.Runtime
             _queued = null;
             if (!play && _voice != null) _voice.Stop();
             ShowPanel(false);
+            // The match's first ball (and its "スパイク！") only after the announcement.
+            _holdForVoice = play && _voice != null && _voice.isPlaying;
+            if (_holdForVoice && Drill != null) Drill.HoldRally = true;
             if (play) Finished?.Invoke(course);
         }
 
@@ -346,7 +350,15 @@ namespace GloveBallDemo.Runtime
         public void Tick(float dt)
         {
             _clock += dt; _hintAge += dt;
-            if (Running == Course.None) return;
+            if (Running == Course.None)
+            {
+                if (_holdForVoice && (_voice == null || !_voice.isPlaying || !Application.isPlaying))
+                {
+                    _holdForVoice = false;
+                    if (Drill != null) Drill.HoldRally = false;
+                }
+                return;
+            }
             // The next line after an explanation.
             if (_queued != null && (_voice == null || !_voice.isPlaying || !Application.isPlaying)) { var next = _queued; _queued = null; Say(next); }
             // A mode picked meanwhile (the menu, the session) ends the tutorial there.
@@ -632,11 +644,7 @@ namespace GloveBallDemo.Runtime
             new Line("sb_block", "ブロック", "今度は相手のスパイクです。ジャンプして両手を高く上げ、ネットの上へ手を出して、ブロックしましょう。"),
             new Line("sb_block_hint", "", "打ってくる相手の正面で、ジャンプして両手を前へ出しましょう。"),
             new Line("sb_nice_block", "", "ナイスブロック！もう1本。"),
-            new Line("sb_end_3", "試合開始", "OKです！これからゲーム形式の試合です。スパイクやブロックが甘いと、ポイントが決まらずにそのまま続きます。がんばって3点先取してください。"),
-            new Line("sb_end_4", "試合開始", "OKです！これからゲーム形式の試合です。スパイクやブロックが甘いと、ポイントが決まらずにそのまま続きます。がんばって4点先取してください。"),
-            new Line("sb_end_5", "試合開始", "OKです！これからゲーム形式の試合です。スパイクやブロックが甘いと、ポイントが決まらずにそのまま続きます。がんばって5点先取してください。"),
-            new Line("sb_end_7", "試合開始", "OKです！これからゲーム形式の試合です。スパイクやブロックが甘いと、ポイントが決まらずにそのまま続きます。がんばって7点先取してください。"),
-            new Line("sb_end", "試合開始", "OKです！これからゲーム形式の試合です。スパイクやブロックが甘いと、ポイントが決まらずにそのまま続きます。がんばって勝ちましょう。"),
+            new Line("sb_end", "試合開始", "OKです！これから試合を始めます。"),
             new Line("rc_pass", "レシーブ", "レシーブの練習です。相手のサーブを、緑の円の上のセッターへ、両腕をそろえて高く返しましょう。"),
             new Line("rc_excellent", "", "EXCELLENT！セッターへ余裕をもって返せると、強いスパイクで、ほぼ決まります。", "エクセレント！セッターへ余裕をもって返せると、強いスパイクで、ほぼ決まります。"),
             new Line("rc_good", "", "GOOD。セッター以外の選手がトスしても攻撃は続きますが、スパイクは決まりにくく、相手に拾われてラリーが続きます。", "グッド。セッター以外の選手がトスしても攻撃は続きますが、スパイクは決まりにくく、相手に拾われてラリーが続きます。"),

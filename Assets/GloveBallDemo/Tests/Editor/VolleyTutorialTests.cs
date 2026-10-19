@@ -86,7 +86,7 @@ namespace GloveBallDemo.Tests
             Award(Phase.OpponentSpike,true,"BLOCK POINT!");
             Assert.That(_tutorial.Count,Is.EqualTo(1));
             Award(Phase.OpponentSpike,true,"BLOCK POINT!");
-            Assert.That(_tutorial.PanelBody,Is.EqualTo(VolleyTutorialText.Get("sb_end_"+points).Body),"The match announced with its points...");
+            Assert.That(_tutorial.PanelBody,Is.EqualTo(VolleyTutorialText.Get("sb_end").Body),"The match announced, shortly...");
             Assert.That(_tutorial.Panel.gameObject.activeSelf,Is.False,"...by voice only: a panel would read as more tutorial.");
             Wait(.1f);
             Assert.That(_tutorial.Running,Is.EqualTo(VolleyTutorial.Course.None),"The match starts as soon as the goals are met.");

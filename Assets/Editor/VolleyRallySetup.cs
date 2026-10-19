@@ -177,7 +177,11 @@ public static class VolleyRallySetup
         if(aerial.Music==null)throw new InvalidOperationException("Background music missing: "+MusicPath);
         aerial.MusicVolume=.1f;
         // The player jumps (AUTO JUMP off by default; the menu turns it on). RECEIVE and TOSS never jump either way.
-        aerial.Jump.AutomaticJump=false;EditorUtility.SetDirty(aerial.Jump);aerial.JumpTimingTolerance=.18f;
+        aerial.Jump.AutomaticJump=false;
+        // Looser: ready once both hands are 15 cm below the eyes (25 cm missed hands held near the chest), and a raised
+        // hand lost a moment ago counts at its last height.
+        aerial.Jump.RearmHeightFromEyes=-.15f;aerial.Jump.JumpHeightFromEyes=-.05f;aerial.Jump.HandHoldSeconds=.4f;
+        EditorUtility.SetDirty(aerial.Jump);aerial.JumpTimingTolerance=.18f;
         // Haptics: how hard the hand hit the ball (its change of velocity), up to the trigger's full x2; a receive in both arms.
         drill.ImpactReferenceSpeed=10f;drill.MaximumImpactGain=2f;drill.ReceiveBothArmsDistance=.45f;
         // For now every hand touch at the full gain: is the clip itself strong enough (or must it change)? Without it a

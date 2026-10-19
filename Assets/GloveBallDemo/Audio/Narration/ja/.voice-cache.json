@@ -65,23 +65,7 @@
  },
  "sb_end": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "aac9a7b822fc800ae54947b9414d2bcb0903f6f91cfea03ac2d8b03395f3b068"
- },
- "sb_end_3": {
-  "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "44193b3428e6ebe1e7c3df74a6142550b543933387104c0dafd371e5e21fa1cf"
- },
- "sb_end_4": {
-  "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "f4224e221b9c7bec1108fe40fdbc2042a5ce63f9dc0462259f5b646245ac6ead"
- },
- "sb_end_5": {
-  "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "8c6e478d9756cf335a1945af091add43ad7913cca857ed84c0f7fe7ee64db472"
- },
- "sb_end_7": {
-  "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "e542876d03942822f87fc3ceb4d06448218f836510e9aac9ea3e79c370f49835"
+  "synth": "ded83545e1c68da2aad19961f6802fbaeade21adba0f0dda80264948fb738140"
  },
  "sb_jump": {
   "norm": "loudnorm I=-20 TP=-1.5",

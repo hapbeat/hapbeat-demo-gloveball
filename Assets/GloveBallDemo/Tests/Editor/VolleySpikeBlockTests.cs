@@ -183,6 +183,8 @@ namespace GloveBallDemo.Tests
             Assert.That(_drill.JumpHapticGain,Is.EqualTo(.3f).Within(.001f));
             Assert.That(_drill.LandHapticGain,Is.EqualTo(.6f).Within(.001f));
             var jump=_rally.Jump;
+            Assert.That(jump.RearmHeightFromEyes,Is.EqualTo(-.15f).Within(.001f),"Ready with the hands 15 cm below the eyes.");
+            Assert.That(jump.HandHoldSeconds,Is.EqualTo(.4f).Within(.001f),"A raised hand lost a moment ago still counts.");
             jump.AutomaticJump=true;jump.Suppressed=false;jump.ResetJump();
             int took=0,landed=0;jump.TookOff+=()=>took++;jump.Landed+=()=>landed++;
             jump.Tick(jump.Cooldown+.1f,true,-1f,-1f,false); // cooldown over
