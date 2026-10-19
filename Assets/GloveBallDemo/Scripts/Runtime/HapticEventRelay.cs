@@ -248,17 +248,24 @@ namespace GloveBallDemo.Runtime
             // see DemoHapticsGate.
             if (!DemoHapticsGate.LiveSendEnabled || !HapticsEnabled)
             {
+                Debug.Log($"[HapticFire] {evt} not sent (live={DemoHapticsGate.LiveSendEnabled} haptics={HapticsEnabled})");
                 return;
             }
 
             var trigger = FindTrigger(evt);
             if (trigger == null)
             {
+                Debug.Log($"[HapticFire] {evt} not sent (no trigger)");
                 return;
             }
 
             trigger.GainMultiplier = Mathf.Clamp(gain, 0f, 2f);
             trigger.Fire();
+            // Diagnostic (Volley spike / block felt weak): what each fire actually streams.
+            var playback = trigger.ActivePlayback;
+            Debug.Log(playback != null
+                ? $"[HapticFire] {evt} asked={gain:F2} baseline={playback.BaselineGain:F2} streamGain={playback.Gain:F2} status={playback.Status}"
+                : $"[HapticFire] {evt} asked={gain:F2} (command, no stream)");
         }
 
         /// <summary>Trigger bound to an event, or null. Used by the batch run to prove the wiring.</summary>
