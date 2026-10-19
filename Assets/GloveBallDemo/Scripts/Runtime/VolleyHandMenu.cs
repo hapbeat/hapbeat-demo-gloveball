@@ -293,12 +293,11 @@ namespace GloveBallDemo.Runtime
         public bool CanExecuteControl(string action,string sceneId) =>
             action=="menu_open" || action=="menu_close" || action=="restart"
             || (action=="scene" && SceneName(sceneId)!=null);
-        // Scene IDs match the descriptor's `scene` option: block (spike / block turns) and match (6 v 6) share the Block scene.
-        static string SceneName(string id) => id=="receive" ? "VolleyReceive-codex"
-            : id=="block" || id=="match" || id=="set" || id=="pass" ? "VolleyBlock-codex" : null;
-        static VolleyAerialSequence.RallyMode? SceneMode(string id) => id=="match" ? VolleyAerialSequence.RallyMode.Match
-            : id=="set" ? VolleyAerialSequence.RallyMode.Set : id=="pass" ? VolleyAerialSequence.RallyMode.Pass
-            : id=="block" ? VolleyAerialSequence.RallyMode.Alternate : (VolleyAerialSequence.RallyMode?)null;
+        // Scene IDs match the descriptor's `scene` option (block / receive / match, VolleySessionHost.SceneMode), plus set
+        // (TOSS); all are modes of the Block scene.
+        static string SceneName(string id) => id=="block" || id=="receive" || id=="match" || id=="set" ? VolleySessionHost.BlockScene : null;
+        static VolleyAerialSequence.RallyMode? SceneMode(string id) => SceneName(id)==null ? (VolleyAerialSequence.RallyMode?)null
+            : id=="set" ? VolleyAerialSequence.RallyMode.Set : VolleySessionHost.SceneMode(id);
         public System.Collections.IEnumerator ExecuteControl(string action,string sceneId)
         {
             if(!CanExecuteControl(action,sceneId))throw new System.InvalidOperationException("Unsupported control.");

@@ -32,9 +32,9 @@ namespace GloveBallDemo.Runtime
     }
 
     /// <summary>
-    /// Volley Demo Session adapter. `scene` picks the Block scene or Receive once per process: `block` plays
-    /// the spike / block turns (Alternate) and `match` the 6 v 6 match, both to `points`, holding the final
-    /// score; `receive` serves `balls` balls (hit or missed). `tutorial` off skips the tutorial the app otherwise
+    /// Volley Demo Session adapter, all in the Block scene: `scene` `block` plays the spike / block turns (Alternate),
+    /// `receive` RECEIVE (passes to the green setter, <see cref="VolleyAerialSequence.RallyMode.Pass"/>) and `match`
+    /// the 6 v 6 match, each to `points`, holding the final score. `tutorial` off skips the tutorial the app otherwise
     /// starts with (<see cref="VolleyTutorial.StartOnLaunch"/>); a retry never runs it.
     /// 視線をリセット (button and CONTROL `recenter`) is the menu's REPOSITION TO START.
     /// The shared pause (Volley APK) pauses through <see cref="SetGameplayPaused"/> and restarts through
@@ -43,7 +43,6 @@ namespace GloveBallDemo.Runtime
     public sealed class VolleySessionHost : MonoBehaviour, IDemoSessionHost, IDemoSessionRecenter, IDemoSessionTutorial
     {
         public const string BlockScene = "VolleyBlock-codex";
-        public const string ReceiveScene = "VolleyReceive-codex";
 
         // The session's scene choice is applied once; later operator scene CONTROLs are not reverted.
         private static bool _sceneOptionApplied;
@@ -63,7 +62,6 @@ namespace GloveBallDemo.Runtime
             DemoSession.UnregisterHost(this);
             if (_drill == null) return;
             if (_drill.Aerial != null) _drill.Aerial.MatchEnded -= OnMatchEnded;
-            _drill.ServesCompleted -= OnServesCompleted;
         }
 
         public void ApplyOptions(IReadOnlyDictionary<string, string> options)
@@ -71,14 +69,13 @@ namespace GloveBallDemo.Runtime
             if (_drill == null) _drill = GetComponent<VolleyDrillController>();
             options.TryGetValue("scene", out var scene);
             if (options.TryGetValue("tutorial", out var tutorial) && tutorial == "off") VolleyTutorial.SkipLaunchTutorial();
-            var target = scene == "receive" ? ReceiveScene : BlockScene;
-            var mode = scene == "match" ? VolleyAerialSequence.RallyMode.Match : VolleyAerialSequence.RallyMode.Alternate;
+            var mode = SceneMode(scene);
             if (!_sceneOptionApplied)
             {
                 _sceneOptionApplied = true;
-                if (SceneManager.GetActiveScene().name != target)
+                if (SceneManager.GetActiveScene().name != BlockScene)
                 {
-                    LoadScene(target);
+                    LoadScene(BlockScene);
                     return;
                 }
             }
@@ -90,14 +87,15 @@ namespace GloveBallDemo.Runtime
                 if (_drill.Aerial.Mode != mode) _drill.Aerial.SetMode(mode);
                 _drill.Aerial.HoldAtMatchEnd = true;
                 if (!_completionWired) _drill.Aerial.MatchEnded += OnMatchEnded;
+                _completionWired = true;
             }
-            else if (_drill.Drill == VolleyDrill.Receive)
-            {
-                _drill.ServeLimit = options.TryGetValue("balls", out var balls) && int.TryParse(balls, out var count) && count > 0 ? count : 10;
-                if (!_completionWired) _drill.ServesCompleted += OnServesCompleted;
-            }
-            _completionWired = true;
         }
+
+        /// <summary>The mode of a descriptor `scene` value (also the CONTROL `scene` IDs, <see cref="VolleyHandMenu"/>).</summary>
+        public static VolleyAerialSequence.RallyMode SceneMode(string scene) =>
+            scene == "match" ? VolleyAerialSequence.RallyMode.Match
+            : scene == "receive" ? VolleyAerialSequence.RallyMode.Pass
+            : VolleyAerialSequence.RallyMode.Alternate;
 
         private void LoadScene(string scene)
         {
@@ -107,7 +105,6 @@ namespace GloveBallDemo.Runtime
         }
 
         private void OnMatchEnded(bool playerWon) => DemoSession.ShowCompletion();
-        private void OnServesCompleted() => DemoSession.ShowCompletion();
 
         /// <summary>CONTROL tutorial_start: the RECEIVE tutorial in RECEIVE, else the SPIKE + BLOCK one.</summary>
         public void StartTutorial()

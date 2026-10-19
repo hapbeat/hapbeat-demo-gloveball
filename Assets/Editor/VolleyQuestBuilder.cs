@@ -11,7 +11,8 @@ using GloveBallDemo.Editor;
 public static class VolleyQuestBuilder
 {
     /// <summary>Build order; the first scene is what the APK opens on launch (Spike + Block rally).</summary>
-    public static readonly string[] SceneNames={"VolleyBlock-codex","VolleyReceive-codex"};
+    // Every mode (RECEIVE included) is in the Block scene; the old receive drill scene is not shipped.
+    public static readonly string[] SceneNames={"VolleyBlock-codex"};
     /// <summary>
     /// XR Hands' Meta Hand Tracking Aim (XR_FB_hand_tracking_aim): the shared pause reads Quest's left-hand
     /// system menu gesture from its aim flags (Hapbeat Demo Switch, DemoPauseInput).

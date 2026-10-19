@@ -60,14 +60,16 @@ namespace GloveBallDemo.Tests
             var volley = Load("Assets/StreamingAssets/hapbeat-demo-session.json");
             Assert.That(volley.DemoId, Is.EqualTo("volley"));
             Assert.That(volley.SupportsHapticsToggle, Is.True);
-            Assert.That(volley.Options.Count, Is.EqualTo(4));
+            Assert.That(volley.Options.Count, Is.EqualTo(3));
+            Assert.That(volley.FindOption("balls"), Is.Null, "RECEIVE is played to points like the other modes.");
+            Assert.That(volley.FindOption("tutorial").WhenValues, Is.EquivalentTo(new[] { "block", "receive" }), "The match has no tutorial.");
+            Assert.That(volley.FindOption("points").WhenValues, Is.EquivalentTo(new[] { "block", "receive", "match" }));
             Assert.That(volley.FindOption("tutorial").Default, Is.EqualTo("on"), "The tutorial first, as in Energy Duel.");
             Assert.That(volley.FindOption("points").Default, Is.EqualTo("3"), "A demo: first to 3."); 
             Assert.That(volley.FindOption("points").WhenOptionId, Is.EqualTo("scene"));
             Assert.That(volley.FindOption("scene").Default, Is.EqualTo("block"), "Spike + Block turns are the default.");
             Assert.That(volley.FindOption("scene").Values.Count, Is.EqualTo(3));
             Assert.That(volley.FindOption("points").Values.Count, Is.EqualTo(3));
-            Assert.That(volley.FindOption("balls").Default, Is.EqualTo("10"));
             Assert.That(volley.Title.Ja, Is.EqualTo("バレーボール"));
             Assert.That(volley.Minutes, Is.EqualTo(3));
 
@@ -79,6 +81,7 @@ namespace GloveBallDemo.Tests
         }
 
         [TestCase("block", VolleyAerialSequence.RallyMode.Alternate)]
+        [TestCase("receive", VolleyAerialSequence.RallyMode.Pass)]
         [TestCase("match", VolleyAerialSequence.RallyMode.Match)]
         public void BlockSessionPlaysToPointsHoldsTheScoreAndRetriesFromZero(string scene, VolleyAerialSequence.RallyMode mode)
         {
@@ -145,27 +148,6 @@ namespace GloveBallDemo.Tests
                 Assert.That(aerial.Mode, Is.EqualTo(VolleyAerialSequence.RallyMode.Alternate), "Restart keeps the scene's mode.");
             }
             finally { menu.SetOpen(false); UnityEngine.Object.DestroyImmediate(menu); }
-        }
-
-        [Test]
-        public void ReceiveSessionEndsAfterTheBallCountWithoutChangingTheNormalDrill()
-        {
-            EditorSceneManager.OpenScene(Folder + "VolleyReceive-codex.unity");
-            var drill = UnityEngine.Object.FindFirstObjectByType<VolleyDrillController>();
-            Assert.That(drill.ServeLimit, Is.Zero, "Normal launch is the endless drill.");
-            Assert.That(DemoSession.TryBegin(Ticket("volley", "{\"scene\":\"receive\",\"balls\":\"20\"}"), "volley",
-                Load("Assets/StreamingAssets/hapbeat-demo-session.json"), out var error), Is.True, error);
-            var host = drill.gameObject.AddComponent<VolleySessionHost>();
-            DemoSession.RegisterHost(host);
-            Assert.That(drill.ServeLimit, Is.EqualTo(20));
-
-            typeof(VolleyDrillController).GetProperty("Serves").SetValue(drill, 20);
-            typeof(VolleyDrillController).GetMethod("Update", Private).Invoke(drill, null);
-            Assert.That(DemoSession.IsCompletionShown, Is.True, "Served balls count, hit or missed.");
-
-            DemoSession.RetryFromCompletion();
-            Assert.That(drill.Serves, Is.Zero);
-            Assert.That(DemoSession.IsCompletionShown, Is.False);
         }
 
         [Test]
