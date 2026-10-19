@@ -142,8 +142,8 @@ public static class VolleyRallySetup
         aerial.Jump.AutomaticJump=false;EditorUtility.SetDirty(aerial.Jump);aerial.JumpTimingTolerance=.18f;
         // Haptics: how hard the hand hit the ball (its change of velocity), up to the trigger's full x2; a receive in both arms.
         drill.ImpactReferenceSpeed=10f;drill.MaximumImpactGain=2f;drill.ReceiveBothArmsDistance=.45f;
-        // For now spike and block at the full gain: is the clip itself strong enough (or must it change)? A receive is
-        // never weaker than a good one (where on the arms it was met never matters to the feel).
+        // For now every hand touch at the full gain: is the clip itself strong enough (or must it change)? Without it a
+        // receive is never weaker than a good one (where on the arms it was met never matters to the feel).
         drill.HapticsAtMaximum=true;drill.ReceiveMinimumGain=1.2f;
         if(drill.JoinedHands!=null){drill.JoinedHands.JoinDistance=.24f;drill.JoinedHands.SeparateDistance=.32f;EditorUtility.SetDirty(drill.JoinedHands);}
         // The tutorials (menu TUTORIAL rows, CONTROL tutorial_start) and their voice.
@@ -193,12 +193,9 @@ public static class VolleyRallySetup
         aerial.ReadingBlockerRange=.3f;
         PlaceBlockSpot(aerial,net,forward);
         aerial.TargetMaterial=TargetMaterial();
-        // For now one of the four balls at random (their haptic clips are tried in play; the volleyball alone comes back after).
+        // The volleyball only (the four balls at random were a try of their haptic clips).
         var pool=new SerializedObject(drill.Pool);var kinds=pool.FindProperty("_launchBallKinds");
-        var four=new[]{BallKind.Bowling,BallKind.Volleyball,BallKind.Foam,BallKind.Perforated};
-        kinds.arraySize=four.Length;
-        for(int i=0;i<four.Length;i++)kinds.GetArrayElementAtIndex(i).enumValueIndex=(int)four[i];
-        pool.ApplyModifiedPropertiesWithoutUndo();
+        kinds.arraySize=1;kinds.GetArrayElementAtIndex(0).enumValueIndex=(int)BallKind.Volleyball;pool.ApplyModifiedPropertiesWithoutUndo();
         aerial.BlockerNetDistance=.35f;
         // Fast overhead swings exceed 8 m/s in tracking space; the old limit flagged them as tracking jumps.
         drill.Left.MaximumTrackedSpeed=drill.Right.MaximumTrackedSpeed=30f;

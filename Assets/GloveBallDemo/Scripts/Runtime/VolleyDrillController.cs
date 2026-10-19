@@ -95,7 +95,7 @@ namespace GloveBallDemo.Runtime
         readonly BoxCollider[] _forearm = new BoxCollider[2];
         readonly Renderer[] _forearmVisual = new Renderer[2];
         MaterialPropertyBlock _forearmBlock;
-        [Tooltip("Spike and block at the trigger's full gain (MaximumImpactGain) whatever the swing: is the clip itself strong enough?")]
+        [Tooltip("Every hand touch (spike, block, receive) at the trigger's full gain (MaximumImpactGain), however hard: is the clip itself strong enough?")]
         public bool HapticsAtMaximum;
         [Tooltip("A receive is felt at least this strong (gain), wherever on the arms it is met: the feel of a good receive every time.")]
         [Min(0f)] public float ReceiveMinimumGain = 1.2f;
@@ -474,7 +474,7 @@ namespace GloveBallDemo.Runtime
                             float impulse = (velocity - incoming).magnitude;
                             // Where on the hand it was met changes the ball (a fingertip spike is a tip), never the feel: a Hapbeat
                             // demo's touch is felt fully every time.
-                            float gain = zoned && HapticsAtMaximum ? MaximumImpactGain : ImpactGain(impulse);
+                            float gain = HapticsAtMaximum ? MaximumImpactGain : ImpactGain(impulse);
                             if (touch == VolleyAerialSequence.PlayerTouch.Receive) gain = Mathf.Max(gain, ReceiveMinimumGain);
                             // A receive is felt in both arms unless the hands are well apart (one is often lost under the other); a spike
                             // and a block only in the hand that met the ball.
