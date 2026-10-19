@@ -23,11 +23,13 @@ namespace GloveBallDemo.Runtime
         [Tooltip("No jump at all (RECEIVE and TOSS: a pass's arm swing must never launch one), whatever AutomaticJump says.")]
         public bool Suppressed;
         [Header("Spike / block: a quick push up of both hands")]
-        [Tooltip("Both hands moving up at least RiseDistance within RiseSeconds jump, from any height: no line to cross and no lowering first\n"
-            +"(looking up at a high ball leans the body back and raises the hands, which an eye-relative line missed).")]
+        [Tooltip("Both hands moving up at RiseSpeed or faster over RiseSeconds jump, from any height: no line to cross and no lowering first\n"
+            +"(looking up at a high ball leans the body back and raises the hands, which an eye-relative line missed). A slow lift never jumps.")]
         [FormerlySerializedAs("UseHeightThreshold")] public bool UseQuickRise;
-        [Min(.01f)] public float RiseDistance=.1f;
-        [Min(.05f)] public float RiseSeconds=.3f;
+        [Tooltip("Upward speed both hands need (m/s), averaged over RiseSeconds.")]
+        [Min(.1f)] public float RiseSpeed=1f;
+        [Min(.03f)] public float RiseSeconds=.12f;
+        float RiseNeeded=>RiseSpeed*RiseSeconds;
         [Min(0f)] public float TrackingGraceSeconds=1.5f;
         [Tooltip("Quick rise: a hand lost this long ago (s) still counts at its last tracked height (raised hands often leave the cameras' view).")]
         [Min(0f)] public float HandHoldSeconds=.4f;
@@ -40,7 +42,7 @@ namespace GloveBallDemo.Runtime
         public float Lift { get; private set; }
         /// <summary>0..1 through the current jump; 0 when grounded.</summary>
         public float Progress=>Airborne ? Mathf.Clamp01(_elapsed/Mathf.Max(.1f,Duration)) : 0f;
-        /// <summary>Quick rise: how far both hands have risen within the last RiseSeconds (the smaller of the two, m).</summary>
+        /// <summary>Quick rise: how far both hands have risen within the last RiseSeconds (the smaller of the two, m; RiseSpeed x RiseSeconds jumps).</summary>
         public float LastRise { get; private set; }
         readonly List<Vector3> _rise=new List<Vector3>(96); // (clock, left y, right y) in tracking space
         float _riseClock;
@@ -82,9 +84,9 @@ namespace GloveBallDemo.Runtime
         {
             if(Jumps!=_loggedJumps){_loggedJumps=Jumps;Debug.Log($"[VolleyJump] jump {Jumps} auto={AutomaticJump}");}
             _blockedLog-=Time.unscaledDeltaTime;
-            if(!UseQuickRise || Airborne || LastRise<RiseDistance || _blockedLog>0f || GameInputGate.IsBlocked)return;
+            if(!UseQuickRise || Airborne || LastRise<RiseNeeded || _blockedLog>0f || GameInputGate.IsBlocked)return;
             _blockedLog=2f;
-            Debug.Log($"[VolleyJump] hands pushed up {LastRise:F2} m, no jump: auto={AutomaticJump} suppressed={Suppressed} cooldown={_cooldown:F2} " +
+            Debug.Log($"[VolleyJump] hands pushed up {LastRise/RiseSeconds:F2} m/s, no jump: auto={AutomaticJump} suppressed={Suppressed} cooldown={_cooldown:F2} " +
                 $"L ready={Left.Ready} est={Left.IsEstimated} src={Left.Source} / R ready={Right.Ready} est={Right.IsEstimated} src={Right.Source}");
         }
         public static float HeightAt(float time,float duration,float height)
@@ -119,7 +121,7 @@ namespace GloveBallDemo.Runtime
             if(UseQuickRise)
             {
                 _trackingGap=0;
-                if(_cooldown>0 || LastRise<RiseDistance)return;
+                if(_cooldown>0 || LastRise<RiseNeeded)return;
                 Airborne=true;_elapsed=0;Lift=0;Jumps++;_armed=false;_sampled=false;ClearRise();TookOff?.Invoke();
                 return;
             }

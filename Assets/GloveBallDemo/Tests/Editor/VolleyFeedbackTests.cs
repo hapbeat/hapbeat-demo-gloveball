@@ -32,16 +32,18 @@ namespace GloveBallDemo.Tests
         public void AQuickPushUpOfBothHandsJumpsFromAnyHeight()
         {
             var go=new GameObject();var jump=go.AddComponent<VolleyArmJump>();jump.UseQuickRise=true;
+            jump.RiseSpeed=1f;jump.RiseSeconds=.12f;
             try{
                 jump.Tick(1f,true,.3f,.3f,false);
                 jump.Tick(.05f,true,.3f,.3f,false);Assert.That(jump.Jumps,Is.Zero,"Hands held high (looking up): no jump.");
                 jump.Tick(.1f,true,.45f,.3f,false);Assert.That(jump.Jumps,Is.Zero,"One hand only.");
-                jump.Tick(.1f,true,.45f,.42f,false);Assert.That(jump.Jumps,Is.EqualTo(1),"Both up 12 cm or more within 0.3 s, above the eyes, with no lowering first.");
-                for(int i=0;i<40;i++)jump.Tick(.05f,true,.45f,.42f,false);
+                jump.Tick(.1f,true,.6f,.45f,false);Assert.That(jump.Jumps,Is.EqualTo(1),"Both up 15 cm in 0.1 s (1.5 m/s), above the eyes, with no lowering first.");
+                for(int i=0;i<40;i++)jump.Tick(.05f,true,.6f,.45f,false);
                 Assert.That(jump.Jumps,Is.EqualTo(1),"Held raised hands cannot repeat.");
-                for(int i=0;i<=20;i++)jump.Tick(.05f,true,.45f+i*.006f,.42f+i*.006f,false);
-                Assert.That(jump.Jumps,Is.EqualTo(1),"A slow lift (12 cm over a second) is not a jump.");
-                jump.Tick(.05f,true,.57f,.54f,false);jump.Tick(.1f,true,.7f,.67f,false);
+                for(int i=1;i<=12;i++)jump.Tick(.05f,true,.6f+i*.025f,.45f+i*.025f,false);
+                Assert.That(jump.Jumps,Is.EqualTo(1),"An ordinary lift (0.5 m/s, 30 cm) is not a jump.");
+                float l=.6f+12*.025f,r=.45f+12*.025f;
+                jump.Tick(.05f,true,l,r,false);jump.Tick(.1f,true,l+.15f,r+.15f,false);
                 Assert.That(jump.Jumps,Is.EqualTo(2),"A quick push again is, from where the hands are.");
                 for(int i=0;i<20;i++)jump.Tick(.05f,false,0,0,false);
                 Assert.That(jump.Jumps,Is.EqualTo(2),"Untracked hands never jump.");

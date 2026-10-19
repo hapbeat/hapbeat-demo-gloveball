@@ -178,9 +178,10 @@ public static class VolleyRallySetup
         aerial.MusicVolume=.1f;
         // The player jumps (AUTO JUMP off by default; the menu turns it on). RECEIVE and TOSS never jump either way.
         aerial.Jump.AutomaticJump=false;
-        // A quick push up of both hands (10 cm within 0.3 s) jumps from any height: looking up at a high ball leans the body
-        // back and raises the hands, which an eye-relative line missed. A raised hand lost a moment ago counts at its last height.
-        aerial.Jump.UseQuickRise=true;aerial.Jump.RiseDistance=.1f;aerial.Jump.RiseSeconds=.3f;aerial.Jump.HandHoldSeconds=.4f;
+        // A quick push up of both hands (1 m/s over 0.12 s) jumps from any height: looking up at a high ball leans the body back
+        // and raises the hands, which an eye-relative line missed; 10 cm in 0.3 s let a slow lift jump. A raised hand lost a
+        // moment ago counts at its last height.
+        aerial.Jump.UseQuickRise=true;aerial.Jump.RiseSpeed=1f;aerial.Jump.RiseSeconds=.12f;aerial.Jump.HandHoldSeconds=.4f;
         EditorUtility.SetDirty(aerial.Jump);aerial.JumpTimingTolerance=.18f;
         // Haptics: how hard the hand hit the ball (its change of velocity), up to the trigger's full x2; a receive in both arms.
         drill.ImpactReferenceSpeed=10f;drill.MaximumImpactGain=2f;drill.ReceiveBothArmsDistance=.45f;

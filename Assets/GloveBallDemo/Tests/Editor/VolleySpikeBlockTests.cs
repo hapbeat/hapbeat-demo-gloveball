@@ -184,8 +184,8 @@ namespace GloveBallDemo.Tests
             Assert.That(_drill.LandHapticGain,Is.EqualTo(.6f).Within(.001f));
             var jump=_rally.Jump;
             Assert.That(jump.UseQuickRise,Is.True);
-            Assert.That(jump.RiseDistance,Is.EqualTo(.1f).Within(.001f),"Both hands up 10 cm...");
-            Assert.That(jump.RiseSeconds,Is.EqualTo(.3f).Within(.001f),"...within 0.3 s, from any height.");
+            Assert.That(jump.RiseSpeed,Is.EqualTo(1f).Within(.001f),"Both hands up at 1 m/s...");
+            Assert.That(jump.RiseSeconds,Is.EqualTo(.12f).Within(.001f),"...over 0.12 s, from any height.");
             Assert.That(jump.HandHoldSeconds,Is.EqualTo(.4f).Within(.001f),"A raised hand lost a moment ago still counts.");
             jump.AutomaticJump=true;jump.Suppressed=false;jump.ResetJump();
             int took=0,landed=0;jump.TookOff+=()=>took++;jump.Landed+=()=>landed++;
