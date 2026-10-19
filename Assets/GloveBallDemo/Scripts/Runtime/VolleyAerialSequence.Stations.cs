@@ -70,6 +70,12 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Our setter (slot 0) stands somewhere new every rep: lateral to our right of the net centre, off the net. A disc under the setter is the target.")]
         public Vector2 SetterLateralRange=new Vector2(-.5f,2.5f);
         public Vector2 SetterOffNetRange=new Vector2(1f,2.5f);
+        [Tooltip("RECEIVE: the two other front-row players (hitters) stand anywhere within this of the court centre (m, sideways)...")]
+        [Min(0f)] public float FrontRowLateral=3.6f;
+        [Tooltip("...at least this far sideways from the setter (m), so it is clear who plays a pass.")]
+        [Min(0f)] public float HitterSetterGap=2f;
+        [Tooltip("RECEIVE: the setter also runs this much further (m) than an EXCELLENT pass allows, and sets it as GOOD.")]
+        [Min(0f)] public float SetterRushRange=1.2f;
         [Tooltip("EXCELLENT: the setter plays it moving at most this far (m), and it was in the air at least this long since the pass (s).")]
         [Min(0f)] public float ExcellentPassMove=.8f;
         [Min(0f)] public float ExcellentPassHang=.9f;
@@ -140,7 +146,7 @@ namespace GloveBallDemo.Runtime
             EmbodyRequest(me.Home,Mode==RallyMode.Set ? PlayerTouch.Set : PlayerTouch.Receive,true);
             ShowRings(Mode==RallyMode.Set);ShowCrossing(false,Vector3.zero,0f);
             Cue=Mode==RallyMode.Set ? "TOSS: NEAR OR FAR HITTER? WATCH THEIR BLOCKERS, AIM FOR A GHOST BALL"
-                : "RECEIVE: PASS HIGH TO THE MARKED SPOT AT THE NET";
+                : "RECEIVE: PASS HIGH TO THE SETTER (GREEN)";
             var setter=ActorAt(Team.Us,0);
             if(Mode==RallyMode.Pass && setter!=null)PlaceTarget(3,new Vector3(setter.Home.x,FloorY+.01f,setter.Home.z),.55f,new Color(.3f,1f,.45f,.3f),.02f);
             else HideTarget(3);
@@ -195,10 +201,13 @@ namespace GloveBallDemo.Runtime
             {
                 var actor=ActorAt(Team.Us,slot);
                 if(actor==null)continue;
-                for(int attempt=0;attempt<20;attempt++)
+                var other=slot==2 ? ActorAt(Team.Us,1) : null;
+                for(int attempt=0;attempt<40;attempt++)
                 {
-                    actor.Home=TeamPoint(Team.Us,SlotBase[slot].x+Random.Range(-FrontRowJitter,FrontRowJitter),1f+Random.Range(-.2f,.4f));
-                    if(setter==null || Flat(actor.Home-setter.Home).magnitude>1.4f)break;
+                    actor.Home=TeamPoint(Team.Us,Random.Range(-FrontRowLateral,FrontRowLateral),1f+Random.Range(-.2f,.4f));
+                    bool clearOfSetter=setter==null || Mathf.Abs(Lateral(actor.Home)-Lateral(setter.Home))>=HitterSetterGap;
+                    bool clearOfOther=other==null || Mathf.Abs(Lateral(actor.Home)-Lateral(other.Home))>=HitterSetterGap*.8f;
+                    if(clearOfSetter && clearOfOther)break;
                 }
             }
         }
@@ -220,13 +229,23 @@ namespace GloveBallDemo.Runtime
             // A lob dying into the net is played above the hands (a jump set) just before it gets there.
             float hands=atNet ? Mathf.Max(SetterHandsHeight,p.y) : SetterHandsHeight;
             if(settable)
-                for(int slot=0;slot<3;slot++)
-                {
-                    var actor=ActorAt(Team.Us,slot);
-                    if(actor==null || actor==_embodied || !actor.A.gameObject.activeSelf)continue;
-                    float distance=Flat(p-actor.A.transform.position).magnitude;
-                    if(Mathf.Max(0f,distance-SetterReach)/SetterSpeed<=moving && distance<bestDistance){bestDistance=distance;best=actor;}
-                }
+            {
+                // The setter (green) takes every settable ball that comes down around its spot and it can get to; a ball
+                // further off goes to the nearest other front-row player (a hitter), who sets it: GOOD at best.
+                var setter=ActorAt(Team.Us,0);
+                float allowed=ExcellentPassMove+ExcellentMovePerSecond*Mathf.Max(0f,hang-ExcellentPassHang);
+                if(setter!=null && setter!=_embodied && setter.A.gameObject.activeSelf
+                   && Flat(p-SetWindowAt(setter)).magnitude<=allowed+SetterRushRange && NearerThanTheHitters(setter,p)
+                   && Mathf.Max(0f,Flat(p-setter.A.transform.position).magnitude-SetterReach)/SetterSpeed<=moving)best=setter;
+                else
+                    for(int slot=1;slot<3;slot++)
+                    {
+                        var actor=ActorAt(Team.Us,slot);
+                        if(actor==null || actor==_embodied || !actor.A.gameObject.activeSelf)continue;
+                        float distance=Flat(p-actor.A.transform.position).magnitude;
+                        if(Mathf.Max(0f,distance-SetterReach)/SetterSpeed<=moving && distance<bestDistance){bestDistance=distance;best=actor;}
+                    }
+            }
             if(best!=null)
             {
                 // The higher the pass (the longer it hangs), the further the setter may move and still have every option.
@@ -257,6 +276,17 @@ namespace GloveBallDemo.Runtime
             _passClass=1;
             _icActor=best;_icSuccess=true;_icTeam=Team.Us;_icPoint=new Vector3(p.x,FloorY,p.z);
             _icHeight=hands;_icReach=OurDigReach;_icReaction=OurDigReaction;_icSpeed=OurDigSpeed;_icRootOffset=Vector3.zero;
+        }
+        /// <summary>RECEIVE: the setter plays a pass only when it is no further from it than from either hitter (no ambiguity).</summary>
+        bool NearerThanTheHitters(MatchActor setter,Vector3 p)
+        {
+            float own=Flat(p-setter.A.transform.position).magnitude;
+            for(int slot=1;slot<3;slot++)
+            {
+                var hitter=ActorAt(Team.Us,slot);
+                if(hitter!=null && hitter!=_embodied && hitter.A.gameObject.activeSelf && Flat(p-hitter.A.transform.position).magnitude<own)return false;
+            }
+            return true;
         }
         /// <summary>RECEIVE, a BAD pass: the second touch just sends it over; they will attack hard.</summary>
         void StationFreeBall(MatchActor actor,Vector3 position)
@@ -316,6 +346,24 @@ namespace GloveBallDemo.Runtime
             target.GetPropertyBlock(_targetBlock);_targetBlock.SetColor("_BaseColor",colour);target.SetPropertyBlock(_targetBlock);
         }
         void HideTarget(int index){if(_targets[index]!=null)_targets[index].gameObject.SetActive(false);}
+        /// <summary>RECEIVE: the setter's green disc stays under it as it moves.</summary>
+        void FollowSetterDisc()
+        {
+            var setter=ActorAt(Team.Us,0);
+            if(_targets[3]==null || !_targets[3].gameObject.activeSelf || setter==null)return;
+            var feet=setter.A.transform.position;feet.y=FloorY+.01f;
+            _targets[3].transform.position=feet;
+        }
+        /// <summary>RECEIVE: above the setter's head, for its label (the disc on the floor is easy to lose).</summary>
+        public bool TryGetSetterMarker(out Vector3 point)
+        {
+            point=default;
+            if(!RallyActive || Mode!=RallyMode.Pass)return false;
+            var setter=ActorAt(Team.Us,0);
+            if(setter==null || !setter.A.gameObject.activeInHierarchy)return false;
+            point=setter.A.transform.position;point.y=FloorY+SetWindow.y*setter.A.transform.lossyScale.y+.55f;
+            return true;
+        }
         /// <summary>Ghost balls where a perfect set meets the near (cyan) and far (yellow) hitter.</summary>
         void ShowRings(bool show)
         {

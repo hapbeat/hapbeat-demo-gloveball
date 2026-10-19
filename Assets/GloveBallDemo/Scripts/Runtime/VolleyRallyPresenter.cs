@@ -28,6 +28,7 @@ namespace GloveBallDemo.Runtime
         Image _fade, _vignette, _banner;
         Text _grade;
         Image _gazeArrow; Texture2D _gazeTexture; float _gazeAge;
+        Transform _setterLabel;
         float _gradeAge=-1f;
         int _gradeSerial;
         Texture2D _vignetteTexture;
@@ -43,7 +44,7 @@ namespace GloveBallDemo.Runtime
         {
             if(Rally==null)Rally=GetComponent<VolleyAerialSequence>();
             _font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            BuildFade();BuildVignette();BuildGrade();BuildGazeArrow();BuildBanner();BuildMarker();
+            BuildFade();BuildVignette();BuildGrade();BuildGazeArrow();BuildSetterLabel();BuildBanner();BuildMarker();
             _gradeSerial=Rally.GradeSerial;
             _audio=gameObject.AddComponent<AudioSource>();_audio.playOnAwake=false;_audio.spatialBlend=0f;
             _spikeChime=Chime("Spike turn chime",new[]{523.25f,659.25f,783.99f},.14f);
@@ -134,6 +135,39 @@ namespace GloveBallDemo.Runtime
             _gazeArrow.transform.SetParent(rect,false);_gazeArrow.rectTransform.sizeDelta=new Vector2(70,70);
             _gazeArrow.sprite=Sprite.Create(_gazeTexture,new Rect(0,0,Size,Size),new Vector2(.5f,.5f));
             _gazeArrow.raycastTarget=false;_gazeArrow.enabled=false;
+        }
+        /// <summary>RECEIVE: "SETTER" and a down arrow over our setter's head, turned to the player.</summary>
+        void BuildSetterLabel()
+        {
+            var go=new GameObject("Rally setter label",typeof(RectTransform),typeof(Canvas));
+            go.transform.SetParent(transform,false);
+            var canvas=go.GetComponent<Canvas>();canvas.renderMode=RenderMode.WorldSpace;
+            var rect=(RectTransform)go.transform;rect.sizeDelta=new Vector2(400,200);rect.localScale=Vector3.one*.0035f;
+            var text=new GameObject("Text",typeof(RectTransform),typeof(Text)).GetComponent<Text>();
+            text.transform.SetParent(rect,false);text.rectTransform.sizeDelta=new Vector2(400,90);text.rectTransform.anchoredPosition=new Vector2(0f,45f);
+            text.font=_font;text.fontSize=72;text.fontStyle=FontStyle.Bold;text.alignment=TextAnchor.MiddleCenter;text.raycastTarget=false;
+            text.text="SETTER";text.color=new Color(.35f,1f,.45f);
+            var arrow=new GameObject("Arrow",typeof(RectTransform),typeof(Image)).GetComponent<Image>();
+            arrow.transform.SetParent(rect,false);arrow.rectTransform.sizeDelta=new Vector2(70,70);arrow.rectTransform.anchoredPosition=new Vector2(0f,-35f);
+            arrow.rectTransform.localRotation=Quaternion.Euler(0f,0f,-90f);
+            if(_gazeArrow!=null)arrow.sprite=_gazeArrow.sprite;
+            arrow.color=new Color(.35f,1f,.45f);arrow.raycastTarget=false;
+            _setterLabel=go.transform;go.SetActive(false);
+        }
+        void UpdateSetterLabel()
+        {
+            if(_setterLabel==null)return;
+            var head=Rally.Drill.Head;
+            var point=Vector3.zero;
+            bool show=head!=null && !GameInputGate.IsBlocked && Rally.TryGetSetterMarker(out point);
+            if(show)
+            {
+                // A little bob, and always facing the player (upright).
+                point.y+=.05f*Mathf.Sin(Time.time*Mathf.PI*1.6f);
+                var toward=Vector3.ProjectOnPlane(point-head.position,Vector3.up);
+                _setterLabel.SetPositionAndRotation(point,toward.sqrMagnitude>1e-4f ? Quaternion.LookRotation(toward,Vector3.up) : Quaternion.identity);
+            }
+            if(_setterLabel.gameObject.activeSelf!=show)_setterLabel.gameObject.SetActive(show);
         }
         void UpdateGazeArrow()
         {
@@ -241,7 +275,7 @@ namespace GloveBallDemo.Runtime
                 }
                 _grade.enabled=_gradeAge>=0f && !GameInputGate.IsBlocked;
             }
-            UpdateGazeArrow();
+            UpdateGazeArrow();UpdateSetterLabel();
             if(Rally.OutcomeSerial!=_outcomeSerial){_outcomeSerial=Rally.OutcomeSerial;_outcomeAge=0f;}
             float dt=Time.deltaTime;
             if(_outcomeAge>=0f){_outcomeAge+=dt;if(_outcomeAge>OutcomeSeconds)_outcomeAge=-1f;}

@@ -236,6 +236,7 @@ namespace GloveBallDemo.Runtime
             float real=_slowActive && Time.timeScale>0f ? dt/Time.timeScale : dt;
             TickEmbody(real);
             TickActors(dt);
+            if(Mode==RallyMode.Pass)FollowSetterDisc();
             switch(Phase)
             {
                 case RallyPhase.Idle:
@@ -551,6 +552,16 @@ namespace GloveBallDemo.Runtime
             var hand=server.Home+Vector3.up*1.2f+TeamForward(_serving)*.3f;
             StartSegment(hand,release,WindupSeconds,()=>NpcServeContact(server,release),p=>server.Phase=p*.52f);
         }
+        int _serveBag; // kinds not served yet in this round of three (bits)
+        /// <summary>Hard, normal or soft, each once in every three serves, in a random order.</summary>
+        int NextServeKind()
+        {
+            if(_serveBag==0)_serveBag=7;
+            int kind;
+            do kind=Random.Range(0,3);while((_serveBag & (1<<kind))==0);
+            _serveBag&=~(1<<kind);
+            return kind;
+        }
         void NpcServeContact(MatchActor server,Vector3 release)
         {
             server.Clock=0f;_lastTouchTeam=server.Team;PlaySpikeAudio(release);
@@ -560,7 +571,7 @@ namespace GloveBallDemo.Runtime
             if(receiving==Team.Us && _roleTouch==PlayerTouch.Receive && _embodied!=null)
             {
                 // Same landing area every time, but a different serve: hard and flat, normal, or soft and loopy.
-                int kind=Random.Range(0,3);
+                int kind=NextServeKind();
                 LaunchToForearms(release,ServeFlightSeconds[kind],0f);
                 Cue=kind==0 ? "HARD SERVE — FOREARMS TOGETHER" : kind==2 ? "HIGH FLOATER — FOREARMS TOGETHER" : "RECEIVE — FOREARMS TOGETHER";
                 return;

@@ -112,7 +112,8 @@ public static class VolleyRallySetup
         // RECEIVE: only EXCELLENT scores; GOOD is dug and countered (our block touches it half the time); BAD gets a clean hard counter.
         aerial.StationKillMin=.08f;aerial.StationKillMax=.95f;aerial.OurBlockTouchChance=.5f;
         aerial.ServeFlightSeconds=new Vector3(1.05f,1.5f,2.2f);aerial.NetLobPlayDistance=.35f;
-        aerial.SetterLateralRange=new Vector2(-.5f,2.5f);aerial.SetterOffNetRange=new Vector2(1f,2.5f);
+        aerial.SetterLateralRange=new Vector2(-3f,3f);aerial.FrontRowLateral=3.6f;aerial.HitterSetterGap=2f;aerial.SetterRushRange=1.2f; // the setter anywhere along the net, clear of the hitters
+        aerial.SetterOffNetRange=new Vector2(1f,2.5f);
         aerial.ExcellentPassMove=.8f;aerial.ExcellentPassHang=.9f;aerial.GoodPassOffNet=new Vector2(.5f,3f);
         // A lob just over the tape is still settable; a little higher serve is kinder (no deep knee bend every time).
         aerial.PassMinClearance=.1f;aerial.GoodPassOffNet=new Vector2(.2f,3f);aerial.ExcellentMovePerSecond=1.5f;aerial.SoftBlockWidth=.45f;

@@ -242,6 +242,35 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
+        public void TheSetterMovesAlongTheWholeNetClearOfTheHittersAndIsLabelled()
+        {
+            _rally.SetMode(Mode.Pass);
+            Launch(Phase.PlayerReceive);
+            Assert.That(_rally.TryGetSetterMarker(out var label),Is.True,"SETTER label over its head.");
+            var setter=_rally.Ally.transform;
+            Assert.That(Vector3.ProjectOnPlane(label-setter.position,Vector3.up).magnitude,Is.LessThan(.01f));
+            var randomize=typeof(VolleyAerialSequence).GetMethod("RandomizeFrontRow",Private);
+            var actorAt=typeof(VolleyAerialSequence).GetMethod("ActorAt",Private);
+            var team=System.Enum.Parse(typeof(VolleyAerialSequence.Team),"Us");
+            float left=0f,right=0f;
+            for(int i=0;i<60;i++)
+            {
+                randomize.Invoke(_rally,null);
+                var homes=new float[3];
+                for(int slot=0;slot<3;slot++)
+                {
+                    var actor=actorAt.Invoke(_rally,new object[]{team,slot});
+                    var home=(Vector3)actor.GetType().GetField("Home").GetValue(actor);
+                    homes[slot]=Vector3.Dot(home-Net,Right);
+                }
+                left=Mathf.Min(left,homes[0]);right=Mathf.Max(right,homes[0]);
+                Assert.That(Mathf.Abs(homes[1]-homes[0]),Is.GreaterThanOrEqualTo(_rally.HitterSetterGap-.01f));
+                Assert.That(Mathf.Abs(homes[2]-homes[0]),Is.GreaterThanOrEqualTo(_rally.HitterSetterGap-.01f));
+            }
+            Assert.That(right-left,Is.GreaterThan(4f),"The setter is not always near the middle.");
+        }
+
+        [Test]
         public void ALobDyingIntoTheNetIsPlayedByTheFrontRowBeforeItGetsThere()
         {
             _rally.SetMode(Mode.Pass);_rally.PassAssist=0f;
