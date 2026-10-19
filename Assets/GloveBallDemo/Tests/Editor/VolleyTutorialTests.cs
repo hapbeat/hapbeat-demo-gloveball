@@ -106,6 +106,10 @@ namespace GloveBallDemo.Tests
             _rally.Jump.AutomaticJump=false;
             _tutorial.Begin(VolleyTutorial.Course.SpikeBlock);
             Assert.That(_tutorial.Step,Is.EqualTo("sb_jump"));Assert.That(_drill.HoldRally,Is.True,"No ball while learning to jump.");
+            Assert.That(_rally.Mode,Is.EqualTo(Mode.SpikeOnly),"Practised where it is used: a RECEIVE never jumps.");
+            typeof(VolleyArmJump).GetProperty("Jumps").SetValue(_rally.Jump,_rally.Jump.Jumps+1);
+            Wait(.1f);
+            Assert.That(_tutorial.Step,Is.EqualTo("sb_jump"),"Two jumps.");Assert.That(_tutorial.PanelCounter,Is.EqualTo("1 / 2"));
             typeof(VolleyArmJump).GetProperty("Jumps").SetValue(_rally.Jump,_rally.Jump.Jumps+1);
             Wait(.1f);
             Assert.That(_tutorial.Step,Is.EqualTo("sb_spike"));Assert.That(_drill.HoldRally,Is.False);

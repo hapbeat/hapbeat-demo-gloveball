@@ -135,6 +135,11 @@ public static class VolleyRallySetup
         drill.SpikeFingertipZone=.85f;drill.FingertipSpikeScale=.8f; // an open hand is the normal spike: little difference to a fist
         aerial.SpikeHeightWeight=.65f;aerial.SpikeHeightWindow=.8f;aerial.SpikeFullSwing=7f;
         drill.BlockForearms=true;
+        // The player jumps (AUTO JUMP off by default; the menu turns it on). RECEIVE and TOSS never jump either way.
+        aerial.Jump.AutomaticJump=false;EditorUtility.SetDirty(aerial.Jump);aerial.JumpTimingTolerance=.18f;
+        // Haptics: how hard the hand hit the ball (its change of velocity), up to the trigger's full x2; a receive in both arms.
+        drill.ImpactReferenceSpeed=10f;drill.MaximumImpactGain=2f;drill.ReceiveBothArmsDistance=.45f;
+        if(drill.JoinedHands!=null){drill.JoinedHands.JoinDistance=.24f;drill.JoinedHands.SeparateDistance=.32f;EditorUtility.SetDirty(drill.JoinedHands);}
         // The tutorials (menu TUTORIAL rows, CONTROL tutorial_start) and their voice.
         var tutorial=drill.GetComponent<VolleyTutorial>();
         if(tutorial==null)tutorial=drill.gameObject.AddComponent<VolleyTutorial>();

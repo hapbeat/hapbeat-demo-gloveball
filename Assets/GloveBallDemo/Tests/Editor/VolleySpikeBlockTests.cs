@@ -258,6 +258,54 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
+        public void NoJumpInReceiveOrTossWhateverAutoJumpSays()
+        {
+            var jump=_rally.Jump;
+            foreach(bool auto in new[]{false,true})
+            {
+                jump.AutomaticJump=auto;
+                foreach(var mode in new[]{VolleyAerialSequence.RallyMode.Pass,VolleyAerialSequence.RallyMode.Set})
+                {
+                    _rally.SetMode(mode);
+                    Assert.That(jump.Suppressed,Is.True,mode+" never jumps");
+                    jump.ResetJump();jump.Tick(1f,true,-.6f,-.6f,false);
+                    // Hands swung up from low (a pass's follow-through): the jump gesture.
+                    jump.Tick(.05f,true,-.6f,-.6f,false);jump.Tick(.1f,true,.1f,.1f,false);
+                    Assert.That(jump.Airborne,Is.False,mode+" (auto "+auto+")");
+                    Assert.That(jump.TryStartAutomaticJump(),Is.False);
+                }
+                _rally.SetMode(VolleyAerialSequence.RallyMode.SpikeOnly);
+                Assert.That(jump.Suppressed,Is.False,"SPIKE jumps.");
+            }
+        }
+
+        [Test]
+        public void AJumpOffTheMomentIsCalledEarlyOrLateAndTheTipSaysSo()
+        {
+            _rally.Jump.AutomaticJump=false;
+            var resolve=typeof(VolleyAerialSequence).GetMethod("ResolveJumpTiming",Private);
+            void Rep(float jumpAt,bool block)
+            {
+                typeof(VolleyAerialSequence).GetField("_dropSeconds",Private).SetValue(_rally,1f);
+                typeof(VolleyAerialSequence).GetProperty("SpikeJumpTime").SetValue(_rally,.8f);
+                typeof(VolleyAerialSequence).GetField("_autoJumpAt",Private).SetValue(_rally,.9f);
+                typeof(VolleyAerialSequence).GetField("_attemptClock",Private).SetValue(_rally,3f);
+                typeof(VolleyAerialSequence).GetField("_jumpAt",Private).SetValue(_rally,jumpAt);
+                resolve.Invoke(_rally,new object[]{block});
+            }
+            Rep(1.8f,false);Assert.That(_rally.LastJumpTiming,Is.EqualTo(VolleyAerialSequence.JumpTiming.Good));
+            Assert.That(VolleyRallyPresenter.TipFor(_rally,false,false),Is.EqualTo("いちばん高いところで、上から下へたたこう"));
+            Rep(1.4f,false);Assert.That(_rally.LastJumpTiming,Is.EqualTo(VolleyAerialSequence.JumpTiming.Early));
+            Assert.That(VolleyRallyPresenter.TipFor(_rally,false,false),Does.Contain("早い"));
+            Rep(2.2f,true);Assert.That(_rally.LastJumpTiming,Is.EqualTo(VolleyAerialSequence.JumpTiming.Late),"Block: against the attack's jump moment.");
+            Assert.That(VolleyRallyPresenter.TipFor(_rally,true,false),Does.Contain("遅い"));
+            Rep(float.NaN,true);Assert.That(_rally.LastJumpTiming,Is.EqualTo(VolleyAerialSequence.JumpTiming.NoJump));
+            Assert.That(VolleyRallyPresenter.TipFor(_rally,true,true),Is.Null,"A block that went over needs no tip.");
+            _rally.Jump.AutomaticJump=true;Rep(1.4f,false);
+            Assert.That(VolleyRallyPresenter.TipFor(_rally,false,false),Does.Not.Contain("ジャンプ"),"AUTO JUMP: the timing is not the player's.");
+        }
+
+        [Test]
         public void TheBlockForearmsAreTheTutorialForearmWithItsSkeleton()
         {
             Assert.That(_drill.BlockArms.Length,Is.EqualTo(2));

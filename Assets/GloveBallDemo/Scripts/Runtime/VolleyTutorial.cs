@@ -12,10 +12,11 @@ namespace GloveBallDemo.Runtime
     /// voice, the shared narration volume), a demonstration hand with its forearm repeating the move below the text, and
     /// goals that are counted on the panel. The ball never waits for the voice: practice starts at once and the next
     /// explanation is spoken over the play; the match starts as soon as the goals are met.
-    /// SPIKE + BLOCK: (AUTO JUMP off only: one jump first, no ball) two strong spikes into their court - the second one is
+    /// SPIKE + BLOCK: (AUTO JUMP off only: two jumps first, no ball) two strong spikes into their court - the second one is
     /// dug by their defence, so the play goes on into their attack - then two blocks back over, then the match.
     /// RECEIVE: one EXCELLENT (to the setter) and one GOOD (to another player); each grade's consequence is explained the
-    /// first time it happens and never again, then the match. "ジャンプ" / "打って" are called at the moment to act.
+    /// first time it happens and never again, then the match. With AUTO JUMP off "ジャンプ" is called at the moment to jump,
+    /// and a missed or weak rep says whether the jump was early or late.
     /// The first start of the app begins with the tutorial of its mode (<see cref="StartOnLaunch"/>); a retry never does.
     /// </summary>
     public sealed class VolleyTutorial : MonoBehaviour
@@ -28,6 +29,7 @@ namespace GloveBallDemo.Runtime
         public AudioClip[] Clips = Array.Empty<AudioClip>();
         [Tooltip("The first start of the app (this process) begins with the tutorial of the current mode.")]
         public bool StartOnLaunch = true;
+        [Min(1)] public int JumpsRequired = 2;
         [Min(1)] public int SpikesRequired = 2;
         [Min(1)] public int BlocksRequired = 2;
         [Header("Panel (from the eye, toward the net)")]
@@ -106,7 +108,13 @@ namespace GloveBallDemo.Runtime
             GotExcellent = GotGood = _explainedBad = _explainedLost = false;
             ShowPanel(true);
             if (course == Course.Receive) { Practice("rc_pass", DemoMove.Receive, VolleyAerialSequence.RallyMode.Pass, VolleyAerialSequence.DefenceScript.Natural); UpdateReceiveCounter(); }
-            else if (!AutoJump) Hold("sb_jump", DemoMove.Jump);
+            else if (!AutoJump)
+            {
+                // The jump is practised where it is used (a RECEIVE never jumps).
+                Aerial.SetMode(VolleyAerialSequence.RallyMode.SpikeOnly);
+                Hold("sb_jump", DemoMove.Jump);
+                SetCounter(Count + " / " + JumpsRequired);
+            }
             else StartSpikes();
         }
 
@@ -196,7 +204,7 @@ namespace GloveBallDemo.Runtime
             if (Move == DemoMove.Spike && !block)
             {
                 bool strong = success && Aerial.LastSpikeStrong;
-                if (!strong) { Hint(success ? (AutoJump ? "sb_spike_low_auto" : "sb_spike_low") : "sb_spike_hint"); return; }
+                if (!strong) { Hint(TimingHint() ?? (success ? (AutoJump ? "sb_spike_low_auto" : "sb_spike_low") : "sb_spike_hint")); return; }
                 Count++;
                 SetCounter(Count + " / " + SpikesRequired);
                 if (Count < SpikesRequired)
@@ -212,11 +220,24 @@ namespace GloveBallDemo.Runtime
             }
             if (Move == DemoMove.Block && block)
             {
-                if (!success) { Hint("sb_block_hint"); return; }
+                if (!success) { Hint(TimingHint() ?? "sb_block_hint"); return; }
                 Count++;
                 SetCounter(Count + " / " + BlocksRequired);
                 if (Count < BlocksRequired) { Hint("sb_nice_block"); return; }
                 Finish("sb_end");
+            }
+        }
+
+        /// <summary>With AUTO JUMP off: early or late, when the jump was off; null when it was on time (or automatic).</summary>
+        string TimingHint()
+        {
+            if (AutoJump) return null;
+            switch (Aerial.LastJumpTiming)
+            {
+                case VolleyAerialSequence.JumpTiming.Early: return "sb_jump_early";
+                case VolleyAerialSequence.JumpTiming.Late: return "sb_jump_late";
+                case VolleyAerialSequence.JumpTiming.NoJump: return "sb_jump_none";
+                default: return null;
             }
         }
 
@@ -242,10 +263,9 @@ namespace GloveBallDemo.Runtime
         void OnActMoment(bool spike, bool jump)
         {
             if (Running != Course.SpikeBlock || _finishing || _cue == null) return;
-            // "ジャンプ" with AUTO JUMP off (spike and block); "打って" at the spike's top with AUTO JUMP on.
+            // "ジャンプ" at the moment to jump, with AUTO JUMP off (spike and block).
             if (spike && Move != DemoMove.Spike || !spike && Move != DemoMove.Block) return;
-            string id = jump ? (AutoJump ? null : "jump_cue") : (spike && AutoJump ? "hit_cue" : null);
-            var clip = id != null ? Clip(id) : null;
+            var clip = jump && !AutoJump ? Clip("jump_cue") : null;
             if (clip == null) return;
             DemoNarration.Apply(_cue);
             if (Application.isPlaying) _cue.PlayOneShot(clip);
@@ -342,7 +362,14 @@ namespace GloveBallDemo.Runtime
                 if (Aerial.Phase == VolleyAerialSequence.RallyPhase.Recovery || Aerial.Phase == VolleyAerialSequence.RallyPhase.Idle) Stop(true);
                 return;
             }
-            if (Move == DemoMove.Jump && Aerial.Jump != null && Aerial.Jump.Jumps > _jumps) { StartSpikes(); return; }
+            if (Move == DemoMove.Jump && Aerial.Jump != null && Aerial.Jump.Jumps > _jumps)
+            {
+                _jumps = Aerial.Jump.Jumps;
+                Count++;
+                SetCounter(Count + " / " + JumpsRequired);
+                if (Count >= JumpsRequired) StartSpikes();
+                return;
+            }
             if (Move == DemoMove.Receive && Aerial.GradeSerial != _gradeSerial)
             {
                 _gradeSerial = Aerial.GradeSerial;
@@ -582,12 +609,15 @@ namespace GloveBallDemo.Runtime
 
         public static readonly Line[] Lines =
         {
-            new Line("sb_jump", "ジャンプ", "まずジャンプの練習です。両手を胸の前から、一気に上へ振り上げるとジャンプします。"),
+            new Line("sb_jump", "ジャンプ", "まずジャンプの練習です。両手を下から上へ、一気に振り上げるとジャンプします。2回跳んでみましょう。"),
             new Line("sb_spike", "スパイク", "スパイクの練習です。セッターがトスを上げます。「ジャンプ」の声で跳んで、いちばん高いところで、ボールを上から下へ、相手のコートにたたき込みましょう。強いスパイクを2本決めます。"),
             new Line("sb_spike_auto", "スパイク", "スパイクの練習です。セッターがトスを上げます。ジャンプは自動です。ボールがいちばん高いところに来たら、上から下へ、相手のコートにたたき込みましょう。強いスパイクを2本決めます。"),
             new Line("sb_spike_hint", "", "ジャンプして、ボールを上から下へ、相手のコートにたたき込みましょう。"),
             new Line("sb_spike_low", "", "ジャンプのタイミングを合わせて、いちばん高いところで打ちましょう。"),
-            new Line("sb_spike_low_auto", "", "もう少し高いところで打ちましょう。「打って」の声で、上から下へたたきます。"),
+            new Line("sb_spike_low_auto", "", "もう少し高いところで打ちましょう。ボールがいちばん高いところに来たら、上から下へたたきます。"),
+            new Line("sb_jump_early", "", "ジャンプが早すぎました。もう少し引きつけてから跳びましょう。"),
+            new Line("sb_jump_late", "", "ジャンプが遅れました。もう少し早く跳びましょう。"),
+            new Line("sb_jump_none", "", "ジャンプしていません。「ジャンプ」の声で、両手を振り上げて跳びましょう。"),
             new Line("sb_nice", "", "ナイススパイク！もう1本。"),
             new Line("sb_block", "ブロック", "強いスパイクでも、拾われるとラリーが続きます。今度は相手のスパイクです。ジャンプして両手を高く上げ、ネットの上へ手を出して、ブロックしましょう。"),
             new Line("sb_block_plain", "ブロック", "今度は相手のスパイクです。ジャンプして両手を高く上げ、ネットの上へ手を出して、ブロックしましょう。"),
@@ -603,7 +633,6 @@ namespace GloveBallDemo.Runtime
             new Line("rc_try_good", "", "次は、わざとセッター以外の選手に返してみましょう。"),
             new Line("rc_end", "試合開始", "OKです！では、3点先取の試合を始めます。"),
             new Line("jump_cue", "", "ジャンプ！"),
-            new Line("hit_cue", "", "打って！"),
         };
 
         public static Line Get(string id)

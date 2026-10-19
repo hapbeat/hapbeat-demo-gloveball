@@ -1,8 +1,4 @@
 {
- "hit_cue": {
-  "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "52e8b91c0253331e69f476d792d4a3f7d8158797b847d6488d138bb349586a98"
- },
  "jump_cue": {
   "norm": "loudnorm I=-20 TP=-1.5",
   "synth": "69164f2d79d3dffac60afb528584f35d6ab66978a771e89ed43f74e642064c62"
@@ -57,7 +53,19 @@
  },
  "sb_jump": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "976f5dad0b076d1daaeb272fabecd9c13293b5f9c7ecb4fd28064f7c7f6a6901"
+  "synth": "af8d4fd532e6ebe00c66f2321ca06b7ea7eaa9f1fb1f3cd0ea770cc95eab1e39"
+ },
+ "sb_jump_early": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "21d35e4959712b023bd47e7f74e376a33e5f07256420be0f7affeea5b0319d89"
+ },
+ "sb_jump_late": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "ef2c3b623ad2a55cbb634f292e453063ac93ea934bdbdbbfa66baf65495358db"
+ },
+ "sb_jump_none": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "65eec4fb4c2bcf40daee81cf3e881ee01146ac46dab9f7099a7c2b03842e20f4"
  },
  "sb_nice": {
   "norm": "loudnorm I=-20 TP=-1.5",
@@ -85,6 +93,6 @@
  },
  "sb_spike_low_auto": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "c6ae9a641bd99c62fdd665ad036af27b2d87d46f8003f08ac57e8324a5bbe17b"
+  "synth": "53095f9c93c8af4e54e6495e6ee077c8cc21fbd16bf85c5440e0e5ef6e46c22c"
  }
 }

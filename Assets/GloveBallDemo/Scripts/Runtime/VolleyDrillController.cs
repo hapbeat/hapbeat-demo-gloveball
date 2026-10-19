@@ -74,8 +74,10 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Largest upward component (sine) allowed for a swing-driven spike.")]
         [Range(-1f,1f)] public float SpikeMaximumRise = .1f;
         [Header("Impact feedback")]
-        [Tooltip("Relative normal speed (m/s) that gives nominal haptic gain and volume; slower touches are softer.")]
-        [Min(.5f)] public float ImpactReferenceSpeed = 8f;
+        [Tooltip("Change of the ball's velocity at a hand touch (m/s) that gives nominal haptic gain and volume; a softer touch is weaker.")]
+        [Min(.5f)] public float ImpactReferenceSpeed = 10f;
+        [Tooltip("RECEIVE: both arms feel the ball while the hands are within this of each other (m), joined or not.")]
+        [Min(0f)] public float ReceiveBothArmsDistance = .45f;
         [Min(0f)] public float MinimumImpactGain = .2f;
         [Header("Rally: where on the hand the ball is met (spike and block)")]
         [Tooltip("Fraction of the hand length from the wrist (0) to the fingertips (1) beyond which a contact counts as fingertips.")]
@@ -119,7 +121,7 @@ namespace GloveBallDemo.Runtime
         bool _setBoth;
         /// <summary>True while a set is held on the hands.</summary>
         public bool HoldingSet => _setHold.Holding;
-        [Min(.1f)] public float MaximumImpactGain = 1.5f;
+        [Min(.1f)] public float MaximumImpactGain = 2f;
         [Tooltip("Rally only: a hand within this distance of an untouched ball is reported for the missed-hit hint.")]
         [Min(0f)] public float NearHandDistance = .45f;
         public int Returns { get; private set; }
@@ -473,8 +475,15 @@ namespace GloveBallDemo.Runtime
                             for (int axis = 0; axis < 3; axis++)
                                 if (Mathf.Abs(localNormal[axis]) > .5f) localHit[axis] = Mathf.Sign(localNormal[axis]) * half[axis];
                             _ball.Body.position = volume.transform.TransformPoint(volume.center + localHit) + normal * (radius + .01f);
-                            float relative = Mathf.Abs(Vector3.Dot(incoming - handVelocity, normal));
-                            ReportHandImpactScaled(_ball,hand,joined,ImpactGain(relative)*(zoned ? tip ? FingertipHapticScale : PalmHapticScale : 1f));
+                            // How hard the hand hit it: the ball's change of velocity. (The hand's own speed reads low at the moment
+                            // of contact, and the part along the contact normal fell to nearly nothing at a platform's edge.)
+                            float impulse = (velocity - incoming).magnitude;
+                            float gain = ImpactGain(impulse) * (zoned ? tip ? FingertipHapticScale : PalmHapticScale : 1f);
+                            // A receive is felt in both arms unless the hands are well apart (one is often lost under the other).
+                            bool bothArms = joined || touch == VolleyAerialSequence.PlayerTouch.Receive
+                                && Vector3.Distance(Left.transform.position, Right.transform.position) <= ReceiveBothArmsDistance;
+                            ReportHandImpactScaled(_ball,hand,bothArms,gain);
+                            Debug.Log($"[VolleyHaptic] {touch} impulse={impulse:F1}m/s gain={gain:F2} both={bothArms} joined={joined} tip={tip}");
                             _lastContact = Time.time; Returns++;
                             if(Aerial!=null){Aerial.RegisterPlayerTouch();if(zoned)Aerial.NoteTouchZone(zone,tip,touch==VolleyAerialSequence.PlayerTouch.Spike);}
                         }
@@ -698,9 +707,9 @@ namespace GloveBallDemo.Runtime
         /// <summary>Haptic gain and impact volume follow the relative speed along the contact normal.</summary>
         public float ImpactGain(float relativeNormalSpeed)
             =>Mathf.Clamp(relativeNormalSpeed/ImpactReferenceSpeed,MinimumImpactGain,MaximumImpactGain);
-        private void ReportHandImpactScaled(Ball ball,VolleyTrackedHand hand,bool joined,float strength)
+        private void ReportHandImpactScaled(Ball ball,VolleyTrackedHand hand,bool bothArms,float strength)
         {
-            if(joined)
+            if(bothArms)
             {
                 // One audible impact, two explicitly sided haptic events, independent of which box side was hit.
                 HapticEventRelay.ReportBallImpact(ball,DemoHapticEvent.LeftArmCollide,Left.transform.position,strength);

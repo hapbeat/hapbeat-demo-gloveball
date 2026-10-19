@@ -19,6 +19,13 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Comfort vignette: clear field half-angle (deg) and the width of its soft edge (deg).")]
         [Range(10f,60f)] public float VignetteClearDegrees=24f;
         [Range(1f,30f)] public float VignetteEdgeDegrees=10f;
+        [Header("Match ambience")]
+        [Tooltip("A volleyball match's hall sound under the play (looped, 2D). Empty: none.")]
+        public AudioClip Ambience;
+        [Tooltip("Quiet enough that voices and the ball's sounds are never buried.")]
+        [Range(0f,1f)] public float AmbienceVolume=.3f;
+        [Header("Tips after a rep that did not go well")]
+        [Min(.5f)] public float TipSeconds=2.8f;
         static readonly Color SpikeColour=new Color(.1f,.35f,.9f,.88f);
         static readonly Color BlockColour=new Color(.85f,.2f,.1f,.88f);
         static readonly Color WinColour=new Color(.35f,1f,.45f);
@@ -26,6 +33,8 @@ namespace GloveBallDemo.Runtime
         Image _fade, _vignette, _banner;
         Text _grade;
         Texture2D _triangleTexture;
+        Text _tip; float _tipAge=-1f;
+        AudioSource _ambience;
         Transform _setterLabel;
         float _gradeAge=-1f;
         int _gradeSerial;
@@ -42,7 +51,7 @@ namespace GloveBallDemo.Runtime
         {
             if(Rally==null)Rally=GetComponent<VolleyAerialSequence>();
             _font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            BuildFade();BuildVignette();BuildGrade();BuildSetterLabel();BuildBanner();BuildMarker();
+            BuildFade();BuildVignette();BuildGrade();BuildTip();BuildSetterLabel();BuildBanner();BuildMarker();BuildAmbience();
             _gradeSerial=Rally.GradeSerial;
             _audio=gameObject.AddComponent<AudioSource>();_audio.playOnAwake=false;_audio.spatialBlend=0f;
             _spikeChime=Chime("Spike turn chime",new[]{523.25f,659.25f,783.99f},.14f);
@@ -51,13 +60,13 @@ namespace GloveBallDemo.Runtime
             _pointLost=Chime("Point lost",new[]{246.94f,196f},.12f);
             _matchWon=Chime("Match won",new[]{523.25f,659.25f,783.99f,1046.5f},.16f);
             _matchLost=Chime("Match lost",new[]{392f,329.63f,261.63f},.2f);
-            Rally.TurnAnnounced+=OnTurn;Rally.PointScored+=OnPoint;Rally.MatchEnded+=OnMatch;
+            Rally.TurnAnnounced+=OnTurn;Rally.PointScored+=OnPoint;Rally.MatchEnded+=OnMatch;Rally.TurnRepResolved+=OnRep;
             _outcomeSerial=Rally.OutcomeSerial;
             Refresh();
         }
         void OnDestroy()
         {
-            if(Rally!=null){Rally.TurnAnnounced-=OnTurn;Rally.PointScored-=OnPoint;Rally.MatchEnded-=OnMatch;}
+            if(Rally!=null){Rally.TurnAnnounced-=OnTurn;Rally.PointScored-=OnPoint;Rally.MatchEnded-=OnMatch;Rally.TurnRepResolved-=OnRep;}
             foreach(var clip in new[]{_spikeChime,_blockChime,_pointWon,_pointLost,_matchWon,_matchLost})if(clip!=null)Destroy(clip);
             if(_markerMaterial!=null)Destroy(_markerMaterial);
             if(_vignetteTexture!=null)Destroy(_vignetteTexture);
@@ -109,6 +118,53 @@ namespace GloveBallDemo.Runtime
             _grade.transform.SetParent(rect,false);_grade.rectTransform.sizeDelta=rect.sizeDelta;
             _grade.font=_font;_grade.fontSize=64;_grade.alignment=TextAnchor.MiddleCenter;_grade.raycastTarget=false;
             _grade.enabled=false;
+        }
+        /// <summary>A short tip under the centre of view after a rep that did not go well (Japanese).</summary>
+        void BuildTip()
+        {
+            var go=new GameObject("Rally tip",typeof(RectTransform),typeof(Canvas));
+            go.transform.SetParent(Rally.Drill.Head,false);
+            go.transform.localPosition=new Vector3(0f,-.11f,.7f);go.transform.localRotation=Quaternion.identity;
+            var canvas=go.GetComponent<Canvas>();canvas.renderMode=RenderMode.WorldSpace;canvas.sortingOrder=998;
+            var rect=(RectTransform)go.transform;rect.sizeDelta=new Vector2(900,90);rect.localScale=Vector3.one*.0005f;
+            var font=Resources.Load<Font>("HapbeatDemoSession/NotoSansCJKjp-Regular");
+            _tip=new GameObject("Tip",typeof(RectTransform),typeof(Text)).GetComponent<Text>();
+            _tip.transform.SetParent(rect,false);_tip.rectTransform.sizeDelta=rect.sizeDelta;
+            _tip.font=font!=null ? font : _font;_tip.fontSize=44;_tip.alignment=TextAnchor.MiddleCenter;_tip.raycastTarget=false;
+            _tip.color=new Color(1f,.85f,.3f);_tip.enabled=false;
+        }
+        /// <summary>
+        /// SPIKE / BLOCK, outside the tutorial (it says its own): after a lost rep or a weak spike, what to change - the
+        /// jump's timing with AUTO JUMP off, else where to meet the ball.
+        /// </summary>
+        public static string TipFor(VolleyAerialSequence rally,bool block,bool success)
+        {
+            bool weakSpike=!block && success && !rally.LastSpikeStrong;
+            if(success && !weakSpike)return null;
+            if(!rally.BeginnerBlock)
+                switch(rally.LastJumpTiming)
+                {
+                    case VolleyAerialSequence.JumpTiming.Early:return "ジャンプが早い：もう少し引きつけて";
+                    case VolleyAerialSequence.JumpTiming.Late:return "ジャンプが遅い：もう少し早く跳ぼう";
+                    case VolleyAerialSequence.JumpTiming.NoJump:return "両手を振り上げてジャンプしよう";
+                }
+            return block ? "打つ相手の正面に、両手を前へ出そう" : "いちばん高いところで、上から下へたたこう";
+        }
+        void OnRep(bool block,bool success)
+        {
+            var tutorial=Rally.Drill!=null ? Rally.Drill.GetComponent<VolleyTutorial>() : null;
+            if(tutorial!=null && tutorial.Running!=VolleyTutorial.Course.None)return;
+            var tip=TipFor(Rally,block,success);
+            if(tip==null || _tip==null)return;
+            _tip.text=tip;_tipAge=0f;
+        }
+        /// <summary>The match's hall sound, looped quietly (the shared pause holds it with all audio).</summary>
+        void BuildAmbience()
+        {
+            if(Ambience==null)return;
+            _ambience=gameObject.AddComponent<AudioSource>();
+            _ambience.clip=Ambience;_ambience.loop=true;_ambience.spatialBlend=0f;_ambience.volume=AmbienceVolume;_ambience.playOnAwake=false;
+            if(Application.isPlaying)_ambience.Play();
         }
         /// <summary>A white triangle pointing to +x (the setter label's arrow, turned down).</summary>
         Sprite Triangle()
@@ -240,6 +296,12 @@ namespace GloveBallDemo.Runtime
                 _grade.enabled=_gradeAge>=0f && !GameInputGate.IsBlocked;
             }
             UpdateSetterLabel();
+            if(_tip!=null)
+            {
+                if(_tipAge>=0f){_tipAge+=Time.deltaTime;if(_tipAge>TipSeconds)_tipAge=-1f;}
+                _tip.enabled=_tipAge>=0f && !GameInputGate.IsBlocked;
+            }
+            if(_ambience!=null)_ambience.volume=AmbienceVolume;
             if(Rally.OutcomeSerial!=_outcomeSerial){_outcomeSerial=Rally.OutcomeSerial;_outcomeAge=0f;}
             float dt=Time.deltaTime;
             if(_outcomeAge>=0f){_outcomeAge+=dt;if(_outcomeAge>OutcomeSeconds)_outcomeAge=-1f;}

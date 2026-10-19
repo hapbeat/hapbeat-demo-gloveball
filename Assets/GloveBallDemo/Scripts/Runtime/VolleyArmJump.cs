@@ -18,6 +18,8 @@ namespace GloveBallDemo.Runtime
         public float GestureWindow=.8f;
         [Tooltip("Beginner Block: the opponent sequence schedules jumps; raised hands never trigger another jump.")]
         public bool AutomaticJump;
+        [Tooltip("No jump at all (RECEIVE and TOSS: a pass's arm swing must never launch one), whatever AutomaticJump says.")]
+        public bool Suppressed;
         [Header("Block: relaxed height-only gesture")]
         public bool UseHeightThreshold;
         [Tooltip("Both wrists below this eye-relative height prepare the next jump.")]
@@ -65,7 +67,7 @@ namespace GloveBallDemo.Runtime
                 _sampled=false;_armed=false;return;
             }
             _cooldown=Mathf.Max(0,_cooldown-dt);
-            if(AutomaticJump){_armed=false;_sampled=false;return;}
+            if(AutomaticJump || Suppressed){_armed=false;_sampled=false;return;}
             if(!tracked)
             {
                 _trackingGap+=dt;
@@ -106,7 +108,7 @@ namespace GloveBallDemo.Runtime
         }
         public bool TryStartAutomaticJump()
         {
-            if(!AutomaticJump || Airborne || _cooldown>0 || GameInputGate.IsBlocked)return false;
+            if(!AutomaticJump || Suppressed || Airborne || _cooldown>0 || GameInputGate.IsBlocked)return false;
             Airborne=true;_elapsed=0;Lift=0;Jumps++;_armed=false;_sampled=false;
             return true;
         }

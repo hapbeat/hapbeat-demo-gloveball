@@ -297,7 +297,11 @@ namespace GloveBallDemo.Tests
         public void ImpactFeedbackScalesWithRelativeSpeed()
         {
             Assert.That(_drill.ImpactGain(2f),Is.LessThan(_drill.ImpactGain(8f)));
-            Assert.That(_drill.ImpactGain(8f),Is.EqualTo(1f).Within(.001f));
+            Assert.That(_drill.ImpactGain(_drill.ImpactReferenceSpeed),Is.EqualTo(1f).Within(.001f));
+            Assert.That(_drill.MaximumImpactGain,Is.EqualTo(2f),"Up to the trigger's full x2.");
+            // A spike (a slow set sent back at 18 m/s) and a block (a 10 m/s attack sent back at 6 m/s): strong.
+            Assert.That(_drill.ImpactGain((Vector3.forward*18f-Vector3.down*3f).magnitude),Is.GreaterThanOrEqualTo(1.8f));
+            Assert.That(_drill.ImpactGain((Vector3.forward*6f-Vector3.back*10f).magnitude),Is.GreaterThanOrEqualTo(1.5f));
             Assert.That(_drill.ImpactGain(.1f),Is.EqualTo(_drill.MinimumImpactGain));
             Assert.That(_drill.ImpactGain(40f),Is.EqualTo(_drill.MaximumImpactGain));
         }

@@ -207,6 +207,35 @@ namespace GloveBallDemo.Runtime
         public event System.Action<bool,bool> TurnRepResolved;
         /// <summary>Their defender dug the ball and the play goes on (flowing rally): the turn the player now has.</summary>
         public event System.Action<RallyTurn> RallyContinued;
+        /// <summary>How the player's jump met the ball in the last spike / block rep (the turn modes).</summary>
+        public enum JumpTiming { Unknown, Good, Early, Late, NoJump }
+        public JumpTiming LastJumpTiming { get; private set; }
+        /// <summary>Seconds the player's jump started after the ideal moment (negative: early); NaN without a jump.</summary>
+        public float LastJumpOffset { get; private set; }=float.NaN;
+        [Tooltip("A jump within this of the ideal start (s) is on time.")]
+        [Min(.05f)] public float JumpTimingTolerance=.18f;
+        /// <summary>No jump in RECEIVE or TOSS, AUTO JUMP or not.</summary>
+        public bool JumpsSuppressed=>Mode==RallyMode.Pass || Mode==RallyMode.Set;
+        float _attemptClock=-1f, _jumpAt=float.NaN;
+        bool _wasAirborne;
+        void BeginJumpTiming(){_attemptClock=0f;_jumpAt=float.NaN;_wasAirborne=Jump!=null && Jump.Airborne;}
+        void TickJumpTiming(float dt)
+        {
+            if(_attemptClock<0f || Jump==null)return;
+            _attemptClock+=dt;
+            bool air=Jump.Airborne;
+            if(air && !_wasAirborne && float.IsNaN(_jumpAt))_jumpAt=_attemptClock;
+            _wasAirborne=air;
+        }
+        /// <summary>The player's first jump of the rep against the moment the automatic jump starts.</summary>
+        void ResolveJumpTiming(bool blockTurn)
+        {
+            float ideal=_dropSeconds+(blockTurn ? _autoJumpAt : SpikeJumpTime);
+            LastJumpOffset=float.IsNaN(_jumpAt) ? float.NaN : _jumpAt-ideal;
+            LastJumpTiming=_attemptClock<0f ? JumpTiming.Unknown : float.IsNaN(_jumpAt) ? JumpTiming.NoJump
+                : LastJumpOffset<-JumpTimingTolerance ? JumpTiming.Early : LastJumpOffset>JumpTimingTolerance ? JumpTiming.Late : JumpTiming.Good;
+            _attemptClock=-1f;
+        }
         /// <summary>
         /// The moments to act, for the tutorial's call-outs, with AUTO JUMP on or off: (spike, jump). Spike turn: jump = the
         /// automatic jump's start, then not jump = the set reaching the top of the reach. Block turn: the jump's start.
@@ -455,6 +484,8 @@ namespace GloveBallDemo.Runtime
             if(!RallyActive || dt<=0f)return false;
             TickFlash(dt);
             CaptureHome();
+            if(Jump!=null)Jump.Suppressed=JumpsSuppressed;
+            TickJumpTiming(dt);
             if(Phase==RallyPhase.Disabled)Phase=RallyPhase.Idle;
             if(MatchEngine)return TickMatch(dt,ballInPlay,out start,out destination,out seconds);
             TickTurnGlide(dt);
@@ -654,6 +685,7 @@ namespace GloveBallDemo.Runtime
             if(!StageBall(_tossStart))return false;
             _rallyTimer=0f;_setterFollow=-1f;_windup=-1f;
             Act(setter,0f);
+            BeginJumpTiming();
             return true;
         }
         void TickOpponentReceive(float dt)
@@ -665,6 +697,7 @@ namespace GloveBallDemo.Runtime
             var position=TossPosition(_tossStart,_tossEnd,_rallyTimer,_dropSeconds);
             _preparedBall.transform.position=position;_preparedBall.Body.position=position;
             if(_rallyTimer<_dropSeconds)return;
+            PlaySpikeAudio(_tossEnd); // their setter's touch
             // The set now travels from the setter's hands to the attacker's hitting hand during the wind-up.
             _tossStart=_tossEnd;_tossEnd=Opponent.ReleasePosition;
             _followSetter=setter;_setterFollow=0f;
@@ -684,6 +717,7 @@ namespace GloveBallDemo.Runtime
             if(!StageBall(_tossStart))return false;
             _rallyTimer=0f;_setterFollow=-1f;
             Act(Ally,0f);
+            BeginJumpTiming();
             if(!_blockersFresh)PlanSpike(); // Later attempts shuffle visibly during the drop.
             _blockersFresh=false;
             return true;
@@ -944,6 +978,7 @@ namespace GloveBallDemo.Runtime
         void Award(bool player,string text,Vector3 position)
         {
             bool blockTurn=Phase==RallyPhase.OpponentSpike; // SetOutcome moves on to Recovery
+            if(!MatchEngine)ResolveJumpTiming(blockTurn);
             if(player)PlayerScore++;else OpponentScore++;
             if(!_playerTouched && (_handLostNear || _handReadyNear))
                 Debug.Log("[VolleyRally] untouched "+Phase+": hand near ball ready="+_handReadyNear+" lost="+_handLostNear);
@@ -1293,6 +1328,7 @@ namespace GloveBallDemo.Runtime
         {
             CancelMatch();_embodied=null;_pendingShow=null;_playerSlot=-1;_roleTouch=PlayerTouch.None;_serving=Team.Us;
             Mode=mode;TurnStarted=false;_attemptsInTurn=0;PlayerScore=OpponentScore=0;
+            Jump.Suppressed=JumpsSuppressed;
             Jump.ResetJump();
             Drill.ResetCurrentAttempt();
         }
