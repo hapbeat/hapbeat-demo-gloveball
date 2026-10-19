@@ -158,6 +158,23 @@ namespace GloveBallDemo.Tests
             return closest;
         }
 
+        [Test]
+        public void AJumpSaysWhenItTakesOffAndLandsForItsLightHaptics()
+        {
+            Assert.That(_drill.JumpHapticGain,Is.EqualTo(.3f).Within(.001f));
+            Assert.That(_drill.LandHapticGain,Is.EqualTo(.6f).Within(.001f));
+            var jump=_rally.Jump;
+            jump.AutomaticJump=true;jump.Suppressed=false;jump.ResetJump();
+            int took=0,landed=0;jump.TookOff+=()=>took++;jump.Landed+=()=>landed++;
+            jump.Tick(jump.Cooldown+.1f,true,-1f,-1f,false); // cooldown over
+            Assert.That(jump.TryStartAutomaticJump(),Is.True);
+            Assert.That(took,Is.EqualTo(1));
+            for(float t=0f;t<jump.Duration+.2f;t+=.05f)jump.Tick(.05f,true,-1f,-1f,false);
+            Assert.That(landed,Is.EqualTo(1),"Landed once, at the end of the jump.");
+            jump.TryStartAutomaticJump();jump.ResetJump();
+            Assert.That(landed,Is.EqualTo(1),"A reset is not a landing.");
+        }
+
         /// <summary>Only <paramref name="keep"/> of their players stays on court (the rest stand down).</summary>
         void OnlyOnCourt(VolleyOpponentPrototype keep)
         {

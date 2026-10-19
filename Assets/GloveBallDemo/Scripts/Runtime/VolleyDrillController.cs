@@ -99,6 +99,9 @@ namespace GloveBallDemo.Runtime
         public bool HapticsAtMaximum;
         [Tooltip("A receive is felt at least this strong (gain), wherever on the arms it is met: the feel of a good receive every time.")]
         [Min(0f)] public float ReceiveMinimumGain = 1.2f;
+        [Tooltip("A jump's takeoff and landing, felt lightly in both wrists (the Kit's grab clip, no sound): the streamed gain (a ball hit is 2).")]
+        [Range(0f, 2f)] public float JumpHapticGain = .3f;
+        [Range(0f, 2f)] public float LandHapticGain = .6f;
         [Header("Rally: set (toss) - caught, carried and pushed")]
         [Tooltip("Longest the ball may ride the hands (s); a real set is a short hold, not a bounce.")]
         [Range(.05f,.6f)] public float SetMaxHoldSeconds = .35f;
@@ -168,6 +171,7 @@ namespace GloveBallDemo.Runtime
             else if(Drill!=VolleyDrill.Block)
                 Targets.BeginWave(0, Aerial!=null || Drill==VolleyDrill.Receive ? 1 : 3, Aerial!=null || Drill==VolleyDrill.Receive ? 1 : 3);
             foreach (var panel in Panels){panel.HitRegistered+=OnTargetContact;panel.HitFlashCompleted += OnTarget;}
+            if (Aerial != null && Aerial.Jump != null) { Aerial.Jump.TookOff += OnTookOff; Aerial.Jump.Landed += OnLanded; }
             _subscribed = true;
             _nextServe = ServeInterval;
         }
@@ -175,6 +179,16 @@ namespace GloveBallDemo.Runtime
         {
             if (_subscribed) foreach (var panel in Panels) if (panel != null)
                 {panel.HitRegistered-=OnTargetContact;panel.HitFlashCompleted -= OnTarget;}
+            if (_subscribed && Aerial != null && Aerial.Jump != null) { Aerial.Jump.TookOff -= OnTookOff; Aerial.Jump.Landed -= OnLanded; }
+        }
+        void OnTookOff() => JumpHaptic(JumpHapticGain);
+        void OnLanded() => JumpHaptic(LandHapticGain);
+        /// <summary>Both wrists, the grab clip at <paramref name="gain"/> (streamed), no sound.</summary>
+        public void JumpHaptic(float gain)
+        {
+            if (gain <= 0f) return;
+            HapticEventRelay.ReportHapticAtGain(DemoHapticEvent.LeftGrab, Left != null ? Left.transform.position : transform.position, gain);
+            HapticEventRelay.ReportHapticAtGain(DemoHapticEvent.RightGrab, Right != null ? Right.transform.position : transform.position, gain);
         }
 
         private bool HeadIsTracked()

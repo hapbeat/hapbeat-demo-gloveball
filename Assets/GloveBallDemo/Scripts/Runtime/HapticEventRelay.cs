@@ -206,6 +206,19 @@ namespace GloveBallDemo.Runtime
             if (Instance != null) Instance.ReportHapticOnlyInstance(evt, position, gain);
         }
 
+        /// <summary>
+        /// Haptic only, streamed at <paramref name="streamGain"/> whatever the event entry's own gain (it is divided out):
+        /// a light cue on a clip that other events use at their own level.
+        /// </summary>
+        public static void ReportHapticAtGain(DemoHapticEvent evt, Vector3 position, float streamGain)
+        {
+            if (Instance == null) return;
+            var trigger = Instance.FindTrigger(evt);
+            var entry = trigger != null ? trigger.ResolveEntry() : null;
+            float baseline = entry != null ? entry.GetEffectiveGain() : 1f;
+            ReportHapticOnly(evt, position, baseline > 1e-3f ? streamGain / baseline : 0f);
+        }
+
         /// <summary>The audio clip and volume bound to <paramref name="evt"/>, for callers that play it on their own (e.g. 3D) source.</summary>
         public static bool TryGetClip(DemoHapticEvent evt, out AudioClip clip, out float volume)
         {

@@ -145,6 +145,8 @@ public static class VolleyRallySetup
         // For now every hand touch at the full gain: is the clip itself strong enough (or must it change)? Without it a
         // receive is never weaker than a good one (where on the arms it was met never matters to the feel).
         drill.HapticsAtMaximum=true;drill.ReceiveMinimumGain=1.2f;
+        // A jump's takeoff and landing, lightly in both wrists (the grab clip): landing stronger.
+        drill.JumpHapticGain=.3f;drill.LandHapticGain=.6f;
         if(drill.JoinedHands!=null){drill.JoinedHands.JoinDistance=.24f;drill.JoinedHands.SeparateDistance=.32f;EditorUtility.SetDirty(drill.JoinedHands);}
         // The tutorials (menu TUTORIAL rows, CONTROL tutorial_start) and their voice.
         var tutorial=drill.GetComponent<VolleyTutorial>();

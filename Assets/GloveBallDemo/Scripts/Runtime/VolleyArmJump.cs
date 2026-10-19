@@ -28,6 +28,8 @@ namespace GloveBallDemo.Runtime
         public float JumpHeightFromEyes=-.05f;
         [Min(0f)] public float TrackingGraceSeconds=1.5f;
         public bool Airborne { get; private set; }
+        /// <summary>A jump took off (the player's or an automatic one) / came down at its end (not a reset).</summary>
+        public event System.Action TookOff, Landed;
         public int Jumps { get; private set; }
         public float Lift { get; private set; }
         /// <summary>0..1 through the current jump; 0 when grounded.</summary>
@@ -78,7 +80,7 @@ namespace GloveBallDemo.Runtime
             if(Airborne)
             {
                 _elapsed+=Mathf.Max(0,dt);Lift=HeightAt(_elapsed,Duration,JumpHeight);
-                if(_elapsed>=Duration){Airborne=false;Lift=0;_cooldown=Cooldown;}
+                if(_elapsed>=Duration){Airborne=false;Lift=0;_cooldown=Cooldown;Landed?.Invoke();}
                 _sampled=false;_armed=false;return;
             }
             _cooldown=Mathf.Max(0,_cooldown-dt);
@@ -95,7 +97,7 @@ namespace GloveBallDemo.Runtime
                 if(_cooldown>0)return;
                 if(leftY<=RearmHeightFromEyes && rightY<=RearmHeightFromEyes)_armed=true;
                 if(_armed && leftY>=JumpHeightFromEyes && rightY>=JumpHeightFromEyes)
-                {Airborne=true;_elapsed=0;Lift=0;Jumps++;_armed=false;_sampled=false;}
+                {Airborne=true;_elapsed=0;Lift=0;Jumps++;_armed=false;_sampled=false;TookOff?.Invoke();}
                 return;
             }
             if(dt>.12f){_sampled=false;_armed=false;_trackingGap=0;return;}
@@ -114,7 +116,7 @@ namespace GloveBallDemo.Runtime
             if(_gestureAge>GestureWindow){_armed=false;return;}
             if(leftY-_baseLeft>=RequiredRise && rightY-_baseRight>=RequiredRise
                 && lv>=MinimumUpwardSpeed && rv>=MinimumUpwardSpeed)
-            {Airborne=true;_elapsed=0;Lift=0;Jumps++;_armed=false;_sampled=false;}
+            {Airborne=true;_elapsed=0;Lift=0;Jumps++;_armed=false;_sampled=false;TookOff?.Invoke();}
         }
         public void ResetJump()
         {
@@ -125,6 +127,7 @@ namespace GloveBallDemo.Runtime
         {
             if(!AutomaticJump || Suppressed || Airborne || _cooldown>0 || GameInputGate.IsBlocked)return false;
             Airborne=true;_elapsed=0;Lift=0;Jumps++;_armed=false;_sampled=false;
+            TookOff?.Invoke();
             return true;
         }
         void OnDisable()=>ResetJump();
