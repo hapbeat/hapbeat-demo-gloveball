@@ -19,12 +19,15 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Comfort vignette: clear field half-angle (deg) and the width of its soft edge (deg).")]
         [Range(10f,60f)] public float VignetteClearDegrees=24f;
         [Range(1f,30f)] public float VignetteEdgeDegrees=10f;
+        [Tooltip("SPIKE: an arrow near the centre of view points to the ball (or setter) while it is further than this from the gaze (degrees).")]
+        [Range(5f,60f)] public float GazeArrowDegrees=18f;
         static readonly Color SpikeColour=new Color(.1f,.35f,.9f,.88f);
         static readonly Color BlockColour=new Color(.85f,.2f,.1f,.88f);
         static readonly Color WinColour=new Color(.35f,1f,.45f);
         static readonly Color LoseColour=new Color(1f,.55f,.3f);
         Image _fade, _vignette, _banner;
         Text _grade;
+        Image _gazeArrow; Texture2D _gazeTexture; float _gazeAge;
         float _gradeAge=-1f;
         int _gradeSerial;
         Texture2D _vignetteTexture;
@@ -40,7 +43,7 @@ namespace GloveBallDemo.Runtime
         {
             if(Rally==null)Rally=GetComponent<VolleyAerialSequence>();
             _font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            BuildFade();BuildVignette();BuildGrade();BuildBanner();BuildMarker();
+            BuildFade();BuildVignette();BuildGrade();BuildGazeArrow();BuildBanner();BuildMarker();
             _gradeSerial=Rally.GradeSerial;
             _audio=gameObject.AddComponent<AudioSource>();_audio.playOnAwake=false;_audio.spatialBlend=0f;
             _spikeChime=Chime("Spike turn chime",new[]{523.25f,659.25f,783.99f},.14f);
@@ -59,6 +62,7 @@ namespace GloveBallDemo.Runtime
             foreach(var clip in new[]{_spikeChime,_blockChime,_pointWon,_pointLost,_matchWon,_matchLost})if(clip!=null)Destroy(clip);
             if(_markerMaterial!=null)Destroy(_markerMaterial);
             if(_vignetteTexture!=null)Destroy(_vignetteTexture);
+            if(_gazeTexture!=null)Destroy(_gazeTexture);
         }
 
         void BuildFade()
@@ -106,6 +110,56 @@ namespace GloveBallDemo.Runtime
             _grade.transform.SetParent(rect,false);_grade.rectTransform.sizeDelta=rect.sizeDelta;
             _grade.font=_font;_grade.fontSize=64;_grade.alignment=TextAnchor.MiddleCenter;_grade.raycastTarget=false;
             _grade.enabled=false;
+        }
+        /// <summary>A head-locked triangle that circles the centre of view and points at where to look.</summary>
+        void BuildGazeArrow()
+        {
+            const int Size=64;
+            var go=new GameObject("Rally gaze arrow",typeof(RectTransform),typeof(Canvas));
+            go.transform.SetParent(Rally.Drill.Head,false);
+            go.transform.localPosition=new Vector3(0f,0f,.7f);go.transform.localRotation=Quaternion.identity;
+            var canvas=go.GetComponent<Canvas>();canvas.renderMode=RenderMode.WorldSpace;canvas.sortingOrder=997;
+            var rect=(RectTransform)go.transform;rect.sizeDelta=new Vector2(400,400);rect.localScale=Vector3.one*.001f;
+            _gazeTexture=new Texture2D(Size,Size,TextureFormat.RGBA32,false){wrapMode=TextureWrapMode.Clamp,name="Rally gaze arrow"};
+            var pixels=new Color32[Size*Size];
+            for(int y=0;y<Size;y++)for(int x=0;x<Size;x++)
+            {
+                // Pointing to +x: the tip at the right edge, the base at the left.
+                float u=(x+.5f)/Size,v=Mathf.Abs((y+.5f)/Size-.5f)*2f;
+                float a=Mathf.Clamp01((1f-u-v)*Size*.5f);
+                pixels[y*Size+x]=new Color32(255,255,255,(byte)(a*255f));
+            }
+            _gazeTexture.SetPixels32(pixels);_gazeTexture.Apply(false,true);
+            _gazeArrow=new GameObject("Arrow",typeof(RectTransform),typeof(Image)).GetComponent<Image>();
+            _gazeArrow.transform.SetParent(rect,false);_gazeArrow.rectTransform.sizeDelta=new Vector2(70,70);
+            _gazeArrow.sprite=Sprite.Create(_gazeTexture,new Rect(0,0,Size,Size),new Vector2(.5f,.5f));
+            _gazeArrow.raycastTarget=false;_gazeArrow.enabled=false;
+        }
+        void UpdateGazeArrow()
+        {
+            if(_gazeArrow==null)return;
+            var head=Rally.Drill.Head;
+            var point=Vector3.zero;bool show=head!=null && !GameInputGate.IsBlocked && Rally.TryGetSpikeGaze(out point);
+            if(show)
+            {
+                var local=head.InverseTransformPoint(point);
+                float off=Vector3.Angle(Vector3.forward,local);
+                show=off>GazeArrowDegrees;
+                if(show)
+                {
+                    var direction=new Vector2(local.x,local.y);
+                    if(direction.sqrMagnitude<1e-6f)direction=Vector2.right;
+                    direction.Normalize();
+                    _gazeAge+=Time.deltaTime;
+                    // Off the centre toward the ball, nudging outward to say "turn this way".
+                    float nudge=12f*Mathf.Abs(Mathf.Sin(_gazeAge*Mathf.PI*2.5f));
+                    _gazeArrow.rectTransform.anchoredPosition=direction*(95f+nudge);
+                    _gazeArrow.rectTransform.localRotation=Quaternion.Euler(0f,0f,Mathf.Atan2(direction.y,direction.x)*Mathf.Rad2Deg);
+                    _gazeArrow.color=new Color(1f,.85f,.2f,.9f);
+                }
+            }
+            if(!show)_gazeAge=0f;
+            _gazeArrow.enabled=show;
         }
         void BuildBanner()
         {
@@ -187,6 +241,7 @@ namespace GloveBallDemo.Runtime
                 }
                 _grade.enabled=_gradeAge>=0f && !GameInputGate.IsBlocked;
             }
+            UpdateGazeArrow();
             if(Rally.OutcomeSerial!=_outcomeSerial){_outcomeSerial=Rally.OutcomeSerial;_outcomeAge=0f;}
             float dt=Time.deltaTime;
             if(_outcomeAge>=0f){_outcomeAge+=dt;if(_outcomeAge>OutcomeSeconds)_outcomeAge=-1f;}

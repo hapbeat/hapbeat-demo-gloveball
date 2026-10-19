@@ -192,6 +192,20 @@ namespace GloveBallDemo.Runtime
         public event System.Action<bool,Vector3> PointScored;
         public event System.Action<bool> MatchEnded;
         public bool PlayerTouched=>_playerTouched;
+        /// <summary>
+        /// SPIKE: where the player should look while the ball comes to our setter and is set (the ball, else the setter),
+        /// for the gaze arrow. False outside that part of the spike turn.
+        /// </summary>
+        public bool TryGetSpikeGaze(out Vector3 point)
+        {
+            point=default;
+            if(!RallyActive || MatchEngine)return false;
+            if(Phase!=RallyPhase.AllyReceive && !(Phase==RallyPhase.PlayerSpike && !_playerTouched))return false;
+            var ball=_preparedBall!=null ? _preparedBall : Drill!=null ? Drill.ActiveBall : null;
+            if(ball!=null && ball.gameObject.activeInHierarchy){point=ball.transform.position;return true;}
+            if(Ally!=null && Ally.gameObject.activeInHierarchy){point=Ally.transform.position+Vector3.up*1.8f;return true;}
+            return false;
+        }
         public bool BlockerTouched=>_blockerTouched;
         public bool AwaitingPlayerTouch=>CurrentPlayerTouch!=PlayerTouch.None && !_playerTouched;
         public int OutcomeSerial { get; private set; }
@@ -823,12 +837,15 @@ namespace GloveBallDemo.Runtime
             for(int i=0;i<Defenders.Length;i++)
             {
                 if(Defenders[i]==null || !Defenders[i].gameObject.activeSelf)continue;
-                if(i==CoverIndex && arriving>CoverMaxSpeed)continue;
                 var offset=Vector3.ProjectOnPlane(p-Defenders[i].transform.position,Vector3.up);
+                // A hard ball the short cover would have to move for is not its ball; one straight at it, it plays.
+                if(i==CoverIndex && arriving>CoverMaxSpeed && offset.magnitude>DigReach+DiveReach)continue;
+                // Before it could react (a hard spike) it still plays a ball at its body, or dives for one just beside it.
+                float ready=Mathf.Max(0f,moving);
                 float need=Mathf.Max(0f,offset.magnitude-DigReach)/DefenderSpeed;
                 // Out of reach on foot: only a dive (the last metre, no time to step).
-                bool diving=need>moving && Mathf.Max(0f,offset.magnitude-DigReach-DiveReach)/DefenderSpeed<=moving;
-                if(need>moving && !diving)continue;
+                bool diving=need>ready && Mathf.Max(0f,offset.magnitude-DigReach-DiveReach)/DefenderSpeed<=ready;
+                if(need>ready && !diving)continue;
                 float cost=diving ? need+10f : need; // a defender who can get there on foot goes first
                 if(cost<best){best=cost;_digger=i;dive=diving;_digTarget=new Vector3(p.x,floor,p.z);}
             }

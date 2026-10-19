@@ -117,6 +117,46 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
+        public void AHardSpikeStraightAtADefenderIsPlayableEvenBeforeItCouldReact()
+        {
+            var plan=typeof(VolleyAerialSequence).GetMethod("PlanDig",Private);
+            var digger=typeof(VolleyAerialSequence).GetField("_digger",Private);
+            typeof(VolleyAerialSequence).GetField("_sinceTouch",Private).SetValue(_rally,0f);
+            for(int i=0;i<_rally.Defenders.Length;i++)
+            {
+                var defender=_rally.Defenders[i];
+                if(defender==null)continue;
+                bool active=defender.gameObject.activeSelf;defender.gameObject.SetActive(true);
+                try
+                {
+                    // About 22 m/s, 0.25 s from the hand to the defender's forearms: shorter than its reaction.
+                    var target=defender.transform.position+Vector3.up*(_rally.DigHeight-.05f);
+                    var start=target-Forward*5f+Vector3.up*2.2f;const float Seconds=.25f;
+                    var velocity=(target-start)/Seconds-.5f*Physics.gravity*Seconds;
+                    Assert.That(Seconds,Is.LessThan(_rally.DefenderReactionSeconds));
+                    for(int other=0;other<_rally.Defenders.Length;other++)
+                        if(other!=i && _rally.Defenders[other]!=null)_rally.Defenders[other].gameObject.SetActive(false);
+                    plan.Invoke(_rally,new object[]{start,velocity,0f});
+                    Assert.That(digger.GetValue(_rally),Is.EqualTo(i),"Defender "+i+" plays a hard ball straight at it ("+velocity.magnitude.ToString("0.0")+" m/s).");
+                }
+                finally{foreach(var d in _rally.Defenders)if(d!=null)d.gameObject.SetActive(d==defender ? active : d.gameObject.activeSelf);}
+            }
+        }
+
+        [Test]
+        public void TheBlockForearmsAreTheTutorialForearmWithItsSkeleton()
+        {
+            Assert.That(_drill.BlockArms.Length,Is.EqualTo(2));
+            for(int side=0;side<2;side++)
+            {
+                Assert.That(_drill.BlockArms[side],Is.Not.Null);
+                Assert.That(_drill.BlockArms[side].Left,Is.EqualTo(side==0));
+                Assert.That(_drill.BlockArms[side].ShowForearm,Is.True);
+                Assert.That(_drill.BlockArms[side].PlaceholderSkeleton,Is.Not.Null,"Without its skeleton the package draws nothing.");
+            }
+        }
+
+        [Test]
         public void AHighContactMakesTheFastSpikeMoreThanAFastSwing()
         {
             float top=_rally.GroundedEye.y+_rally.Jump.JumpHeight+_rally.SpikeReachAboveEye;

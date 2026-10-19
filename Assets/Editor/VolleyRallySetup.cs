@@ -15,6 +15,8 @@ public static class VolleyRallySetup
     const string DefenderPrefix="Opponent defender ";
     const string TeammatePrefix="Rally teammate ";
 
+    const string LeftPlaceholderPath="Assets/GloveBallDemo/Art/FallbackHands/LeftHandPlaceholder.prefab";
+    const string RightPlaceholderPath="Assets/GloveBallDemo/Art/FallbackHands/RightHandPlaceholder.prefab";
     [MenuItem("Hapbeat/Volley/Apply spike + block turn rally")]
     public static void Apply()
     {
@@ -131,6 +133,22 @@ public static class VolleyRallySetup
         drill.SpikeFingertipZone=.85f;drill.FingertipSpikeScale=.8f; // an open hand is the normal spike: little difference to a fist
         aerial.SpikeHeightWeight=.65f;aerial.SpikeHeightWindow=.8f;aerial.SpikeFullSwing=7f;
         drill.BlockForearms=true;
+        // The block forearms are the shared package's tutorial hand (as in Energy Duel): it needs the placeholder skeleton.
+        if(drill.BlockArms==null || drill.BlockArms.Length!=2)drill.BlockArms=new Hapbeat.DemoSwitch.DemoTutorialHand[2];
+        for(int side=0;side<2;side++)
+        {
+            string armName=side==0 ? "Left block forearm" : "Right block forearm";
+            var armTransform=drill.transform.Find(armName);
+            if(armTransform==null){armTransform=new GameObject(armName).transform;armTransform.SetParent(drill.transform,false);}
+            var arm=armTransform.GetComponent<Hapbeat.DemoSwitch.DemoTutorialHand>();
+            if(arm==null)arm=armTransform.gameObject.AddComponent<Hapbeat.DemoSwitch.DemoTutorialHand>();
+            arm.Left=side==0;arm.ShowForearm=true;arm.Scale=1f;
+            arm.PlaceholderSkeleton=AssetDatabase.LoadAssetAtPath<GameObject>(side==0 ? LeftPlaceholderPath : RightPlaceholderPath);
+            if(arm.PlaceholderSkeleton==null)throw new InvalidOperationException("Placeholder hand prefab missing for the block forearm.");
+            armTransform.gameObject.SetActive(false);
+            drill.BlockArms[side]=arm;
+            EditorUtility.SetDirty(arm);
+        }
         aerial.AttackerShift=1.2f;
         // Their attack within reach of a block made standing still: narrower.
         aerial.AttackBodyYaw=7f;aerial.BlockLateralLimit=.3f;
