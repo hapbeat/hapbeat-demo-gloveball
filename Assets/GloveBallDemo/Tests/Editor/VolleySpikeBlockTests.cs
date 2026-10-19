@@ -451,8 +451,9 @@ namespace GloveBallDemo.Tests
         {
             Assert.That(typeof(VolleyDrillController).GetField("FingertipBlockPassThrough"),Is.Null,"No fingertip block that lets the ball through.");
             Assert.That(typeof(VolleyDrillController).GetField("EdgeBlockPassThrough"),Is.Null);
-            Assert.That(_drill.HapticsAtMaximum,Is.True,"For now every hand touch at the full gain (the clip's own strength).");
-            Assert.That(_drill.ReceiveHapticScale,Is.EqualTo(.7f).Within(.001f),"A receive (both arms) at 70 %.");
+            Assert.That(_drill.FixedTouchGains,Is.True,"Fixed gains, set with the Hapbeat at full volume.");
+            Assert.That(_drill.SpikeBlockHapticGain,Is.EqualTo(1.8f).Within(.001f));
+            Assert.That(_drill.ReceiveHapticGain,Is.EqualTo(1f).Within(.001f),"A receive (both arms) lower.");
             Assert.That(typeof(VolleyDrillController).GetField("FingertipHapticScale"),Is.Null,"Where on the hand never weakens the feel.");
             Assert.That(_drill.ReceiveMinimumGain,Is.GreaterThanOrEqualTo(1f),"A receive is felt like a good one.");
         }

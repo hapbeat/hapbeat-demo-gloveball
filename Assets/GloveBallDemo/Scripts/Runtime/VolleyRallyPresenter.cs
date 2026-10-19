@@ -261,6 +261,8 @@ namespace GloveBallDemo.Runtime
             _title=Label(rect,new Vector2(0,100),70);
             _score=Label(rect,new Vector2(0,5),92);
             _subtitle=Label(rect,new Vector2(0,-100),46);
+            var cjk=Resources.Load<Font>("HapbeatDemoSession/NotoSansCJKjp-Regular");
+            if(cjk!=null)_subtitle.font=cjk; // the outcome may be Japanese (ポイント獲得！)
         }
         void BuildMarker()
         {

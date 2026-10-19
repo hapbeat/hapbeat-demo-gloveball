@@ -105,7 +105,7 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.SetBlockers,Is.InRange(1,2),"One or two of their blockers face the hitter.");
             RunUntil(()=>_rally.Phase==Phase.Recovery,6f,"the attack ends the rep");
             Assert.That(_rally.Outcome,Does.EndWith("EXCELLENT SET"));
-            if(_rally.Outcome.StartsWith("KILL"))Assert.That(_rally.PlayerScore,Is.EqualTo(1),"A kill is our point.");
+            if(_rally.Outcome.StartsWith("ポイント獲得"))Assert.That(_rally.PlayerScore,Is.EqualTo(1),"A kill is our point.");
             else Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero,"Dug: the rep just ends, no point.");
         }
 
@@ -181,7 +181,7 @@ namespace GloveBallDemo.Tests
             Assert.That(_rally.StationKillMax,Is.EqualTo(1f),"An EXCELLENT pass is always put away.");
             if(_rally.Phase==Phase.Recovery)
             {
-                Assert.That(_rally.Outcome,Is.EqualTo("KILL! — EXCELLENT PASS"));Assert.That(_rally.PlayerScore,Is.EqualTo(1));
+                Assert.That(_rally.Outcome,Is.EqualTo("ポイント獲得！ — EXCELLENT PASS"));Assert.That(_rally.PlayerScore,Is.EqualTo(1));
                 RunUntil(()=>_launched && _rally.Phase==Phase.PlayerReceive,_rally.RallyResetSeconds+12f,"the next serve comes to the player");
             }
             else

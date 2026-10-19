@@ -49,7 +49,7 @@
  },
  "rc_try_other": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "a49f1a0e9dbe8dcddb867b1b2f75429c37145480f1336eca5d815e38b6b8af26"
+  "synth": "1083eb989ecbe1c886fcb487a87a6646b4b62746b1918b7dffacfaebab2ab5a8"
  },
  "rc_try_setter": {
   "norm": "loudnorm I=-20 TP=-1.5",

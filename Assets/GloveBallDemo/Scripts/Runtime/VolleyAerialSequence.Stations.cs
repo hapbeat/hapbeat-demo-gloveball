@@ -620,7 +620,7 @@ namespace GloveBallDemo.Runtime
                 }
                 best.y=FloorY;
                 float seconds=Mathf.Max(Flat(best-hit).magnitude/speed,ClearNetSeconds(hit,best,clearance));
-                StartSegment(hit,best,seconds,()=>{if(hammer)PlaySpikeAudio(best);Award(true,"KILL! — "+touch,best);});
+                StartSegment(hit,best,seconds,()=>{if(hammer)PlaySpikeAudio(best);Award(true,"ポイント獲得！ — "+touch,best);});
                 Cue=shot;
                 return;
             }
@@ -632,7 +632,7 @@ namespace GloveBallDemo.Runtime
                 float distance=Flat(aim-actor.A.transform.position).magnitude;
                 if(distance<nearest){nearest=distance;digger=actor;}
             }
-            if(digger==null){StartSegment(hit,aim,.6f,()=>Award(true,"KILL! — "+touch,aim));return;}
+            if(digger==null){StartSegment(hit,aim,.6f,()=>Award(true,"ポイント獲得！ — "+touch,aim));return;}
             var dig=digger.A.transform.position-TeamForward(them)*.3f;dig.y=FloorY+DigHeight;
             float flight=Mathf.Max(Flat(dig-hit).magnitude/speed,ClearNetSeconds(hit,dig,clearance));
             // Dug: no point. RECEIVE flows on (they pass, set and attack the player); TOSS just ends the rep there.
