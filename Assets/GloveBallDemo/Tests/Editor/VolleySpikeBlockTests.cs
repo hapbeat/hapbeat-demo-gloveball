@@ -289,9 +289,10 @@ namespace GloveBallDemo.Tests
         [Test]
         public void QuietBackgroundMusicLoopsUnderThePlay()
         {
-            Assert.That(_rally.Music,Is.Not.Null,"A CC0 drum loop (Audio/Music/sources.json).");
-            Assert.That(_rally.Music.length,Is.EqualTo(7.5f).Within(.01f),"Cut to the loop's own length: no gap when it repeats.");
-            Assert.That(_rally.MusicVolume,Is.InRange(.1f,.35f),"Under the voice and the ball's sounds.");
+            Assert.That(_rally.MusicTracks,Has.Length.EqualTo(4),"CC0 loops (Audio/Music/sources.json), one per match in turn.");
+            Assert.That(_rally.MusicTracks,Has.None.Null);
+            Assert.That(_rally.MusicTracks[0].length,Is.EqualTo(7.5f).Within(.01f),"Cut to the loop's own length: no gap when it repeats.");
+            Assert.That(_rally.MusicVolume,Is.EqualTo(.15f).Within(.001f),"Just audible under the voice and the ball's sounds.");
         }
 
         [Test]

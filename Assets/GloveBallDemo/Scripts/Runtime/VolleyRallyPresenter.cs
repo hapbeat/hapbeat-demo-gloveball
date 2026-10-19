@@ -166,13 +166,30 @@ namespace GloveBallDemo.Runtime
             if(tip==null || _tip==null)return;
             _tip.text=tip;_tipAge=0f;
         }
-        /// <summary>The rally's background music, looped quietly (the shared pause holds it with all audio).</summary>
+        /// <summary>The background music: looped quietly during the match (not the tutorial); the shared pause holds it with all audio.</summary>
         void BuildMusic()
         {
-            if(Rally.Music==null)return;
+            if(Rally.MusicTracks==null || Rally.MusicTracks.Length==0)return;
             _music=gameObject.AddComponent<AudioSource>();
-            _music.clip=Rally.Music;_music.loop=true;_music.spatialBlend=0f;_music.volume=Rally.MusicVolume;_music.playOnAwake=false;
-            if(Application.isPlaying)_music.Play();
+            _music.loop=true;_music.spatialBlend=0f;_music.volume=Rally.MusicVolume;_music.playOnAwake=false;
+        }
+        static int s_track=-1; // across scene loads: each match its own loop, in turn
+        int _musicFrames;
+        /// <summary>Plays while no tutorial runs and no match is over; each start after silence gets the next loop.</summary>
+        void TickMusic()
+        {
+            if(_music==null || !Application.isPlaying)return;
+            _music.volume=Rally.MusicVolume;
+            if(_musicFrames<3){_musicFrames++;return;} // the launch tutorial begins within its first two frames
+            bool wanted=(_tutorial==null || _tutorial.Running==VolleyTutorial.Course.None) && Rally.Phase!=VolleyAerialSequence.RallyPhase.MatchOver;
+            if(wanted && !_music.isPlaying && !AudioListener.pause)
+            {
+                var tracks=Rally.MusicTracks;
+                s_track=(s_track+1)%tracks.Length;
+                _music.clip=tracks[s_track];
+                if(_music.clip!=null){_music.Play();Debug.Log("[VolleyMusic] "+_music.clip.name);}
+            }
+            else if(!wanted && _music.isPlaying)_music.Stop();
         }
         /// <summary>A white triangle pointing to +x (the setter label's arrow, turned down).</summary>
         Sprite Triangle()
@@ -309,7 +326,7 @@ namespace GloveBallDemo.Runtime
                 if(_tipAge>=0f){_tipAge+=Time.deltaTime;if(_tipAge>TipSeconds)_tipAge=-1f;}
                 _tip.enabled=_tipAge>=0f && !GameInputGate.IsBlocked;
             }
-            if(_music!=null)_music.volume=Rally.MusicVolume;
+            TickMusic();
             if(Rally.OutcomeSerial!=_outcomeSerial){_outcomeSerial=Rally.OutcomeSerial;_outcomeAge=0f;}
             float dt=Time.deltaTime;
             if(_outcomeAge>=0f){_outcomeAge+=dt;if(_outcomeAge>OutcomeSeconds)_outcomeAge=-1f;}

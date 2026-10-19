@@ -232,7 +232,6 @@ namespace GloveBallDemo.Runtime
         {
             start=destination=Vector3.zero;seconds=0f;
             EnsureMatchCast();
-            if(_restoreScale && !_slowActive && Time.timeScale>0f){Time.timeScale=1f;_restoreScale=false;}
             float real=_slowActive && Time.timeScale>0f ? dt/Time.timeScale : dt;
             TickEmbody(real);
             TickActors(dt);

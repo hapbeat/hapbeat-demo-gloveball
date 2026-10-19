@@ -372,6 +372,7 @@ namespace GloveBallDemo.Runtime
             }
             if (Move == DemoMove.Jump && Aerial.Jump != null)
             {
+                if (AutoJump) { StartSpikes(); return; } // AUTO JUMP turned on meanwhile: nothing to practise
                 if (Aerial.Jump.Jumps > _jumps)
                 {
                     _jumps = Aerial.Jump.Jumps;

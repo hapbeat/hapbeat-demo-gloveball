@@ -6,5 +6,29 @@
     "source": "https://freesound.org/people/AlexProst/sounds/382251/",
     "license": "CC0 1.0 (public domain dedication)",
     "processing": "Freesound HQ preview (MP3 128 kbps) decoded to PCM16 44.1 kHz stereo, cut to the original 7.500 s loop, normalized to -20 LUFS (hapbeat-demos/tools/tts/loudness.py)"
+  },
+  {
+    "file": "fifties_stomp_clap_loop_115bpm.wav",
+    "title": "Fifties Stomp Clap Loop 115BPM",
+    "author": "waggstar",
+    "source": "https://freesound.org/people/waggstar/sounds/698782/",
+    "license": "CC0 1.0 (public domain dedication)",
+    "processing": "original WAV (downloaded by the user), PCM16 44.1 kHz stereo, normalized to -20 LUFS (hapbeat-demos/tools/tts/loudness.py)"
+  },
+  {
+    "file": "tortoise_vs_hare_160bpm.wav",
+    "title": "Tortoise vs. Hare_160bpm",
+    "author": "NenadSimic",
+    "source": "https://freesound.org/people/NenadSimic/sounds/268110/",
+    "license": "CC0 1.0 (public domain dedication)",
+    "processing": "original WAV (downloaded by the user), PCM24 to PCM16 44.1 kHz stereo, normalized to -20 LUFS"
+  },
+  {
+    "file": "8bit_hype_house_drum_loop.wav",
+    "title": "8bit-hype-house-drum-loop",
+    "author": "RockTrembath",
+    "source": "https://freesound.org/people/RockTrembath/sounds/722740/",
+    "license": "CC0 1.0 (public domain dedication)",
+    "processing": "original WAV (downloaded by the user), PCM16 44.1 kHz stereo, normalized to -20 LUFS"
   }
 ]

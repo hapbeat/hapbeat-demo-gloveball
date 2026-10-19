@@ -46,6 +46,21 @@ namespace GloveBallDemo.Runtime
                 space.InverseTransformPoint(Left.transform.position).y-head,
                 space.InverseTransformPoint(Right.transform.position).y-head,GameInputGate.IsBlocked,head,Time.unscaledDeltaTime);
             Floor.SetVirtualLift(Lift);
+            LogJumpState(head);
+        }
+        int _loggedJumps;float _blockedLog;
+        /// <summary>The log says why hands raised above the jump height did not jump (every 2 s at most), and each jump.</summary>
+        void LogJumpState(float head)
+        {
+            if(Jumps!=_loggedJumps){_loggedJumps=Jumps;Debug.Log($"[VolleyJump] jump {Jumps} auto={AutomaticJump}");}
+            var space=Floor.Origin.CameraFloorOffsetObject.transform;
+            float l=space.InverseTransformPoint(Left.transform.position).y-head,r=space.InverseTransformPoint(Right.transform.position).y-head;
+            bool up=l>=JumpHeightFromEyes && r>=JumpHeightFromEyes;
+            _blockedLog-=Time.unscaledDeltaTime;
+            if(!up || Airborne || _blockedLog>0f)return;
+            _blockedLog=2f;
+            Debug.Log($"[VolleyJump] hands up, no jump: paused={GameInputGate.IsBlocked} dt={Time.deltaTime:F3} scale={Time.timeScale:F2} auto={AutomaticJump} suppressed={Suppressed} cooldown={_cooldown:F2} armed={_armed} " +
+                $"L ready={Left.Ready} est={Left.IsEstimated} src={Left.Source} y={l:F2} / R ready={Right.Ready} est={Right.IsEstimated} src={Right.Source} y={r:F2}");
         }
         public static float HeightAt(float time,float duration,float height)
         {

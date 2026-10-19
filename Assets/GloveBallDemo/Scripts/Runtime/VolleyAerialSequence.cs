@@ -139,10 +139,10 @@ namespace GloveBallDemo.Runtime
         public Color OpponentJersey=new Color(.8f,.16f,.07f);
         public Color OpponentShorts=new Color(.05f,.07f,.1f);
         [Header("Background music (played by the presenter)")]
-        [Tooltip("A quiet rhythmic loop under the play (2D), so the hall is not silent. Empty: none.")]
-        public AudioClip Music;
-        [Tooltip("Quiet enough that voices and the ball's sounds are never buried (the clip is at -20 LUFS, like the voice).")]
-        [Range(0f,1f)] public float MusicVolume=.3f;
+        [Tooltip("Quiet rhythmic loops under the match (2D), a different one each match; none during the tutorial. Empty: none.")]
+        public AudioClip[] MusicTracks=new AudioClip[0];
+        [Tooltip("Just audible: voices and the ball's sounds are never buried (the clips are at -20 LUFS, like the voice).")]
+        [Range(0f,1f)] public float MusicVolume=.15f;
         [Header("Opponent contact audio (no haptics)")]
         public AudioClip SpikeClip;
         [Range(0f,1f)] public float SpikeVolume=.85f;
@@ -490,6 +490,8 @@ namespace GloveBallDemo.Runtime
         {
             start=destination=Vector3.zero; seconds=0f;
             if(!RallyActive || dt<=0f)return false;
+            // Slow motion ended while paused (a mode picked from the menu mid-match): normal speed in every mode.
+            if(_restoreScale && !_slowActive && Time.timeScale>0f){Time.timeScale=1f;_restoreScale=false;}
             TickFlash(dt);
             CaptureHome();
             if(Jump!=null)Jump.Suppressed=JumpsSuppressed;

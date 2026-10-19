@@ -16,7 +16,9 @@ public static class VolleyRallySetup
     const string TeammatePrefix="Rally teammate ";
 
     const string NarrationFolder="Assets/GloveBallDemo/Audio/Narration/ja";
-    const string MusicPath="Assets/GloveBallDemo/Audio/Music/energetic_bigbeat_drum_loop.wav";
+    static readonly string[] MusicPaths={"Assets/GloveBallDemo/Audio/Music/energetic_bigbeat_drum_loop.wav",
+        "Assets/GloveBallDemo/Audio/Music/fifties_stomp_clap_loop_115bpm.wav","Assets/GloveBallDemo/Audio/Music/tortoise_vs_hare_160bpm.wav",
+        "Assets/GloveBallDemo/Audio/Music/8bit_hype_house_drum_loop.wav"};
     const string LeftPlaceholderPath="Assets/GloveBallDemo/Art/FallbackHands/LeftHandPlaceholder.prefab";
     const string RightPlaceholderPath="Assets/GloveBallDemo/Art/FallbackHands/RightHandPlaceholder.prefab";
     [MenuItem("Hapbeat/Volley/Apply spike + block turn rally")]
@@ -135,9 +137,9 @@ public static class VolleyRallySetup
         aerial.SpikeHeightWeight=.65f;aerial.SpikeHeightWindow=.8f;aerial.SpikeFullSwing=7f;
         drill.BlockForearms=true;
         // Background music: a quiet CC0 drum loop (Audio/Music/sources.json) under the play.
-        aerial.Music=AssetDatabase.LoadAssetAtPath<AudioClip>(MusicPath);
-        if(aerial.Music==null)throw new InvalidOperationException("Background music missing: "+MusicPath);
-        aerial.MusicVolume=.3f;
+        aerial.MusicTracks=MusicPaths.Select(path=>AssetDatabase.LoadAssetAtPath<AudioClip>(path)).ToArray();
+        if(aerial.MusicTracks.Any(clip=>clip==null))throw new InvalidOperationException("Background music missing (Audio/Music).");
+        aerial.MusicVolume=.15f;
         // The player jumps (AUTO JUMP off by default; the menu turns it on). RECEIVE and TOSS never jump either way.
         aerial.Jump.AutomaticJump=false;EditorUtility.SetDirty(aerial.Jump);aerial.JumpTimingTolerance=.18f;
         // Haptics: how hard the hand hit the ball (its change of velocity), up to the trigger's full x2; a receive in both arms.
