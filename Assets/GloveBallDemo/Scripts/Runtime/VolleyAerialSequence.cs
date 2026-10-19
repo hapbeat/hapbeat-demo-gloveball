@@ -190,6 +190,11 @@ namespace GloveBallDemo.Runtime
         public bool OutcomeGood { get; private set; }
         /// <summary>Point decided: winner (true = player) and where the ball ended.</summary>
         public event System.Action<bool,Vector3> PointScored;
+        /// <summary>
+        /// SPIKE / BLOCK turns (not the match engine): a rep ended. (block turn, success): success is a spike or block that
+        /// went into their court - a point, or dug by them.
+        /// </summary>
+        public event System.Action<bool,bool> TurnRepResolved;
         public event System.Action<bool> MatchEnded;
         public bool PlayerTouched=>_playerTouched;
         /// <summary>
@@ -991,11 +996,13 @@ namespace GloveBallDemo.Runtime
         string MissHint()=>_handLostNear && !_handReadyNear ? " (HAND LOST)" : "";
         void Award(bool player,string text,Vector3 position)
         {
+            bool blockTurn=Phase==RallyPhase.OpponentSpike; // SetOutcome moves on to Recovery
             if(player)PlayerScore++;else OpponentScore++;
             if(!_playerTouched && (_handLostNear || _handReadyNear))
                 Debug.Log("[VolleyRally] untouched "+Phase+": hand near ball ready="+_handReadyNear+" lost="+_handLostNear);
             SetOutcome(text,player);
             PointScored?.Invoke(player,position);
+            if(!MatchEngine)TurnRepResolved?.Invoke(blockTurn,player || text=="DUG" || text=="BLOCK DUG");
         }
         /// <summary>Drill reports a hand passing near the untouched ball, with whether it could collide.</summary>
         public void NoteHandNearBall(bool collidable)

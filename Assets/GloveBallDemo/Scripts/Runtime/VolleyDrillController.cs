@@ -89,6 +89,8 @@ namespace GloveBallDemo.Runtime
         [Header("Rally: forearms (block only)")]
         [Tooltip("Block turns add a forearm behind each wrist (no elbow is tracked: along the wrist's back axis, as Energy Duel does), solid like the palm, drawn as a translucent arm.")]
         public bool BlockForearms = true;
+        [System.NonSerialized] [Tooltip("The tutorial holds the rally (no new ball) while a text is read.")]
+        public bool HoldRally;
         public Vector3 ForearmCentre = new Vector3(0f, 0f, -.15f);
         public Vector3 ForearmSize = new Vector3(.085f, .075f, .26f);
         public Color ForearmColour = new Color(.87f, .67f, .53f, .55f);
@@ -237,7 +239,7 @@ namespace GloveBallDemo.Runtime
             {
                 _trackingStable += Time.deltaTime;
                 _nextServe -= Time.deltaTime;
-                if(rally && _trackingStable>=ReadySeconds
+                if(rally && !HoldRally && _trackingStable>=ReadySeconds
                     && Aerial.TickRally(Time.deltaTime,_ball!=null,out var rallyStart,out var rallyDestination,out var rallySeconds))
                     LaunchAerialBall(rallyStart,rallyDestination,rallySeconds);
                 else if (!rally && !continuingAttack && _trackingStable >= ReadySeconds && _ball == null && _nextServe <= 0f) Serve();

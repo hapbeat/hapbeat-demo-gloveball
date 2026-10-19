@@ -1,0 +1,54 @@
+{
+ "ok": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "c2bb6cf3a0b1d6b408b81be95041680e4a591ea9afec0aff07bc3b593b06783b"
+ },
+ "rc_end": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "d8e1abcc066faa41c9d826855cc713de9cbfed93c9b7b8e1c19d0afc6271e491"
+ },
+ "rc_intro": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "6ebcc2f73a9781dce5f3d95606e275c31632248bf0949a1052dcacc5dbe1c298"
+ },
+ "rc_pass": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "56751dbc2fbaab68cbf42b339f5a432ec263b969e157e0ce9b86fd4672e1923c"
+ },
+ "rc_pass_hint": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "4a996fa4836be2193ee94df0b15c18529b36de98b2d93835ce04396475311544"
+ },
+ "sb_block": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "94aa25b44944e98ba72cd1ce451a67571dcf27de024271f289d1ca96fac1685d"
+ },
+ "sb_block_hint": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "bd0a67697d675b69da0ce3cf0ce1ceddb32c8a28c84be0f5c6186a96fdcd322d"
+ },
+ "sb_end": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "675314bdf6b09a7cea9832fdf0167d7787daed970025fd461e3c64a0f9452388"
+ },
+ "sb_intro": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "d1d64d653f8264415b20216746ad541d42e18bb36c31b7274af3e8b745d5733a"
+ },
+ "sb_jump": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "e8c37a23540f637ecb50ac16844e5e9e58a57a2b8b139bd07bf295cd76527659"
+ },
+ "sb_spike": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "e7a2d203b8128a1820cc81278d8e91e6a2762c8e6ed16597f931303a99cadc18"
+ },
+ "sb_spike_auto": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "39503fae861e8abae5ecb6ef0ed33a81b1390a3cad13e7b7311a55ee0c9c41bd"
+ },
+ "sb_spike_hint": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "a6ddb8b23c2874d64766a28d63104ace5c28e1297567aaab4952726c913f67a4"
+ }
+}

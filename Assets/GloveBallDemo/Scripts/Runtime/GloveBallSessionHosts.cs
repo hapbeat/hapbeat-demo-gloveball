@@ -39,7 +39,7 @@ namespace GloveBallDemo.Runtime
     /// The shared pause (Volley APK) pauses through <see cref="SetGameplayPaused"/> and restarts through
     /// <see cref="Restart"/>; <see cref="VolleyHandMenu"/> opens beside its panel.
     /// </summary>
-    public sealed class VolleySessionHost : MonoBehaviour, IDemoSessionHost, IDemoSessionRecenter
+    public sealed class VolleySessionHost : MonoBehaviour, IDemoSessionHost, IDemoSessionRecenter, IDemoSessionTutorial
     {
         public const string BlockScene = "VolleyBlock-codex";
         public const string ReceiveScene = "VolleyReceive-codex";
@@ -107,8 +107,19 @@ namespace GloveBallDemo.Runtime
         private void OnMatchEnded(bool playerWon) => DemoSession.ShowCompletion();
         private void OnServesCompleted() => DemoSession.ShowCompletion();
 
+        /// <summary>CONTROL tutorial_start: the RECEIVE tutorial in RECEIVE, else the SPIKE + BLOCK one.</summary>
+        public void StartTutorial()
+        {
+            var course = _drill.Drill == VolleyDrill.Block && _drill.Aerial != null && _drill.Aerial.Mode == VolleyAerialSequence.RallyMode.Pass
+                ? VolleyTutorial.Course.Receive : VolleyTutorial.Course.SpikeBlock;
+            var menu = FindAnyObjectByType<VolleyHandMenu>();
+            if (menu != null) menu.StartTutorial(course);
+            else GetComponent<VolleyTutorial>()?.Begin(course);
+        }
+
         public void Restart()
         {
+            GetComponent<VolleyTutorial>()?.Stop(false);
             if (_drill.Drill == VolleyDrill.Block && _drill.Aerial != null) _drill.Aerial.RestartMatch();
             else _drill.RestartServes();
         }

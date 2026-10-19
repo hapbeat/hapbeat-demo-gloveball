@@ -15,6 +15,7 @@ public static class VolleyRallySetup
     const string DefenderPrefix="Opponent defender ";
     const string TeammatePrefix="Rally teammate ";
 
+    const string NarrationFolder="Assets/GloveBallDemo/Audio/Narration/ja";
     const string LeftPlaceholderPath="Assets/GloveBallDemo/Art/FallbackHands/LeftHandPlaceholder.prefab";
     const string RightPlaceholderPath="Assets/GloveBallDemo/Art/FallbackHands/RightHandPlaceholder.prefab";
     [MenuItem("Hapbeat/Volley/Apply spike + block turn rally")]
@@ -134,6 +135,12 @@ public static class VolleyRallySetup
         drill.SpikeFingertipZone=.85f;drill.FingertipSpikeScale=.8f; // an open hand is the normal spike: little difference to a fist
         aerial.SpikeHeightWeight=.65f;aerial.SpikeHeightWindow=.8f;aerial.SpikeFullSwing=7f;
         drill.BlockForearms=true;
+        // The tutorials (menu TUTORIAL rows, CONTROL tutorial_start) and their voice.
+        var tutorial=drill.GetComponent<VolleyTutorial>();
+        if(tutorial==null)tutorial=drill.gameObject.AddComponent<VolleyTutorial>();
+        tutorial.Drill=drill;
+        tutorial.Clips=VolleyTutorialText.Lines.Select(line=>AssetDatabase.LoadAssetAtPath<AudioClip>(NarrationFolder+"/"+line.Id+".wav")).Where(clip=>clip!=null).ToArray();
+        EditorUtility.SetDirty(tutorial);
         // The block forearms are the shared package's tutorial hand (as in Energy Duel): it needs the placeholder skeleton.
         if(drill.BlockArms==null || drill.BlockArms.Length!=2)drill.BlockArms=new Hapbeat.DemoSwitch.DemoTutorialHand[2];
         for(int side=0;side<2;side++)

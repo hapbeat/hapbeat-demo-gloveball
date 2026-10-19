@@ -52,7 +52,7 @@ namespace GloveBallDemo.Runtime
         /// <summary>Yaw right of the head's heading for this menu beside the shared pause panel (0.55 m ahead, about 0.44 m wide).</summary>
         public const float BesidePauseYaw=48f;
         /// <summary>Settings on the left (rows 0..6), the five ways to play on the right: picking one starts it at once.</summary>
-        public const int AutoJumpRow=6, FirstModeRow=7, RowCount=12;
+        public const int AutoJumpRow=6, FirstModeRow=7, TutorialSpikeBlockRow=12, TutorialReceiveRow=13, RowCount=14;
         public static readonly VolleyAerialSequence.RallyMode[] MenuModes={VolleyAerialSequence.RallyMode.Pass,VolleyAerialSequence.RallyMode.Set,
             VolleyAerialSequence.RallyMode.SpikeOnly,VolleyAerialSequence.RallyMode.BlockOnly,VolleyAerialSequence.RallyMode.Alternate};
         static readonly string[] MenuModeNames={"RECEIVE\npass high to a front-row player","TOSS\nset the ball to a hitter","SPIKE","BLOCK","SPIKE + BLOCK\ntake turns"};
@@ -62,13 +62,15 @@ namespace GloveBallDemo.Runtime
         /// <summary>Rally mode a CONTROL scene change asks for; applied once the reloaded Block scene has started.</summary>
         static VolleyAerialSequence.RallyMode? s_pendingMode;
 
-        void Start(){if(_canvas==null)Build();if(s_pendingMode.HasValue)StartCoroutine(ApplyPendingMode());}
+        void Start(){if(_canvas==null)Build();if(s_pendingMode.HasValue || s_pendingTutorial!=VolleyTutorial.Course.None)StartCoroutine(ApplyPendingMode());}
         System.Collections.IEnumerator ApplyPendingMode()
         {
             yield return null; // let the drill and aerial sequence finish their own Start first
             var mode=s_pendingMode;s_pendingMode=null;
             if(mode.HasValue && Drill!=null && Drill.Drill==VolleyDrill.Block && Drill.Aerial!=null && Drill.Aerial.Mode!=mode.Value)
                 Drill.Aerial.SetMode(mode.Value);
+            var course=s_pendingTutorial;s_pendingTutorial=VolleyTutorial.Course.None;
+            if(course!=VolleyTutorial.Course.None && Drill!=null && Drill.Drill==VolleyDrill.Block)Drill.GetComponent<VolleyTutorial>()?.Begin(course);
         }
         void OnEnable()=>DemoPause.PausedChanged+=OnSharedPauseChanged;
         void OnSharedPauseChanged(bool paused)=>Show(paused,true);
@@ -247,7 +249,9 @@ namespace GloveBallDemo.Runtime
                     break;
                 case 5:RepositionToStart();break;
                 case AutoJumpRow:if(Drill.Aerial!=null)Drill.Aerial.SetBeginnerBlock(!Drill.Aerial.BeginnerBlock);break;
-                default:if(row>=FirstModeRow && row<RowCount){Play(MenuModes[row-FirstModeRow]);return;}break;
+                case TutorialSpikeBlockRow:StartTutorial(VolleyTutorial.Course.SpikeBlock);return;
+                case TutorialReceiveRow:StartTutorial(VolleyTutorial.Course.Receive);return;
+                default:if(row>=FirstModeRow && row<FirstModeRow+MenuModes.Length){Play(MenuModes[row-FirstModeRow]);return;}break;
             }
             Refresh();
         }
@@ -255,10 +259,21 @@ namespace GloveBallDemo.Runtime
         public void Play(VolleyAerialSequence.RallyMode mode)
         {
             if(DemoSession.IsCompletionShown)DemoSession.DismissCompletion();
+            var tutorial=Drill.GetComponent<VolleyTutorial>();
+            if(tutorial!=null)tutorial.Stop(false);
             if(Drill.Drill==VolleyDrill.Block && Drill.Aerial!=null){Drill.Aerial.SetMode(mode);SetOpen(false);return;}
             s_pendingMode=mode;LoadDrill("VolleyBlock-codex");
         }
-        bool IsCurrent(int row)=>row>=FirstModeRow && row<RowCount && Drill.Drill==VolleyDrill.Block && Drill.Aerial!=null
+        /// <summary>Starts a tutorial from its first step (the Receive scene loads the Block scene first).</summary>
+        public void StartTutorial(VolleyTutorial.Course course)
+        {
+            if(DemoSession.IsCompletionShown)DemoSession.DismissCompletion();
+            var tutorial=Drill.GetComponent<VolleyTutorial>();
+            if(Drill.Drill==VolleyDrill.Block && tutorial!=null){SetOpen(false);tutorial.Begin(course);return;}
+            s_pendingTutorial=course;LoadDrill("VolleyBlock-codex");
+        }
+        static VolleyTutorial.Course s_pendingTutorial;
+        bool IsCurrent(int row)=>row>=FirstModeRow && row<FirstModeRow+MenuModes.Length && Drill.Drill==VolleyDrill.Block && Drill.Aerial!=null
             && Drill.Aerial.Mode==MenuModes[row-FirstModeRow];
         Color BaseColour(int row)=>IsCurrent(row) ? CurrentColour : RowColour;
         void Refresh()
@@ -267,6 +282,7 @@ namespace GloveBallDemo.Runtime
             var names=new List<string>{"RESUME",$"HANDS ONLY: {(Drill.Left.InputMode==VolleyInputMode.HandsOnly?"ON":"OFF")}",$"STAND UPRIGHT: SET EYE {Floor.StandingEyeHeight:F2} m","USE RUNTIME FLOOR","RESTART","REPOSITION TO START",
                 Drill.Aerial==null ? "AUTO JUMP: (SPIKE / BLOCK)" : Drill.Aerial.BeginnerBlock ? "AUTO JUMP: ON" : "AUTO JUMP: OFF (RAISE HANDS TO JUMP)"};
             for(int i=0;i<MenuModeNames.Length;i++)names.Add((IsCurrent(FirstModeRow+i) ? "NOW: " : "")+MenuModeNames[i]);
+            names.Add("TUTORIAL\nspike + block");names.Add("TUTORIAL\nreceive");
             for(int i=0;i<names.Count;i++)_labels[i].text=names[i];
         }
         void ResetAutomaticAttempt(){if(Drill.Aerial!=null && Drill.Aerial.BeginnerBlock)Drill.Aerial.SetBeginnerBlock(true);}
