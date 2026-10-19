@@ -143,6 +143,120 @@ namespace GloveBallDemo.Tests
             }
         }
 
+        /// <summary>Their defence: one defender at <paramref name="at"/> (court frame: x right, z from the net), the others away.</summary>
+        VolleyOpponentPrototype OneDefender(Vector2 at)
+        {
+            typeof(VolleyAerialSequence).GetMethod("CaptureHome",Private).Invoke(_rally,null);
+            var defenders=_rally.Defenders;
+            for(int i=0;i<defenders.Length;i++)defenders[i].gameObject.SetActive(i==0);
+            var defender=defenders[0];
+            defender.transform.SetPositionAndRotation(Net+Right*at.x+Forward*at.y-Vector3.up*(Net.y-Floor),Quaternion.LookRotation(-Forward,Vector3.up));
+            _rally.SetMode(VolleyAerialSequence.RallyMode.SpikeOnly);
+            typeof(VolleyAerialSequence).GetProperty("Phase").SetValue(_rally,VolleyAerialSequence.RallyPhase.PlayerSpike);
+            typeof(VolleyAerialSequence).GetMethod("BeginBallInPlay",Private).Invoke(_rally,new object[]{Net});
+            typeof(VolleyAerialSequence).GetField("_playerTouched",Private).SetValue(_rally,true);
+            return defender;
+        }
+        Vector3 Right=>Vector3.Cross(Vector3.up,Forward);
+        /// <summary>Velocity from <paramref name="start"/> through <paramref name="target"/> in <paramref name="seconds"/> (no drag).</summary>
+        static Vector3 Through(Vector3 start,Vector3 target,float seconds)=>(target-start)/seconds-.5f*Physics.gravity*seconds;
+        /// <summary>Feeds the flight to the rally at physics rate until the point is decided; the closest the hands came, and at the dig.</summary>
+        float Defend(VolleyOpponentPrototype defender,Vector3 position,Vector3 velocity,out float atDig,out float tilt)
+        {
+            float closest=float.MaxValue;atDig=float.NaN;tilt=0f;
+            for(int i=0;i<300 && _rally.Phase==VolleyAerialSequence.RallyPhase.PlayerSpike;i++)
+            {
+                bool dug=_rally.SampleBall(position,velocity,.11f,.02f);
+                float gap=Vector3.Distance(defender.HandsCentre,position);
+                closest=Mathf.Min(closest,gap);
+                tilt=Mathf.Max(tilt,Vector3.Angle(defender.transform.up,Vector3.up));
+                if(dug || _rally.DigResolved && float.IsNaN(atDig)){atDig=gap;if(dug)velocity=_rally.DigVelocity;}
+                velocity+=Physics.gravity*.02f;position+=velocity*.02f;
+                if(position.y<.11f+Floor){position.y=.11f+Floor;velocity.y=-velocity.y*.6f;}
+            }
+            return closest;
+        }
+
+        [Test]
+        public void ADiveThatGetsTheBallEndsWithItsHandsOnIt()
+        {
+            _rally.DigEasyChance=_rally.DigHardChance=1f;_rally.DiveChance=1f;
+            var defender=OneDefender(new Vector2(-2.8f,6f));
+            // Down to 0.4 m about 1.5 m to its side, 0.45 s after the hit: too far to run, a dive gets there.
+            var target=defender.transform.position+Right*1.5f+Vector3.up*.4f;
+            var start=target-Forward*4f+Vector3.up*2.5f;
+            Defend(defender,start,Through(start,target,.45f),out float atDig,out float tilt);
+            Assert.That(_rally.Outcome,Is.EqualTo("DUG"));
+            Assert.That(_rally.DigIsDive,Is.True,"It dived.");
+            Assert.That(tilt,Is.GreaterThan(20f),"Tipped toward the ball.");
+            Assert.That(atDig,Is.LessThanOrEqualTo(_rally.HandContactRadius*2f),"The ball is at its hands when it is dug.");
+        }
+
+        [Test]
+        public void ADiveThatWillNotGetTheBallEndsVisiblyShort()
+        {
+            _rally.DigEasyChance=_rally.DigHardChance=1f;_rally.DiveChance=0f;
+            var defender=OneDefender(new Vector2(-2.8f,6f));
+            var target=defender.transform.position+Right*1.5f+Vector3.up*.4f;
+            var start=target-Forward*4f+Vector3.up*2.5f;
+            float closest=Defend(defender,start,Through(start,target,.45f),out _,out float tilt);
+            Assert.That(tilt,Is.GreaterThan(10f),"It still dives.");
+            Assert.That(closest,Is.GreaterThan(_rally.HandContactRadius),"...but its hands never reach the ball.");
+            Assert.That(_rally.Outcome,Is.EqualTo("POINT!"));Assert.That(_rally.PlayerScore,Is.EqualTo(1));
+        }
+
+        [Test]
+        public void APlatformThatDoesNotControlTheBallShanksItOffTheArms()
+        {
+            _rally.DigEasyChance=_rally.DigHardChance=0f;
+            var defender=OneDefender(new Vector2(0f,5f));
+            // Straight at it, slowly: it plays it where it stands.
+            var target=defender.transform.position+Vector3.up*.8f;
+            var start=target-Forward*5f+Vector3.up*1.5f;
+            Defend(defender,start,Through(start,target,.9f),out float atDig,out _);
+            Assert.That(atDig,Is.LessThanOrEqualTo(_rally.HandContactRadius*2f),"It touches the ball with its arms.");
+            Assert.That(_rally.Outcome,Is.EqualTo("SHANKED!"));Assert.That(_rally.PlayerScore,Is.EqualTo(1),"Their touch: the player's point.");
+        }
+
+        [Test]
+        public void TheirHitterComesFromTheLeftFrontAndRightOfThePlayerEvenly()
+        {
+            typeof(BallPool).GetMethod("Awake",Private).Invoke(_drill.Pool,null);
+            typeof(VolleyAerialSequence).GetMethod("CaptureHome",Private).Invoke(_rally,null);
+            var begin=typeof(VolleyAerialSequence).GetMethod("BeginOpponentReceive",Private);
+            var prepared=typeof(VolleyAerialSequence).GetField("_preparedBall",Private);
+            var targets=(Vector3[])typeof(VolleyAerialSequence).GetField("_blockerTargets",Private).GetValue(_rally);
+            foreach(float standing in new[]{0f,.7f})
+            {
+                _rally.Jump.Floor.Origin.Camera.transform.localPosition=new Vector3(standing,1.6f,0f);
+                int left=0,front=0,right=0;
+                for(int i=0;i<30;i++)
+                {
+                    prepared.SetValue(_rally,null);
+                    Assert.That(begin.Invoke(_rally,new object[]{null}),Is.True);
+                    var ball=prepared.GetValue(_rally) as Ball;if(ball!=null)_drill.Pool.Return(ball,"test");
+                    float hand=Vector3.Dot(_rally.Opponent.ReleasePosition-_rally.GroundedEye,Right);
+                    if(hand<-.6f)left++;else if(hand>.6f)right++;else front++;
+                    float middle=Vector3.Dot(targets[1]-Net,Right),hitter=Vector3.Dot(_rally.Opponent.ReleasePosition-Net,Right);
+                    Assert.That(Mathf.Abs(middle-hitter),Is.GreaterThan(1.2f),"Their idle middle stands clear of the hitter.");
+                }
+                Assert.That(left,Is.EqualTo(10),"From the left once in every three (standing "+standing+" m right).");
+                Assert.That(right,Is.EqualTo(10),"From the right once in every three (standing "+standing+" m right).");
+            }
+        }
+
+        [Test]
+        public void OurSetterIsAlwaysOnThePlayersRight()
+        {
+            typeof(VolleyAerialSequence).GetMethod("CaptureHome",Private).Invoke(_rally,null);
+            for(int i=0;i<10;i++)
+            {
+                typeof(VolleyAerialSequence).GetMethod("StartFlowTurn",Private).Invoke(_rally,new object[]{VolleyAerialSequence.RallyTurn.Block});
+                typeof(VolleyAerialSequence).GetMethod("StartFlowTurn",Private).Invoke(_rally,new object[]{VolleyAerialSequence.RallyTurn.Spike});
+                Assert.That(Vector3.Dot(_rally.Ally.transform.position-Net,Right),Is.GreaterThan(.5f));
+            }
+        }
+
         [Test]
         public void TheBlockForearmsAreTheTutorialForearmWithItsSkeleton()
         {

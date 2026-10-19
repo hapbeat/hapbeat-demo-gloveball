@@ -566,7 +566,12 @@ namespace GloveBallDemo.Runtime
                     }
                 }
                 // The capsule only while the package's forearm is not drawn (no skeleton, or before the shared hands resolve).
-                if (_forearmVisual[side] != null) _forearmVisual[side].enabled = shown && (arm == null || !arm.ForearmShown);
+                bool joined = shown && arm != null && arm.ForearmShown;
+                if (_forearmVisual[side] != null) _forearmVisual[side].enabled = shown && !joined;
+                // The tracked hand stays opaque up to the joint where the forearm takes over (no translucent band at the wrist).
+                var hands = Hapbeat.DemoSwitch.DemoHands.Instance;
+                Vector2? fade = joined ? new Vector2(arm.HandFadeStart, arm.HandFadeLength) : (Vector2?)null;
+                if (hands != null && hands.WristFade(side) != fade) hands.SetWristFade(side, fade);
             }
         }
         [Tooltip("Left, right: the Energy Duel tutorial forearm (the shared package's DemoTutorialHand with the placeholder skeleton), set by the scene setup.")]

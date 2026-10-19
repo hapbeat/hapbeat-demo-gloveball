@@ -60,7 +60,9 @@ namespace GloveBallDemo.Tests
             var volley = Load("Assets/StreamingAssets/hapbeat-demo-session.json");
             Assert.That(volley.DemoId, Is.EqualTo("volley"));
             Assert.That(volley.SupportsHapticsToggle, Is.True);
-            Assert.That(volley.Options.Count, Is.EqualTo(3));
+            Assert.That(volley.Options.Count, Is.EqualTo(4));
+            Assert.That(volley.FindOption("tutorial").Default, Is.EqualTo("on"), "The tutorial first, as in Energy Duel.");
+            Assert.That(volley.FindOption("points").Default, Is.EqualTo("3"), "A demo: first to 3."); 
             Assert.That(volley.FindOption("points").WhenOptionId, Is.EqualTo("scene"));
             Assert.That(volley.FindOption("scene").Default, Is.EqualTo("block"), "Spike + Block turns are the default.");
             Assert.That(volley.FindOption("scene").Values.Count, Is.EqualTo(3));

@@ -30,7 +30,7 @@ namespace GloveBallDemo.Runtime
         [Min(.1f)] public float RallyResetSeconds=2f;
         [Header("Match")]
         [Tooltip("First side to this many points wins; the match then restarts automatically.")]
-        [Min(1)] public int MatchPoints=7;
+        [Min(1)] public int MatchPoints=3;
         [Min(1f)] public float MatchEndSeconds=5f;
         [Tooltip("Demo Session: keep the final score instead of restarting after MatchEndSeconds.")]
         public bool HoldAtMatchEnd;
@@ -58,8 +58,9 @@ namespace GloveBallDemo.Runtime
         [Min(.1f)] public float FlowGlideSeconds=.45f;
         float _dropSeconds=1f, _turnGlide=-1f;
         Vector3 _glideStart, _glideEnd;
-        float _allySide=1f;
         bool Flowing=>FlowRally && Mode==RallyMode.Alternate;
+        /// <summary>A dig carries the play on: the flowing rally, or the tutorial showing it.</summary>
+        bool DigFlows=>Flowing || ScriptedDefence==DefenceScript.DigStrongSpikes;
         [Tooltip("Set flight from the setter's hands to the spike contact point.")]
         [Min(.4f)] public float AllyFlightSeconds=1.4f;
         [Min(0f)] public float AllySetLateralSpread=.35f;
@@ -111,9 +112,7 @@ namespace GloveBallDemo.Runtime
         public float DefenderSpacing=2.8f;
         [Min(0f)] public float DefenderReactionSeconds=.3f;
         [Min(.1f)] public float DefenderSpeed=4.5f;
-        [Tooltip("Horizontal reach of a digging defender around its feet.")]
-        [Min(.1f)] public float DigReach=.8f;
-        [Tooltip("Height at which a defender plays the ball.")]
+        [Tooltip("Match engine and stations: height at which a defender plays the ball (the turn modes play it where the hands are).")]
         [Min(.2f)] public float DigHeight=.8f;
         [Tooltip("The middle defender covers short balls (tips, soft shots behind the block) from this depth; the others defend deep.")]
         [Min(1f)] public float CoverDepth=3.3f;
@@ -123,8 +122,7 @@ namespace GloveBallDemo.Runtime
         [Range(0f,1f)] public float DigHardChance=.3f;
         [Tooltip("The short cover only plays balls slower than this (m/s): a hard spike past the block is not its ball.")]
         [Min(1f)] public float CoverMaxSpeed=11f;
-        [Tooltip("A defender that cannot get there can still dive this much further (m), at this share of the dig chance.")]
-        [Min(0f)] public float DiveReach=.9f;
+        [Tooltip("A dive gets the ball at this share of the dig chance.")]
         [Range(0f,1f)] public float DiveChance=.45f;
         [Tooltip("Opponent setter feet in the block turn: x = court right, y = court forward (positive is the opponent side).")]
         public Vector2 OpponentSetterOffset=new Vector2(-1.4f,.4f);
@@ -156,8 +154,20 @@ namespace GloveBallDemo.Runtime
         [Range(0f,30f)] public float AttackBodyYaw=15f;
         [Tooltip("A player spike off their block keeps this share of its rebound speed.")]
         [Range(.1f,1f)] public float BlockerReboundScale=.5f;
-        [Tooltip("Their hitter's spot along the net moves this far either way every attack (m).")]
+        [Tooltip("Their hitting hand is this far left of the player, in front of it, or this far right (m), each once in every three attacks.")]
         [Min(0f)] public float AttackerShift=1.2f;
+        [Tooltip("...give or take this much (m).")]
+        [Min(0f)] public float AttackerLaneJitter=.25f;
+        int _laneBag;
+        /// <summary>-1 left, 0 in front, +1 right of the player: each once in every three attacks, in random order.</summary>
+        int NextAttackLane()
+        {
+            if(_laneBag==0)_laneBag=7;
+            int lane;
+            do lane=Random.Range(0,3);while((_laneBag & (1<<lane))==0);
+            _laneBag&=~(1<<lane);
+            return lane-1;
+        }
         [Tooltip("The shot leaves within this many degrees of the body direction.")]
         [Range(0f,20f)] public float AttackShotDeviation=5f;
         [Tooltip("Shots never go further to the side than this at the player's block: always reachable.")]
@@ -195,22 +205,22 @@ namespace GloveBallDemo.Runtime
         /// went into their court - a point, or dug by them.
         /// </summary>
         public event System.Action<bool,bool> TurnRepResolved;
+        /// <summary>Their defender dug the ball and the play goes on (flowing rally): the turn the player now has.</summary>
+        public event System.Action<RallyTurn> RallyContinued;
+        /// <summary>
+        /// The moments to act, for the tutorial's call-outs, with AUTO JUMP on or off: (spike, jump). Spike turn: jump = the
+        /// automatic jump's start, then not jump = the set reaching the top of the reach. Block turn: the jump's start.
+        /// </summary>
+        public event System.Action<bool,bool> ActMoment;
+        /// <summary>The tutorial's hold on their defence: as in play, never a dig, or every strong spike dug (the play goes on).</summary>
+        public enum DefenceScript { Natural, NeverDig, DigStrongSpikes }
+        [System.NonSerialized] public DefenceScript ScriptedDefence;
+        [Tooltip("A spike of at least this quality (mostly how high it was met) counts as strong.")]
+        [Range(0f,1f)] public float StrongSpikeQuality=.5f;
+        public bool LastSpikeStrong=>LastSpikeQuality>=StrongSpikeQuality;
+        bool _jumpMomentSent, _hitMomentSent, _blockMomentSent;
         public event System.Action<bool> MatchEnded;
         public bool PlayerTouched=>_playerTouched;
-        /// <summary>
-        /// SPIKE: where the player should look while the ball comes to our setter and is set (the ball, else the setter),
-        /// for the gaze arrow. False outside that part of the spike turn.
-        /// </summary>
-        public bool TryGetSpikeGaze(out Vector3 point)
-        {
-            point=default;
-            if(!RallyActive || MatchEngine)return false;
-            if(Phase!=RallyPhase.AllyReceive && !(Phase==RallyPhase.PlayerSpike && !_playerTouched))return false;
-            var ball=_preparedBall!=null ? _preparedBall : Drill!=null ? Drill.ActiveBall : null;
-            if(ball!=null && ball.gameObject.activeInHierarchy){point=ball.transform.position;return true;}
-            if(Ally!=null && Ally.gameObject.activeInHierarchy){point=Ally.transform.position+Vector3.up*1.8f;return true;}
-            return false;
-        }
         public bool BlockerTouched=>_blockerTouched;
         public bool AwaitingPlayerTouch=>CurrentPlayerTouch!=PlayerTouch.None && !_playerTouched;
         public int OutcomeSerial { get; private set; }
@@ -244,23 +254,8 @@ namespace GloveBallDemo.Runtime
         VolleyOpponentPrototype _followSetter;
         float _setterFollow=-1f, _sinceTouch;
         int _digger=-1, _digRolledFor=-1;
-        bool _digSuccess, _digMissShown, _netCrossLogged, _digDive, _crossedUnder;
-        float[] _diveClock;Vector3[] _diveAxis;
+        bool _digSuccess, _netCrossLogged, _crossedUnder;
         int CoverIndex=>Defenders!=null && Defenders.Length>=3 ? (Defenders.Length-1)/2 : -1;
-        /// <summary>A defender throws itself at the ball: it tips over toward it from its feet, stays down, gets up.</summary>
-        void StartDive(int index,Vector3 ball)
-        {
-            if(Defenders==null || index<0 || index>=Defenders.Length)return;
-            if(_diveClock==null || _diveClock.Length!=Defenders.Length){_diveClock=new float[Defenders.Length];_diveAxis=new Vector3[Defenders.Length];for(int i=0;i<_diveClock.Length;i++)_diveClock[i]=-1f;}
-            if(_diveClock[index]>=0f)return;
-            var toward=Vector3.ProjectOnPlane(ball-Defenders[index].transform.position,Vector3.up);
-            if(toward.sqrMagnitude<1e-4f)toward=-Forward;
-            _diveAxis[index]=Vector3.Cross(Vector3.up,toward.normalized);
-            _diveClock[index]=0f;
-        }
-        /// <summary>Tilt (degrees) of a diving defender at <paramref name="t"/> seconds: down in 0.2 s, 0.6 s on the floor, up in 0.4 s.</summary>
-        static float DiveAngle(float t)=>t<.2f ? 75f*t/.2f : t<.8f ? 75f : t<1.2f ? 75f*(1f-(t-.8f)/.4f) : 0f;
-        Vector3 _digTarget;
         Vector3[] _defenderHome=new Vector3[0];
         /// <summary>Defender index committed to the current ball, or -1.</summary>
         public int Digger=>_digger;
@@ -433,7 +428,8 @@ namespace GloveBallDemo.Runtime
         void PlaceAlly()
         {
             if(Ally==null)return;
-            Ally.transform.position=NetCentre+Right*(AllyNetOffset.x*_allySide)+Forward*AllyNetOffset.y;
+            // Always on the player's right: a short demo needs no reading of a set from the left or the right.
+            Ally.transform.position=NetCentre+Right*AllyNetOffset.x+Forward*AllyNetOffset.y;
             FaceAlly();
         }
         void FaceAlly()
@@ -566,10 +562,9 @@ namespace GloveBallDemo.Runtime
                 _opponentFollow=-1f;Act(Opponent,0f);
             }
             if(Ally!=null)Ally.gameObject.SetActive(spikeTurn);
-            // Our setter stands on the player's right or left, a different side now and then.
-            if(Flowing)_allySide=Random.value<.5f ? -1f : 1f;
             PlaceAlly();Act(Ally,0f);_followSetter=null;_setterFollow=-1f;
             var facing=Quaternion.LookRotation(-Forward,Vector3.up);
+            ResetDefenders();
             if(Defenders!=null)for(int i=0;i<Defenders.Length;i++)
             {
                 if(Defenders[i]==null)continue;
@@ -628,11 +623,27 @@ namespace GloveBallDemo.Runtime
             // Tell: the attacker squares up toward the shot from the start of the play.
             // The hitter attacks from a different spot along the net every time; its body still points at the shot
             // (toward the player's block, plus the random turn the player reads).
-            Opponent.transform.position=_opponentHome+Right*Random.Range(-AttackerShift,AttackerShift);
+            // Measured from where the player actually stands (not the court spot), left / in front / right of it, each once
+            // in every three attacks; the hitting hand stays inside the net's width.
+            var homeHand=Opponent.ReleasePositionAt(_opponentHome,_opponentHomeRotation);
+            float lane=NextAttackLane()*AttackerShift+Random.Range(-AttackerLaneJitter,AttackerLaneJitter);
+            float limit=Drill.ReceiveNet!=null ? Mathf.Max(.5f,Drill.ReceiveNet.bounds.extents.x-.6f) : CourtHalfWidth-.6f;
+            float handLateral=Mathf.Clamp(Vector3.Dot(GroundedEye-NetCentre,Right)+lane,-limit,limit);
+            Opponent.transform.position=_opponentHome+Right*(handLateral-Vector3.Dot(homeHand-NetCentre,Right));
             Opponent.transform.rotation=_opponentHomeRotation;
-            var hand=Opponent.ReleasePosition;var eye=GroundedEye+Forward*Drill.ContactForwardDistance;
-            var line=Vector3.ProjectOnPlane(eye-hand,Vector3.up);
-            float aim=line.sqrMagnitude>.01f ? Vector3.SignedAngle(-Forward,line,Vector3.up) : 0f;
+            // Their idle middle stands clear of the hitter (it hid an attack from the right).
+            if(Blockers!=null && Blockers.Length>1 && _blockerTargets.Length>1)
+                _blockerTargets[1]=NetCentre+Right*(handLateral+(handLateral>.3f ? -1f : 1f)*MiddleBlockerOffset)+Forward*BlockerNetDistance;
+            var eye=GroundedEye+Forward*Drill.ContactForwardDistance;
+            // Turning the body moves its hitting hand: aim again from where the hand ends up (a hitter well to the side
+            // turns a lot), so the shot along the body reaches the player's block.
+            float aim=0f;
+            for(int pass=0;pass<3;pass++)
+            {
+                Opponent.transform.rotation=_opponentHomeRotation*Quaternion.Euler(0f,aim,0f);
+                var line=Vector3.ProjectOnPlane(eye-Opponent.ReleasePosition,Vector3.up);
+                aim=line.sqrMagnitude>.01f ? Vector3.SignedAngle(-Forward,line,Vector3.up) : 0f;
+            }
             _attackYaw=aim+Random.Range(-AttackBodyYaw,AttackBodyYaw);
             Opponent.transform.rotation=_opponentHomeRotation*Quaternion.Euler(0f,_attackYaw,0f);
             var toward=Vector3.ProjectOnPlane(Opponent.ReleasePosition-setter.transform.position,Vector3.up);
@@ -725,7 +736,7 @@ namespace GloveBallDemo.Runtime
                 _blockerJumpAt[i]=AllyFlightSeconds+BlockerReactionSeconds+Random.Range(-BlockerTimingJitter,BlockerTimingJitter)
                     -VolleyOpponentPrototype.BlockPeakPhase*BlockerJumpSeconds;
             _blockerClock=0f;_followSetter=Ally;_setterFollow=0f;
-            _rallyTimer=0f;_spikeJumpIssued=false;
+            _rallyTimer=0f;_spikeJumpIssued=false;_jumpMomentSent=_hitMomentSent=false;
             BeginBallInPlay(start);
             Phase=RallyPhase.PlayerSpike;
             Cue=BeginnerBlock ? "AUTO JUMP — SPIKE PAST THE BLOCKERS" : "JUMP: RAISE BOTH HANDS — SPIKE PAST THE BLOCKERS";
@@ -737,6 +748,9 @@ namespace GloveBallDemo.Runtime
             _rallyTimer+=dt;
             if(BeginnerBlock && !_spikeJumpIssued && _rallyTimer>=SpikeJumpTime)
                 _spikeJumpIssued=Jump.TryStartAutomaticJump();
+            if(!_jumpMomentSent && _rallyTimer>=SpikeJumpTime){_jumpMomentSent=true;ActMoment?.Invoke(true,true);}
+            // A little ahead of the set's arrival at the top of the reach: a call-out takes a moment to act on.
+            if(!_hitMomentSent && _rallyTimer>=AllyFlightSeconds-.15f){_hitMomentSent=true;ActMoment?.Invoke(true,false);}
             TickApproach();
             TickLanding();
         }
@@ -754,7 +768,7 @@ namespace GloveBallDemo.Runtime
         {
             _lastBallPosition=start;_havePhysicsSample=false;
             _playerTouched=_blockerTouched=_handLostNear=_handReadyNear=false;
-            _digger=-1;_digRolledFor=-1;_digSuccess=false;_digMissShown=false;_netCrossLogged=false;_digDive=false;_crossedUnder=false;_sinceTouch=0f;
+            ResetDefencePlan();_netCrossLogged=false;_crossedUnder=false;_sinceTouch=0f;
         }
         /// <summary>
         /// Physics-rate landing check. A fast ball can bounce between two samples without ever being seen near the floor,
@@ -774,7 +788,8 @@ namespace GloveBallDemo.Runtime
                     && Mathf.Lerp(_previousBallPosition.y,position.y,.5f)<(Drill.ReceiveNet!=null ? Drill.ReceiveNet.bounds.max.y : 2.43f)-.05f)
                     _crossedUnder=true;
                 PlanDig(position,velocity,damping);
-                if(TryDig(position))return true;
+                StepDefence(step);
+                if(TryDig(position,velocity))return true;
             }
             if(DetectLanding(position,velocity,radius,step,out var landing)){_lastBallPosition=landing;Resolve(landing);}
             return false;
@@ -816,79 +831,9 @@ namespace GloveBallDemo.Runtime
         }
 
         /// <summary>
-        /// Predicts where the ball will come down to dig height in the opponent court and commits the defender who can get
-        /// there in time (reaction, then running). Re-run every physics step, so blocker deflections update the plan.
-        /// </summary>
-        void PlanDig(Vector3 position,Vector3 velocity,float damping)
-        {
-            _digger=-1;
-            if(Defenders==null || Defenders.Length==0)return;
-            float floor=Drill.CourtFrame.position.y;
-            var p=position;var v=velocity;float t=0f;const float dt=.02f;
-            bool reached=false;
-            for(int i=0;i<200;i++)
-            {
-                if(v.y<0f && p.y-floor<=DigHeight){reached=true;break;}
-                v+=Physics.gravity*dt;v*=Mathf.Clamp01(1f-damping*dt);p+=v*dt;t+=dt;
-            }
-            if(!reached)return;
-            float arriving=v.magnitude;
-            var local=p-NetCentre;
-            float depth=Vector3.Dot(local,Forward),side=Vector3.Dot(local,Right);
-            // Defend only balls coming down inside the opponent court; out balls are left alone.
-            if(depth<=0f || depth>CourtDepth || Mathf.Abs(side)>CourtHalfWidth)return;
-            float moving=t-Mathf.Max(0f,DefenderReactionSeconds-_sinceTouch);
-            float best=float.MaxValue;bool dive=false;
-            for(int i=0;i<Defenders.Length;i++)
-            {
-                if(Defenders[i]==null || !Defenders[i].gameObject.activeSelf)continue;
-                var offset=Vector3.ProjectOnPlane(p-Defenders[i].transform.position,Vector3.up);
-                // A hard ball the short cover would have to move for is not its ball; one straight at it, it plays.
-                if(i==CoverIndex && arriving>CoverMaxSpeed && offset.magnitude>DigReach+DiveReach)continue;
-                // Before it could react (a hard spike) it still plays a ball at its body, or dives for one just beside it.
-                float ready=Mathf.Max(0f,moving);
-                float need=Mathf.Max(0f,offset.magnitude-DigReach)/DefenderSpeed;
-                // Out of reach on foot: only a dive (the last metre, no time to step).
-                bool diving=need>ready && Mathf.Max(0f,offset.magnitude-DigReach-DiveReach)/DefenderSpeed<=ready;
-                if(need>ready && !diving)continue;
-                float cost=diving ? need+10f : need; // a defender who can get there on foot goes first
-                if(cost<best){best=cost;_digger=i;dive=diving;_digTarget=new Vector3(p.x,floor,p.z);}
-            }
-            _digDive=dive;
-            // One roll per defender and ball: a hard-driven ball is often shanked even when reached, a soft one rarely.
-            if(_digger>=0 && _digger!=_digRolledFor)
-            {
-                _digRolledFor=_digger;
-                _digSuccess=Random.value<Mathf.Lerp(DigEasyChance,DigHardChance,Mathf.InverseLerp(DigSpeedRange.x,DigSpeedRange.y,arriving))*(_digDive ? DiveChance : 1f);
-            }
-        }
-        bool TryDig(Vector3 position)
-        {
-            if(_digger<0)return false;
-            var defender=Defenders[_digger];
-            float height=position.y-Drill.CourtFrame.position.y;
-            if(height>DigHeight+.6f || height<.15f)return false;
-            float reach=Vector3.ProjectOnPlane(position-defender.transform.position,Vector3.up).magnitude;
-            if(reach>DigReach+(_digDive ? DiveReach : 0f))return false;
-            if(_digDive || reach>DigReach*.8f)StartDive(_digger,position);
-            if(!_digSuccess)
-            {
-                // Got there but could not control it: the dig motion, and the ball plays on to the floor.
-                if(!_digMissShown){_digMissShown=true;Act(defender,.8f);}
-                return false;
-            }
-            // Pop the ball up toward the opponent's own front court, as a real dig would.
-            DigVelocity=Vector3.up*5.5f-Forward*Mathf.Clamp(Vector3.Dot(position-NetCentre,Forward)*.35f,0f,2.5f);
-            Act(defender,1f);
-            PlaySpikeAudio(position);
-            if(Flowing){ContinueRally(position,!_digDive);return false;}
-            Award(false,Phase==RallyPhase.OpponentSpike ? "BLOCK DUG" : "DUG",position);
-            return true;
-        }
-        /// <summary>
         /// SPIKE + BLOCK, their defender dug the player's spike or block: no point, the play goes on from the dig. Dug
         /// comfortably, they set and attack - the player glides to the block spot and blocks. Dug diving, it only gets back
-        /// over - our setter (left or right) takes it and sets the player, who glides back to the spike stance.
+        /// over - our setter (on the right) takes it and sets the player, who glides back to the spike stance.
         /// </summary>
         void ContinueRally(Vector3 from,bool comfortable)
         {
@@ -907,6 +852,7 @@ namespace GloveBallDemo.Runtime
                 Phase=RallyPhase.AllyReceive;
                 Cue="SAVED, BUT ONLY BACK OVER — YOUR SETTER SETS YOU";
             }
+            RallyContinued?.Invoke(turn);
         }
         /// <summary>The turn changes inside the rally: no blank, the stance glides there behind the comfort vignette.</summary>
         void StartFlowTurn(RallyTurn turn)
@@ -926,7 +872,7 @@ namespace GloveBallDemo.Runtime
             if(Opponent!=null){Opponent.gameObject.SetActive(!spikeTurn);_opponentFollow=-1f;Act(Opponent,0f);}
             if(Ally!=null)
             {
-                if(spikeTurn && !Ally.gameObject.activeSelf){_allySide=Random.value<.5f ? -1f : 1f;PlaceAlly();}
+                if(spikeTurn && !Ally.gameObject.activeSelf)PlaceAlly();
                 Ally.gameObject.SetActive(spikeTurn);Act(Ally,0f);
             }
             _followSetter=null;_setterFollow=-1f;_digger=-1;
@@ -981,6 +927,7 @@ namespace GloveBallDemo.Runtime
             bool inBounds=Mathf.Abs(side)<=CourtHalfWidth+LineTolerance && Mathf.Abs(depth)<=CourtDepth+LineTolerance;
             bool opponentCourt=inBounds && depth>0f;
             if(_playerTouched && opponentCourt && _crossedUnder){Award(false,"UNDER THE NET",position);return;}
+            if(_defenceTouched){bool ours=inBounds && depth<=0f;Award(!ours,ours ? "DOWN ON YOUR SIDE" : "SHANKED!",position);return;}
             if(Phase==RallyPhase.OpponentSpike)
             {
                 if(!inBounds)Award(!_playerTouched,_playerTouched ? "BLOCK OUT" : "OUT",position);
@@ -1049,34 +996,6 @@ namespace GloveBallDemo.Runtime
                 if(blocker.Role!=VolleyOpponentPrototype.MotionRole.Block)continue; // the block-turn setter is posed by the set
                 float phase=_blockerActive[i] && _blockerClock>=0f ? Mathf.Clamp01((_blockerClock-_blockerJumpAt[i])/BlockerJumpSeconds) : 0f;
                 Act(blocker,phase>=1f ? 0f : phase);
-            }
-        }
-
-        /// <summary>The committed defender runs (after its reaction time) to the predicted dig point; the others drift home.</summary>
-        void TickDefenders(float dt)
-        {
-            if(Defenders==null)return;
-            for(int i=0;i<Defenders.Length;i++)
-            {
-                var defender=Defenders[i];
-                if(defender==null || !defender.gameObject.activeSelf)continue;
-                bool digging=i==_digger && (Phase==RallyPhase.OpponentSpike || Phase==RallyPhase.PlayerSpike);
-                var target=digging ? _digTarget : _defenderHome[i];
-                if(!digging || _sinceTouch>=DefenderReactionSeconds)
-                    defender.transform.position=Vector3.MoveTowards(defender.transform.position,target,DefenderSpeed*dt);
-                if(digging)
-                {
-                    float distance=Vector3.ProjectOnPlane(target-defender.transform.position,Vector3.up).magnitude;
-                    Act(defender,Mathf.Clamp01(1.2f-distance/2f));
-                }
-                else if(defender.PreviewPhase>0f)Act(defender,Mathf.MoveTowards(defender.PreviewPhase,0f,dt*2f));
-                if(_diveClock!=null && i<_diveClock.Length && _diveClock[i]>=0f)
-                {
-                    _diveClock[i]+=dt;
-                    float angle=DiveAngle(_diveClock[i]);
-                    defender.transform.rotation=Quaternion.AngleAxis(angle,_diveAxis[i])*Quaternion.LookRotation(-Forward,Vector3.up);
-                    if(_diveClock[i]>=1.2f){_diveClock[i]=-1f;defender.transform.rotation=Quaternion.LookRotation(-Forward,Vector3.up);}
-                }
             }
         }
 
@@ -1294,13 +1213,14 @@ namespace GloveBallDemo.Runtime
             if(dt<=0f)return false;
             if(_windup<0)
             {
-                _windup=0;_follow=-1;_sinceRelease=-1;_autoJumpIssued=false;
+                _windup=0;_follow=-1;_sinceRelease=-1;_autoJumpIssued=false;_blockMomentSent=false;
                 float lead=AutoJumpLeadSeconds+Random.Range(-AutoJumpTimingJitter,AutoJumpTimingJitter);
                 _autoJumpAt=Mathf.Max(0,WindupSeconds-Mathf.Clamp(lead,0,Jump.Duration*.75f));
             }
             _windup+=dt;
             if(BeginnerBlock && !_autoJumpIssued && _windup>=_autoJumpAt)
                 _autoJumpIssued=Jump.TryStartAutomaticJump();
+            if(!_blockMomentSent && _windup>=_autoJumpAt){_blockMomentSent=true;ActMoment?.Invoke(false,true);}
             if(_preparedBall!=null)
             {
                 var position=TossPosition(_tossStart,_tossEnd,_windup,WindupSeconds);

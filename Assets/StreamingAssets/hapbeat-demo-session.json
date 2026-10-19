@@ -11,6 +11,30 @@
   },
   "options": [
     {
+      "id": "tutorial",
+      "label": {
+        "ja": "チュートリアル",
+        "en": "Tutorial"
+      },
+      "default": "on",
+      "values": [
+        {
+          "value": "on",
+          "label": {
+            "ja": "あり",
+            "en": "On"
+          }
+        },
+        {
+          "value": "off",
+          "label": {
+            "ja": "なし",
+            "en": "Off"
+          }
+        }
+      ]
+    },
+    {
       "id": "scene",
       "label": {
         "ja": "モード",
@@ -47,7 +71,7 @@
         "ja": "点数",
         "en": "Points"
       },
-      "default": "7",
+      "default": "3",
       "when": {
         "scene": [
           "block",

@@ -52,7 +52,7 @@ namespace GloveBallDemo.Runtime
         /// <summary>Yaw right of the head's heading for this menu beside the shared pause panel (0.55 m ahead, about 0.44 m wide).</summary>
         public const float BesidePauseYaw=48f;
         /// <summary>Settings on the left (rows 0..6), the five ways to play on the right: picking one starts it at once.</summary>
-        public const int AutoJumpRow=6, FirstModeRow=7, TutorialSpikeBlockRow=12, TutorialReceiveRow=13, RowCount=14;
+        public const int AutoJumpRow=6, FirstModeRow=7, TutorialReceiveRow=12, TutorialSpikeBlockRow=13, RowCount=14;
         public static readonly VolleyAerialSequence.RallyMode[] MenuModes={VolleyAerialSequence.RallyMode.Pass,VolleyAerialSequence.RallyMode.Set,
             VolleyAerialSequence.RallyMode.SpikeOnly,VolleyAerialSequence.RallyMode.BlockOnly,VolleyAerialSequence.RallyMode.Alternate};
         static readonly string[] MenuModeNames={"RECEIVE\npass high to a front-row player","TOSS\nset the ball to a hitter","SPIKE","BLOCK","SPIKE + BLOCK\ntake turns"};
@@ -282,7 +282,8 @@ namespace GloveBallDemo.Runtime
             var names=new List<string>{"RESUME",$"HANDS ONLY: {(Drill.Left.InputMode==VolleyInputMode.HandsOnly?"ON":"OFF")}",$"STAND UPRIGHT: SET EYE {Floor.StandingEyeHeight:F2} m","USE RUNTIME FLOOR","RESTART","REPOSITION TO START",
                 Drill.Aerial==null ? "AUTO JUMP: (SPIKE / BLOCK)" : Drill.Aerial.BeginnerBlock ? "AUTO JUMP: ON" : "AUTO JUMP: OFF (RAISE HANDS TO JUMP)"};
             for(int i=0;i<MenuModeNames.Length;i++)names.Add((IsCurrent(FirstModeRow+i) ? "NOW: " : "")+MenuModeNames[i]);
-            names.Add("TUTORIAL\nspike + block");names.Add("TUTORIAL\nreceive");
+            // In the order of the modes above: RECEIVE first, then SPIKE + BLOCK.
+            names.Add("TUTORIAL: RECEIVE\nlearn to pass to the setter");names.Add("TUTORIAL: SPIKE + BLOCK\nlearn to spike and block");
             for(int i=0;i<names.Count;i++)_labels[i].text=names[i];
         }
         void ResetAutomaticAttempt(){if(Drill.Aerial!=null && Drill.Aerial.BeginnerBlock)Drill.Aerial.SetBeginnerBlock(true);}

@@ -34,7 +34,8 @@ namespace GloveBallDemo.Runtime
     /// <summary>
     /// Volley Demo Session adapter. `scene` picks the Block scene or Receive once per process: `block` plays
     /// the spike / block turns (Alternate) and `match` the 6 v 6 match, both to `points`, holding the final
-    /// score; `receive` serves `balls` balls (hit or missed).
+    /// score; `receive` serves `balls` balls (hit or missed). `tutorial` off skips the tutorial the app otherwise
+    /// starts with (<see cref="VolleyTutorial.StartOnLaunch"/>); a retry never runs it.
     /// 視線をリセット (button and CONTROL `recenter`) is the menu's REPOSITION TO START.
     /// The shared pause (Volley APK) pauses through <see cref="SetGameplayPaused"/> and restarts through
     /// <see cref="Restart"/>; <see cref="VolleyHandMenu"/> opens beside its panel.
@@ -69,6 +70,7 @@ namespace GloveBallDemo.Runtime
         {
             if (_drill == null) _drill = GetComponent<VolleyDrillController>();
             options.TryGetValue("scene", out var scene);
+            if (options.TryGetValue("tutorial", out var tutorial) && tutorial == "off") VolleyTutorial.SkipLaunchTutorial();
             var target = scene == "receive" ? ReceiveScene : BlockScene;
             var mode = scene == "match" ? VolleyAerialSequence.RallyMode.Match : VolleyAerialSequence.RallyMode.Alternate;
             if (!_sceneOptionApplied)

@@ -205,7 +205,7 @@ namespace GloveBallDemo.Tests
         [Test]
         public void AttackerBodyTurnTellsTheShotDirectionAndShotsStayReachable()
         {
-            _rally.Mode=Mode.BlockOnly;_rally.AttackShotDeviation=0f;
+            _rally.Mode=Mode.BlockOnly;_rally.AttackShotDeviation=0f;_rally.MatchPoints=99; // six attacks, no match end
             var home=_rally.Opponent.transform.rotation;
             for(int i=0;i<6;i++)
             {
@@ -261,6 +261,10 @@ namespace GloveBallDemo.Tests
             RunUntil(()=>_rally.Phase==Phase.AllyReceive,6f,"next spike");
 
             LaunchLive();_rally.RegisterPlayerTouch();
+            // Their short cover on the other side, the deep ones on their spots.
+            var defenders=_rally.Defenders;
+            for(int i=0;i<defenders.Length;i++)
+                defenders[i].transform.position=i==(defenders.Length-1)/2 ? net+new Vector3(2.4f,-net.y,3.3f) : net+new Vector3((i-(defenders.Length-1)*.5f)*2.8f,-net.y,6f);
             // Hard, steep spike into the gap in front of the defenders: ~0.3 s flight, nobody can get there.
             Fly(net+new Vector3(-1.4f,3.2f,-.3f),new Vector3(0f,-9f,13f));
             Assert.That(_rally.Outcome,Is.EqualTo("POINT!"));Assert.That(_rally.PlayerScore,Is.EqualTo(1));

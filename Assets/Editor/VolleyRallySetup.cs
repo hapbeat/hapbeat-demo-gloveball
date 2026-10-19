@@ -105,7 +105,7 @@ public static class VolleyRallySetup
         aerial.RallyResetSeconds=2f;         // landing ball and marker stay visible
         aerial.SpikeJumpHeight=1.5f;aerial.SpikeJumpSeconds=1.4f;   // more hang time to strike down
         aerial.BlockJumpHeight=.85f;aerial.BlockJumpSeconds=1f;
-        aerial.MatchPoints=7;
+        aerial.MatchPoints=3; // a demo: first to 3 (the session's points option may change it)
         aerial.MinBlockers=aerial.MaxBlockers=3;
         aerial.HeightSpread=.15f;aerial.BlockReachAboveEye=.45f;aerial.BlockSpeed=10.5f; // readable from the body turn, always reachable
         aerial.BlockerJumpSeconds=1.3f;aerial.BlockerReactionSeconds=.05f;aerial.BlockerTimingJitter=.05f;
@@ -151,17 +151,26 @@ public static class VolleyRallySetup
             var arm=armTransform.GetComponent<Hapbeat.DemoSwitch.DemoTutorialHand>();
             if(arm==null)arm=armTransform.gameObject.AddComponent<Hapbeat.DemoSwitch.DemoTutorialHand>();
             arm.Left=side==0;arm.ShowForearm=true;arm.Scale=1f;
+            // Meta's hand mesh measured at its wrist cuff (Energy Duel's setup, DemoTutorialHandCuff.Measure x 1.05): the forearm
+            // meets the tracked hand, which stays opaque up to the joint while it is shown (DemoHands.SetWristFade).
+            arm.ForearmWristRadii=arm.ForearmCuffRadii=new Vector2(.02734f,.01987f);
+            arm.HandFadeStart=.002f;arm.HandFadeLength=.008f;arm.SkinUv=new Vector2(.0757f,.5025f);
             arm.PlaceholderSkeleton=AssetDatabase.LoadAssetAtPath<GameObject>(side==0 ? LeftPlaceholderPath : RightPlaceholderPath);
             if(arm.PlaceholderSkeleton==null)throw new InvalidOperationException("Placeholder hand prefab missing for the block forearm.");
             armTransform.gameObject.SetActive(false);
             drill.BlockArms[side]=arm;
             EditorUtility.SetDirty(arm);
         }
-        aerial.AttackerShift=1.2f;
+        // Their hitter left of / in front of / right of the player in turn; their setter far enough left to stay clear of a
+        // hitter on the left, and their idle middle on the other side of the hitter.
+        aerial.AttackerShift=1.2f;aerial.AttackerLaneJitter=.25f;aerial.OpponentSetterOffset=new Vector2(-2.2f,.4f);aerial.MiddleBlockerOffset=1.6f;
         // Their attack within reach of a block made standing still: narrower.
         aerial.AttackBodyYaw=7f;aerial.BlockLateralLimit=.3f;
         aerial.BlockerReboundScale=.5f;aerial.FlowRally=true;aerial.FlowGlideSeconds=.45f;
-        aerial.CoverMaxSpeed=11f;aerial.DiveReach=.9f;aerial.DiveChance=.45f;
+        aerial.CoverMaxSpeed=11f;aerial.DiveChance=.45f;
+        // Their defence plays the ball where its hands are: a platform within arm's reach (even a hard ball at the body), a
+        // dive with stretched arms after a short lunge; a dive that will not get it falls visibly short.
+        aerial.ArmReach=.45f;aerial.DiveSlide=.5f;aerial.DiveFallSeconds=.3f;aerial.DiveMaxTilt=65f;aerial.DiveMissShort=.55f;aerial.HandContactRadius=.3f;
         // Their defence: two deep, one covering short balls; hard-driven balls are often shanked, soft ones rarely.
         aerial.DefenderDepth=6.5f;aerial.CoverDepth=3.3f;
         aerial.DigSpeedRange=new Vector2(8f,20f);aerial.DigEasyChance=.95f;aerial.DigHardChance=.3f;

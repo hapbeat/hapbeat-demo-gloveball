@@ -266,6 +266,31 @@ namespace GloveBallDemo.Runtime
             PoseSymmetric(key,12f*Mathf.Clamp01(phase),-key.Body*1.1f);
             if (Status != null) Status.text = "DIG";
         }
+        static readonly Key[] DiveKeys={
+            DigKeys[0],                                                                   // back-row ready
+            new Key(1f,0f,new Vector3(.17f,1.36f,.29f),new Vector3(.06f,1.2f,.52f))};    // body straight, both arms stretched ahead, hands joined
+        /// <summary>
+        /// Dive: 0 = ready .. 1 = body straight with both arms stretched out ahead and the hands joined. The fall itself is the
+        /// caller's: it tips the whole actor forward about its feet, so the stretched arms reach toward the ball.
+        /// </summary>
+        public void PoseDive(float reach)
+        {
+            PreviewPhase=0f;
+            var key=Sample(DiveKeys,Mathf.Clamp01(reach));
+            PoseSymmetric(key,0f,0f);
+            if (Status != null) Status.text = "DIVE";
+        }
+        /// <summary>Midpoint of the hands (actor space, unscaled) in the dig pose at <paramref name="phase"/>: the platform.</summary>
+        public static Vector3 DigHands(float phase)
+        {
+            var key=Sample(DigKeys,Mathf.Clamp01(phase));
+            return new Vector3(0f,key.Hand.y+key.Body,key.Hand.z);
+        }
+        /// <summary>Midpoint of the hands (actor space, unscaled) at the end of a dive's reach, before the fall tips the actor.</summary>
+        public static Vector3 DiveHands=>new Vector3(0f,DiveKeys[1].Hand.y+DiveKeys[1].Body,DiveKeys[1].Hand.z);
+        /// <summary>World midpoint of the visible hands, where a dig meets the ball.</summary>
+        public Vector3 HandsCentre=>LeftHandModel!=null && RightHandModel!=null ? (LeftHandModel.position+RightHandModel.position)*.5f
+            : transform.TransformPoint(DigHands(PreviewPhase));
 
         /// <summary>Normalised phase where a blocker's hands are highest.</summary>
         public const float BlockPeakPhase=.585f;

@@ -1,54 +1,90 @@
 {
- "ok": {
+ "hit_cue": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "c2bb6cf3a0b1d6b408b81be95041680e4a591ea9afec0aff07bc3b593b06783b"
+  "synth": "52e8b91c0253331e69f476d792d4a3f7d8158797b847d6488d138bb349586a98"
+ },
+ "jump_cue": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "69164f2d79d3dffac60afb528584f35d6ab66978a771e89ed43f74e642064c62"
+ },
+ "rc_bad": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "a63456516b32e3d85ca38b64ce01e572d7144c75a46ab3e68ab28069bdef371d"
  },
  "rc_end": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "d8e1abcc066faa41c9d826855cc713de9cbfed93c9b7b8e1c19d0afc6271e491"
+  "synth": "fd6600e1aed9aa5ff82bf0f9d1bf284fe7597f08e413ed99169447fd37c911d8"
  },
- "rc_intro": {
+ "rc_excellent": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "6ebcc2f73a9781dce5f3d95606e275c31632248bf0949a1052dcacc5dbe1c298"
+  "synth": "fbdeca4cba4511368fe8e5313bcf2bae9955fe0fdc79af9737066cc64ce44a2b"
+ },
+ "rc_good": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "8cf5917e41be6a4e79a0e0f3e2736ddb4ee715025241d9acb775a87eca5bf546"
+ },
+ "rc_lost": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "df1a6c807e8ad566187f26662dfda7744542e70bc7cb7986245826d449b25927"
  },
  "rc_pass": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "56751dbc2fbaab68cbf42b339f5a432ec263b969e157e0ce9b86fd4672e1923c"
+  "synth": "d748698fa3c07a89856e4dc19ca2a965b6ece7ee0364308ca30c685803fc5beb"
  },
- "rc_pass_hint": {
+ "rc_try_excellent": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "4a996fa4836be2193ee94df0b15c18529b36de98b2d93835ce04396475311544"
+  "synth": "d03eae5218518b14279abeb6180542abd9944c478e66b5f96fff00818871c78c"
+ },
+ "rc_try_good": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "35cb14e41633d7593114de83a3acb25858e58cb2f9345477b83770021571690c"
  },
  "sb_block": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "94aa25b44944e98ba72cd1ce451a67571dcf27de024271f289d1ca96fac1685d"
+  "synth": "4ecc4c59216fb0b9c88a69ff407fb616433092f8b41e1bc0537290f15b1baa5d"
  },
  "sb_block_hint": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "bd0a67697d675b69da0ce3cf0ce1ceddb32c8a28c84be0f5c6186a96fdcd322d"
+  "synth": "eec89de631bb3b45da8a719214e54a2a30143e724d5161945cbea54514e46beb"
+ },
+ "sb_block_plain": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "9501f1bf61e2c0215166da2331f25d0bb3032c6d7a00226bdc08be5e53e831b8"
  },
  "sb_end": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "675314bdf6b09a7cea9832fdf0167d7787daed970025fd461e3c64a0f9452388"
- },
- "sb_intro": {
-  "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "d1d64d653f8264415b20216746ad541d42e18bb36c31b7274af3e8b745d5733a"
+  "synth": "dcf9b474ea6142c4045629c29f141ed7e001e2a5ba2e97b9255df5ada55ab1f0"
  },
  "sb_jump": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "e8c37a23540f637ecb50ac16844e5e9e58a57a2b8b139bd07bf295cd76527659"
+  "synth": "976f5dad0b076d1daaeb272fabecd9c13293b5f9c7ecb4fd28064f7c7f6a6901"
+ },
+ "sb_nice": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "dcdd7bbe041fc529d2ef51400e56da34e6ae25bac2867150eb3b88f947a3bb80"
+ },
+ "sb_nice_block": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "9954742a2ed7d7362411bf627968772ba5b4474ed18fb6631e13afcb22024876"
  },
  "sb_spike": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "e7a2d203b8128a1820cc81278d8e91e6a2762c8e6ed16597f931303a99cadc18"
+  "synth": "bb593b516cac14b7c72828c605ddb60b13b7ba081570f7590eab12aa9e4fc5b8"
  },
  "sb_spike_auto": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "39503fae861e8abae5ecb6ef0ed33a81b1390a3cad13e7b7311a55ee0c9c41bd"
+  "synth": "62acdec2b2a5a67d8e2a334317a7032e3b5074f12f4b85c6c0c13736a1c26843"
  },
  "sb_spike_hint": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "a6ddb8b23c2874d64766a28d63104ace5c28e1297567aaab4952726c913f67a4"
+  "synth": "e8c0cffea6aa75e31fb2a799263e3b3530a115205c10d92b0cb8dc21188190b4"
+ },
+ "sb_spike_low": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "a23b6fea6c905f18e713d2da66345135a4b18e4a76337745fc1d4c25c630f99a"
+ },
+ "sb_spike_low_auto": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "c6ae9a641bd99c62fdd665ad036af27b2d87d46f8003f08ac57e8324a5bbe17b"
  }
 }
