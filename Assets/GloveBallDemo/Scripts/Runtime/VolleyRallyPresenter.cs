@@ -19,11 +19,6 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Comfort vignette: clear field half-angle (deg) and the width of its soft edge (deg).")]
         [Range(10f,60f)] public float VignetteClearDegrees=24f;
         [Range(1f,30f)] public float VignetteEdgeDegrees=10f;
-        [Header("Match ambience")]
-        [Tooltip("A volleyball match's hall sound under the play (looped, 2D). Empty: none.")]
-        public AudioClip Ambience;
-        [Tooltip("Quiet enough that voices and the ball's sounds are never buried.")]
-        [Range(0f,1f)] public float AmbienceVolume=.3f;
         [Header("Tips after a rep that did not go well")]
         [Min(.5f)] public float TipSeconds=2.8f;
         static readonly Color SpikeColour=new Color(.1f,.35f,.9f,.88f);
@@ -34,7 +29,7 @@ namespace GloveBallDemo.Runtime
         Text _grade;
         Texture2D _triangleTexture;
         Text _tip; float _tipAge=-1f;
-        AudioSource _ambience;
+        AudioSource _music;
         Transform _setterLabel;
         float _gradeAge=-1f;
         int _gradeSerial;
@@ -51,7 +46,7 @@ namespace GloveBallDemo.Runtime
         {
             if(Rally==null)Rally=GetComponent<VolleyAerialSequence>();
             _font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            BuildFade();BuildVignette();BuildGrade();BuildTip();BuildSetterLabel();BuildBanner();BuildMarker();BuildAmbience();
+            BuildFade();BuildVignette();BuildGrade();BuildTip();BuildSetterLabel();BuildBanner();BuildMarker();BuildMusic();
             _gradeSerial=Rally.GradeSerial;
             _audio=gameObject.AddComponent<AudioSource>();_audio.playOnAwake=false;_audio.spatialBlend=0f;
             _spikeChime=Chime("Spike turn chime",new[]{523.25f,659.25f,783.99f},.14f);
@@ -158,13 +153,13 @@ namespace GloveBallDemo.Runtime
             if(tip==null || _tip==null)return;
             _tip.text=tip;_tipAge=0f;
         }
-        /// <summary>The match's hall sound, looped quietly (the shared pause holds it with all audio).</summary>
-        void BuildAmbience()
+        /// <summary>The rally's background music, looped quietly (the shared pause holds it with all audio).</summary>
+        void BuildMusic()
         {
-            if(Ambience==null)return;
-            _ambience=gameObject.AddComponent<AudioSource>();
-            _ambience.clip=Ambience;_ambience.loop=true;_ambience.spatialBlend=0f;_ambience.volume=AmbienceVolume;_ambience.playOnAwake=false;
-            if(Application.isPlaying)_ambience.Play();
+            if(Rally.Music==null)return;
+            _music=gameObject.AddComponent<AudioSource>();
+            _music.clip=Rally.Music;_music.loop=true;_music.spatialBlend=0f;_music.volume=Rally.MusicVolume;_music.playOnAwake=false;
+            if(Application.isPlaying)_music.Play();
         }
         /// <summary>A white triangle pointing to +x (the setter label's arrow, turned down).</summary>
         Sprite Triangle()
@@ -301,7 +296,7 @@ namespace GloveBallDemo.Runtime
                 if(_tipAge>=0f){_tipAge+=Time.deltaTime;if(_tipAge>TipSeconds)_tipAge=-1f;}
                 _tip.enabled=_tipAge>=0f && !GameInputGate.IsBlocked;
             }
-            if(_ambience!=null)_ambience.volume=AmbienceVolume;
+            if(_music!=null)_music.volume=Rally.MusicVolume;
             if(Rally.OutcomeSerial!=_outcomeSerial){_outcomeSerial=Rally.OutcomeSerial;_outcomeAge=0f;}
             float dt=Time.deltaTime;
             if(_outcomeAge>=0f){_outcomeAge+=dt;if(_outcomeAge>OutcomeSeconds)_outcomeAge=-1f;}

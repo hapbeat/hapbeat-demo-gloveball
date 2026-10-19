@@ -1,0 +1,10 @@
+[
+  {
+    "file": "energetic_bigbeat_drum_loop.wav",
+    "title": "Energetic Bigbeat Drum Loop",
+    "author": "AlexProst",
+    "source": "https://freesound.org/people/AlexProst/sounds/382251/",
+    "license": "CC0 1.0 (public domain dedication)",
+    "processing": "Freesound HQ preview (MP3 128 kbps) decoded to PCM16 44.1 kHz stereo, cut to the original 7.500 s loop, normalized to -20 LUFS (hapbeat-demos/tools/tts/loudness.py)"
+  }
+]

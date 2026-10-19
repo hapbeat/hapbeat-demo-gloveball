@@ -306,6 +306,14 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
+        public void QuietBackgroundMusicLoopsUnderThePlay()
+        {
+            Assert.That(_rally.Music,Is.Not.Null,"A CC0 drum loop (Audio/Music/sources.json).");
+            Assert.That(_rally.Music.length,Is.EqualTo(7.5f).Within(.01f),"Cut to the loop's own length: no gap when it repeats.");
+            Assert.That(_rally.MusicVolume,Is.InRange(.1f,.35f),"Under the voice and the ball's sounds.");
+        }
+
+        [Test]
         public void TheBlockForearmsAreTheTutorialForearmWithItsSkeleton()
         {
             Assert.That(_drill.BlockArms.Length,Is.EqualTo(2));
