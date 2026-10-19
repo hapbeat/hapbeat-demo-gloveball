@@ -9,7 +9,19 @@
  },
  "rc_end": {
   "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "4a242b36cb25e89a4d6fb165c67cb87d605908a9512fa8d285416d5afc2b1a4d"
+ },
+ "rc_end_3": {
+  "norm": "loudnorm I=-20 TP=-1.5",
   "synth": "fd6600e1aed9aa5ff82bf0f9d1bf284fe7597f08e413ed99169447fd37c911d8"
+ },
+ "rc_end_5": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "709cb1af7944381df281fdefc5097b8997e38f7997f11972eae9b35434017f9d"
+ },
+ "rc_end_7": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "18bf91c6d9b4bd24692828c2a6c688f1de592c796b05ee5c1aa6cccb2048ba75"
  },
  "rc_excellent": {
   "norm": "loudnorm I=-20 TP=-1.5",
@@ -37,19 +49,27 @@
  },
  "sb_block": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "4ecc4c59216fb0b9c88a69ff407fb616433092f8b41e1bc0537290f15b1baa5d"
+  "synth": "9501f1bf61e2c0215166da2331f25d0bb3032c6d7a00226bdc08be5e53e831b8"
  },
  "sb_block_hint": {
   "norm": "loudnorm I=-20 TP=-1.5",
   "synth": "eec89de631bb3b45da8a719214e54a2a30143e724d5161945cbea54514e46beb"
  },
- "sb_block_plain": {
-  "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "9501f1bf61e2c0215166da2331f25d0bb3032c6d7a00226bdc08be5e53e831b8"
- },
  "sb_end": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "dcf9b474ea6142c4045629c29f141ed7e001e2a5ba2e97b9255df5ada55ab1f0"
+  "synth": "aac9a7b822fc800ae54947b9414d2bcb0903f6f91cfea03ac2d8b03395f3b068"
+ },
+ "sb_end_3": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "44193b3428e6ebe1e7c3df74a6142550b543933387104c0dafd371e5e21fa1cf"
+ },
+ "sb_end_5": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "8c6e478d9756cf335a1945af091add43ad7913cca857ed84c0f7fe7ee64db472"
+ },
+ "sb_end_7": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "e542876d03942822f87fc3ceb4d06448218f836510e9aac9ea3e79c370f49835"
  },
  "sb_jump": {
   "norm": "loudnorm I=-20 TP=-1.5",

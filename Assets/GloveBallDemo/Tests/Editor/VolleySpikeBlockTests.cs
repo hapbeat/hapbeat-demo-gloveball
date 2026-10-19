@@ -158,40 +158,6 @@ namespace GloveBallDemo.Tests
             return closest;
         }
 
-        [TestCase(-13f,-12f)]
-        [TestCase(-13f,12f)]
-        [TestCase(-17f,0f)]
-        [TestCase(-21f,-12f)]
-        [TestCase(-21f,12f)]
-        public void TheTutorialsScriptedDigGetsAHardSpike(float pitch,float yaw)
-        {
-            // A hard spike (17 m/s) moves farther in one physics step than the hands' contact radius: still met by the platform.
-            var type=typeof(VolleyAerialSequence);
-            typeof(BallPool).GetMethod("Awake",Private).Invoke(_drill.Pool,null);
-            type.GetMethod("CaptureHome",Private).Invoke(_rally,null);
-            _rally.SetMode(VolleyAerialSequence.RallyMode.SpikeOnly);
-            var homes=(Vector3[])type.GetField("_defenderHome",Private).GetValue(_rally);
-            for(int i=0;i<_rally.Defenders.Length;i++)
-            {
-                _rally.Defenders[i].gameObject.SetActive(true);
-                _rally.Defenders[i].transform.SetPositionAndRotation(homes[i],Quaternion.LookRotation(-Forward,Vector3.up));
-            }
-            _rally.ScriptedDefence=VolleyAerialSequence.DefenceScript.DigStrongSpikes;
-            type.GetProperty("LastSpikeQuality").SetValue(_rally,1f);
-            type.GetProperty("Phase").SetValue(_rally,VolleyAerialSequence.RallyPhase.PlayerSpike);
-            var position=Net-Forward*.5f+Vector3.up*3.3f;
-            type.GetMethod("BeginBallInPlay",Private).Invoke(_rally,new object[]{position});
-            type.GetField("_playerTouched",Private).SetValue(_rally,true);
-            bool continued=false;_rally.RallyContinued+=_=>continued=true;
-            var velocity=Quaternion.AngleAxis(yaw,Vector3.up)*Quaternion.AngleAxis(-pitch,Right)*Forward*17f;
-            for(int i=0;i<300 && _rally.Phase==VolleyAerialSequence.RallyPhase.PlayerSpike && !continued;i++)
-            {
-                _rally.SampleBall(position,velocity,.11f,.02f);
-                velocity+=Physics.gravity*.02f;position+=velocity*.02f;
-            }
-            Assert.That(continued,Is.True,"Dug, and the play goes on (not "+_rally.Outcome+").");
-        }
-
         [Test]
         public void ADiveThatGetsTheBallEndsWithItsHandsOnIt()
         {

@@ -175,15 +175,20 @@ namespace GloveBallDemo.Runtime
             SetCounter(Count + " / " + SpikesRequired);
         }
 
-        /// <summary>
-        /// The block goals. From their dig the play goes on as it is (their attack comes now); BLOCK itself starts once the
-        /// current rep has ended (never switched inside a rep).
-        /// </summary>
-        void StartBlocks(bool fromDig)
+        /// <summary>The block goals. BLOCK itself starts once the current rep has ended (never switched inside a rep).</summary>
+        void StartBlocks()
         {
-            Practice(fromDig ? "sb_block" : "sb_block_plain", DemoMove.Block, VolleyAerialSequence.RallyMode.BlockOnly, VolleyAerialSequence.DefenceScript.NeverDig, true);
+            Practice("sb_block", DemoMove.Block, VolleyAerialSequence.RallyMode.BlockOnly, VolleyAerialSequence.DefenceScript.NeverDig, true);
             _pendingMode = VolleyAerialSequence.RallyMode.BlockOnly;
             SetCounter(Count + " / " + BlocksRequired);
+        }
+
+        /// <summary>The match's announcement with its points (3, 5 or 7; otherwise without the number).</summary>
+        string EndLine(string id)
+        {
+            string withPoints = id + "_" + _savedMatchPoints;
+            foreach (var line in VolleyTutorialText.Lines) if (line.Id == withPoints) return withPoints;
+            return id;
         }
 
         /// <summary>The goals are met: the last words (after an explanation still being spoken), and the match once the rep ends.</summary>
@@ -198,8 +203,8 @@ namespace GloveBallDemo.Runtime
         {
             if (Aerial == null || on == _subscribed) return;
             _subscribed = on;
-            if (on) { Aerial.TurnRepResolved += OnRep; Aerial.PointScored += OnPoint; Aerial.RallyContinued += OnContinued; Aerial.JumpCall += OnJumpCall; }
-            else { Aerial.TurnRepResolved -= OnRep; Aerial.PointScored -= OnPoint; Aerial.RallyContinued -= OnContinued; Aerial.JumpCall -= OnJumpCall; }
+            if (on) { Aerial.TurnRepResolved += OnRep; Aerial.PointScored += OnPoint; Aerial.JumpCall += OnJumpCall; }
+            else { Aerial.TurnRepResolved -= OnRep; Aerial.PointScored -= OnPoint; Aerial.JumpCall -= OnJumpCall; }
         }
 
         // ------------------------------------------------------------ events
@@ -213,15 +218,8 @@ namespace GloveBallDemo.Runtime
                 if (!strong) { Hint(TimingHint() ?? (success ? (AutoJump ? "sb_spike_low_auto" : "sb_spike_low") : "sb_spike_hint")); return; }
                 Count++;
                 SetCounter(Count + " / " + SpikesRequired);
-                if (Count < SpikesRequired)
-                {
-                    // The next strong spike is dug by their defence: the play goes on into their attack (OnContinued).
-                    if (Count == SpikesRequired - 1) Aerial.ScriptedDefence = VolleyAerialSequence.DefenceScript.DigStrongSpikes;
-                    Hint("sb_nice");
-                    return;
-                }
-                // Their dig did not get it (a point): on to the block all the same, the tutorial never waits for a dig.
-                StartBlocks(false);
+                if (Count < SpikesRequired) { Hint("sb_nice"); return; }
+                StartBlocks();
                 return;
             }
             if (Move == DemoMove.Block && block)
@@ -230,7 +228,7 @@ namespace GloveBallDemo.Runtime
                 Count++;
                 SetCounter(Count + " / " + BlocksRequired);
                 if (Count < BlocksRequired) { Hint("sb_nice_block"); return; }
-                Finish("sb_end");
+                Finish(EndLine("sb_end"));
             }
         }
 
@@ -244,16 +242,6 @@ namespace GloveBallDemo.Runtime
                 case VolleyAerialSequence.JumpTiming.Late: return "sb_jump_late";
                 case VolleyAerialSequence.JumpTiming.NoJump: return "sb_jump_none";
                 default: return null;
-            }
-        }
-
-        void OnContinued(VolleyAerialSequence.RallyTurn turn)
-        {
-            // The second strong spike was dug: it counts, and their attack is the first block.
-            if (Running == Course.SpikeBlock && Move == DemoMove.Spike && turn == VolleyAerialSequence.RallyTurn.Block && Count == SpikesRequired - 1)
-            {
-                Count++;
-                StartBlocks(true);
             }
         }
 
@@ -298,7 +286,7 @@ namespace GloveBallDemo.Runtime
                 _explainedBad = true;
                 Explain("rc_bad");
             }
-            if (GotExcellent && GotGood) Finish("rc_end");
+            if (GotExcellent && GotGood) Finish(EndLine("rc_end"));
         }
 
         /// <summary>Speaks a grade's consequence (once), then what to aim for next.</summary>
@@ -630,11 +618,13 @@ namespace GloveBallDemo.Runtime
             new Line("sb_jump_late", "", "ジャンプが遅れました。もう少し早く跳びましょう。"),
             new Line("sb_jump_none", "", "ジャンプしていません。「ジャンプ」の声で、両手を振り上げて跳びましょう。"),
             new Line("sb_nice", "", "ナイススパイク！もう1本。"),
-            new Line("sb_block", "ブロック", "強いスパイクでも、拾われるとラリーが続きます。今度は相手のスパイクです。ジャンプして両手を高く上げ、ネットの上へ手を出して、ブロックしましょう。"),
-            new Line("sb_block_plain", "ブロック", "今度は相手のスパイクです。ジャンプして両手を高く上げ、ネットの上へ手を出して、ブロックしましょう。"),
+            new Line("sb_block", "ブロック", "今度は相手のスパイクです。ジャンプして両手を高く上げ、ネットの上へ手を出して、ブロックしましょう。"),
             new Line("sb_block_hint", "", "打ってくる相手の正面で、ジャンプして両手を前へ出しましょう。"),
             new Line("sb_nice_block", "", "ナイスブロック！もう1本。"),
-            new Line("sb_end", "試合開始", "OKです！スパイクは相手のいないところへ強く。ブロックは相手のコートへはじき返します。どちらも、いまいちだとラリーが続きます。では、3点先取の試合です。"),
+            new Line("sb_end_3", "試合開始", "OKです！これからゲーム形式の試合です。スパイクやブロックが甘いと、ポイントが決まらずにそのまま続きます。がんばって3点先取してください。"),
+            new Line("sb_end_5", "試合開始", "OKです！これからゲーム形式の試合です。スパイクやブロックが甘いと、ポイントが決まらずにそのまま続きます。がんばって5点先取してください。"),
+            new Line("sb_end_7", "試合開始", "OKです！これからゲーム形式の試合です。スパイクやブロックが甘いと、ポイントが決まらずにそのまま続きます。がんばって7点先取してください。"),
+            new Line("sb_end", "試合開始", "OKです！これからゲーム形式の試合です。スパイクやブロックが甘いと、ポイントが決まらずにそのまま続きます。がんばって勝ちましょう。"),
             new Line("rc_pass", "レシーブ", "レシーブの練習です。相手のサーブを、緑の円の上のセッターへ、両腕をそろえて高く返しましょう。"),
             new Line("rc_excellent", "", "EXCELLENT！セッターへ余裕をもって返せると、強いスパイクで、ほぼ決まります。", "エクセレント！セッターへ余裕をもって返せると、強いスパイクで、ほぼ決まります。"),
             new Line("rc_good", "", "GOOD。セッター以外の選手がトスしても攻撃は続きますが、スパイクは決まりにくく、相手に拾われてラリーが続きます。", "グッド。セッター以外の選手がトスしても攻撃は続きますが、スパイクは決まりにくく、相手に拾われてラリーが続きます。"),
@@ -642,7 +632,10 @@ namespace GloveBallDemo.Runtime
             new Line("rc_lost", "", "ボールが落ちました。ボールの正面で、両腕をそろえて受けましょう。"),
             new Line("rc_try_excellent", "", "緑のセッターへ、高く返しましょう。"),
             new Line("rc_try_good", "", "次は、わざとセッター以外の選手に返してみましょう。"),
-            new Line("rc_end", "試合開始", "OKです！では、3点先取の試合を始めます。"),
+            new Line("rc_end_3", "試合開始", "OKです！では、3点先取の試合を始めます。"),
+            new Line("rc_end_5", "試合開始", "OKです！では、5点先取の試合を始めます。"),
+            new Line("rc_end_7", "試合開始", "OKです！では、7点先取の試合を始めます。"),
+            new Line("rc_end", "試合開始", "OKです！では、試合を始めます。"),
             new Line("jump_cue", "", "ジャンプ！"),
         };
 

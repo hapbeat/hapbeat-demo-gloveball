@@ -29,17 +29,13 @@ namespace GloveBallDemo.Runtime
         public Vector2 DiveRecoverSeconds=new Vector2(.6f,.5f);
 
         enum DigKind { None, Platform, Dive }
-        // PlanLockSeconds: the plan holds over the last moments before the contact. A hard spike moves farther in one physics
-        // step than HandContactRadius, so a plan re-aimed at the next sample every step kept the hands a step ahead of the ball.
-        const float PlanStep=.02f, MinDiveFall=.12f, PlanLockSeconds=.1f;
+        const float PlanStep=.02f, MinDiveFall=.12f;
         const int PlanSamples=200;
         readonly Vector3[] _planPosition=new Vector3[PlanSamples], _planVelocity=new Vector3[PlanSamples];
         DigKind _digKind;
         Vector3 _digContact, _digFacing, _digRoot;
         float _digContactAt, _digPhase;
-        bool _digResolved, _defenceTouched, _diveStarted, _scriptedDig;
-        /// <summary>The tutorial's scripted dig runs this much faster (it must get there to show the play going on).</summary>
-        float DefenderRunSpeed=>_scriptedDig ? DefenderSpeed*3f : DefenderSpeed;
+        bool _digResolved, _defenceTouched, _diveStarted;
         float _diveStartAt, _diveFall, _diveTilt, _diveSlide;
         Vector3 _diveFrom, _diveDir;
         float[] _downClock=new float[0], _downTilt=new float[0];
@@ -53,7 +49,7 @@ namespace GloveBallDemo.Runtime
         void ResetDefencePlan()
         {
             _digger=-1;_digRolledFor=-1;_digSuccess=false;_digKind=DigKind.None;
-            _digResolved=false;_defenceTouched=false;_diveStarted=false;_scriptedDig=false;
+            _digResolved=false;_defenceTouched=false;_diveStarted=false;
         }
         void EnsureDefenceArrays()
         {
@@ -77,13 +73,9 @@ namespace GloveBallDemo.Runtime
         void PlanDig(Vector3 position,Vector3 velocity,float damping)
         {
             if(_digResolved || _diveStarted)return;
-            if(_digger>=0 && _digContactAt-_sinceTouch<=PlanLockSeconds)return;
             _digger=-1;_digKind=DigKind.None;
             if(Defenders==null || Defenders.Length==0)return;
-            // The tutorial: no dig at all, or a strong spike always dug (to show the play going on).
-            bool scripted=ScriptedDefence==DefenceScript.DigStrongSpikes && Phase==RallyPhase.PlayerSpike && LastSpikeStrong;
-            if(ScriptedDefence==DefenceScript.NeverDig || (ScriptedDefence==DefenceScript.DigStrongSpikes && !scripted))return;
-            _scriptedDig=scripted;
+            if(ScriptedDefence==DefenceScript.NeverDig)return; // the tutorial: no dig at all
             float floor=FloorY;
             int count=0;
             var p=position;var v=velocity;
@@ -97,7 +89,7 @@ namespace GloveBallDemo.Runtime
             var local=_planPosition[count-1]-NetCentre;
             float depth=Vector3.Dot(local,Forward),side=Vector3.Dot(local,Right);
             if(depth<=0f || depth>CourtDepth+LineTolerance || Mathf.Abs(side)>CourtHalfWidth+LineTolerance)return;
-            float reactLeft=scripted ? 0f : Mathf.Max(0f,DefenderReactionSeconds-_sinceTouch);
+            float reactLeft=Mathf.Max(0f,DefenderReactionSeconds-_sinceTouch);
             float best=float.MaxValue,arriving=0f;
             for(int i=0;i<Defenders.Length;i++)
             {
@@ -117,7 +109,6 @@ namespace GloveBallDemo.Runtime
             if(roll!=_digRolledFor)
             {
                 _digRolledFor=roll;
-                if(scripted){_digSuccess=true;return;}
                 _digSuccess=Random.value<Mathf.Lerp(DigEasyChance,DigHardChance,Mathf.InverseLerp(DigSpeedRange.x,DigSpeedRange.y,arriving))
                     *(_digKind==DigKind.Dive ? DiveChance : 1f);
             }
@@ -143,8 +134,8 @@ namespace GloveBallDemo.Runtime
                 float distance=(stand-root).magnitude,t=k*PlanStep;
                 bool reflex=distance<=ArmReach;
                 // The short cover leaves a hard ball it would have to move for.
-                if(index==CoverIndex && vq.magnitude>CoverMaxSpeed && !reflex && !_scriptedDig)continue;
-                if(!reflex && (distance-ArmReach)/DefenderRunSpeed>t-reactLeft)continue;
+                if(index==CoverIndex && vq.magnitude>CoverMaxSpeed && !reflex)continue;
+                if(!reflex && (distance-ArmReach)/DefenderSpeed>t-reactLeft)continue;
                 cost=distance;sample=k;
                 _digKind=DigKind.Platform;_digContact=q;_digContactAt=_sinceTouch+t;_digPhase=phase;_digFacing=face;
                 _digRoot=new Vector3(stand.x,defender.transform.position.y,stand.z);
@@ -174,7 +165,7 @@ namespace GloveBallDemo.Runtime
                 float reach=Mathf.Sqrt(length*length-y*y);
                 float slide=(Flat(q)-root).magnitude-reach;
                 if(slide<0f)continue; // nearer than a dive: the platform's ball
-                float run=index==CoverIndex && vq.magnitude>CoverMaxSpeed && !_scriptedDig ? 0f : DefenderRunSpeed*Mathf.Max(0f,t-fall-reactLeft);
+                float run=index==CoverIndex && vq.magnitude>CoverMaxSpeed ? 0f : DefenderSpeed*Mathf.Max(0f,t-fall-reactLeft);
                 if(slide>DiveSlide+run)continue;
                 cost=10f+slide;sample=k; // any standing play goes first
                 _digKind=DigKind.Dive;_digContact=q;_digContactAt=_sinceTouch+t;_digPhase=1f;_digFacing=Flat(q)-root;
@@ -210,7 +201,7 @@ namespace GloveBallDemo.Runtime
                 float distance=Flat(_digRoot-root).magnitude;
                 // Within arm's reach it just shifts (even before it could react); further, it runs once it has reacted.
                 float speed=distance<=ArmReach+.01f ? Mathf.Max(DefenderSpeed,distance/Mathf.Max(step,left))
-                    : now>=DefenderReactionSeconds || _scriptedDig ? DefenderRunSpeed : 0f;
+                    : now>=DefenderReactionSeconds ? DefenderSpeed : 0f;
                 defender.transform.position=Vector3.MoveTowards(root,_digRoot,speed*step);
                 defender.transform.rotation=Quaternion.RotateTowards(defender.transform.rotation,Quaternion.LookRotation(_digFacing,Vector3.up),540f*step);
                 // Down into the platform over the last 0.4 s, to the height it meets the ball at.
@@ -223,12 +214,12 @@ namespace GloveBallDemo.Runtime
                 if(left>DiveFallSeconds)
                 {
                     // Still time: once it has reacted, it runs toward the ball until a lunge will do.
-                    if(now>=DefenderReactionSeconds || _scriptedDig)
+                    if(now>=DefenderReactionSeconds)
                     {
                         var toward=Flat(_digContact-defender.transform.position);
                         float reach=Mathf.Sqrt(Mathf.Max(0f,Sq(VolleyOpponentPrototype.DiveHands.magnitude*defender.transform.lossyScale.y)-Sq(_digContact.y-FloorY)));
                         float need=toward.magnitude-reach-DiveSlide;
-                        if(need>0f)defender.transform.position=Vector3.MoveTowards(defender.transform.position,defender.transform.position+toward.normalized*need,DefenderRunSpeed*step);
+                        if(need>0f)defender.transform.position=Vector3.MoveTowards(defender.transform.position,defender.transform.position+toward.normalized*need,DefenderSpeed*step);
                     }
                     Act(defender,.3f);
                     return;
@@ -299,8 +290,7 @@ namespace GloveBallDemo.Runtime
             }
             // Pop the ball up toward the opponent's own front court, as a real dig would.
             DigVelocity=Vector3.up*5.5f-Forward*Mathf.Clamp(Vector3.Dot(position-NetCentre,Forward)*.35f,0f,2.5f);
-            // The tutorial's scripted dig always goes on to their attack (the player then blocks).
-            if(DigFlows){ContinueRally(position,!dive || _scriptedDig);return false;}
+            if(Flowing){ContinueRally(position,!dive);return false;}
             Award(false,Phase==RallyPhase.OpponentSpike ? "BLOCK DUG" : "DUG",position);
             return true;
         }

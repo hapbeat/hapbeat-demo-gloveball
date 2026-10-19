@@ -54,7 +54,7 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
-        public void SpikeBlockTutorialStartsAtOnceShowsTheDigThenBlocksAndStartsTheMatch()
+        public void SpikeBlockTutorialStartsAtOnceSpikesThenBlocksAndStartsTheMatch()
         {
             Assert.That(_tutorial,Is.Not.Null,"The scene setup adds the tutorial.");
             _rally.Jump.AutomaticJump=true;
@@ -73,40 +73,25 @@ namespace GloveBallDemo.Tests
             Assert.That(_tutorial.Count,Is.Zero);
             Spike(.9f,true,"POINT!");
             Assert.That(_tutorial.Count,Is.EqualTo(1));
-            Assert.That(_rally.ScriptedDefence,Is.EqualTo(Script.DigStrongSpikes),"The next strong spike is dug: the play goes on.");
-
-            // Their dig: the play goes on into their attack, which is the first block (no mode change inside the rep).
-            typeof(VolleyAerialSequence).GetMethod("ContinueRally",Private).Invoke(_rally,new object[]{_drill.ReceiveNet.transform.position+Vector3.up*.8f+_drill.CourtFrame.forward*5f,true});
-            Assert.That(_tutorial.Step,Is.EqualTo("sb_block"));
-            Assert.That(_rally.Mode,Is.EqualTo(Mode.SpikeOnly),"Kept until the rep ends.");
-            Assert.That(_rally.ScriptedDefence,Is.EqualTo(Script.NeverDig));
-            Award(Phase.OpponentSpike,true,"BLOCK POINT!");
-            Assert.That(_tutorial.Count,Is.EqualTo(1));
+            Assert.That(_rally.ScriptedDefence,Is.EqualTo(Script.NeverDig),"Every strong spike is a point: nothing is dug.");
+            Spike(.9f,true,"POINT!");
+            Assert.That(_tutorial.Step,Is.EqualTo("sb_block"),"Two strong spikes, then the block.");
+            Assert.That(_tutorial.Count,Is.Zero);
             Wait(.1f);
             Assert.That(_rally.Mode,Is.EqualTo(Mode.BlockOnly),"BLOCK from the next rep.");
             Award(Phase.OpponentSpike,false,"NO BLOCK");
-            Assert.That(_tutorial.Count,Is.EqualTo(1));
+            Assert.That(_tutorial.Count,Is.Zero);
             Assert.That(_tutorial.PanelHint,Is.EqualTo(VolleyTutorialText.Get("sb_block_hint").Body));
             Award(Phase.OpponentSpike,true,"BLOCK POINT!");
+            Assert.That(_tutorial.Count,Is.EqualTo(1));
+            Award(Phase.OpponentSpike,true,"BLOCK POINT!");
+            Assert.That(_tutorial.PanelBody,Is.EqualTo(VolleyTutorialText.Get("sb_end_3").Body),"The match announced with its points.");
             Wait(.1f);
             Assert.That(_tutorial.Running,Is.EqualTo(VolleyTutorial.Course.None),"The match starts as soon as the goals are met.");
             Assert.That(_rally.Mode,Is.EqualTo(Mode.Alternate));
             Assert.That(_rally.ScriptedDefence,Is.EqualTo(Script.Natural));
             Assert.That(_rally.MatchPoints,Is.EqualTo(points));Assert.That(_drill.HoldRally,Is.False);
             Assert.That(_rally.PlayerScore+_rally.OpponentScore,Is.Zero,"The match from 0 - 0.");
-        }
-
-        [Test]
-        public void WithoutTheirDigTheSecondStrongSpikeStillGoesOnToTheBlocks()
-        {
-            _rally.Jump.AutomaticJump=true;
-            _tutorial.Begin(VolleyTutorial.Course.SpikeBlock);
-            Spike(.9f,true,"POINT!");Spike(.9f,true,"POINT!");
-            Assert.That(_tutorial.Step,Is.EqualTo("sb_block_plain"),"Two strong spikes count, dug or not: never a third.");
-            Assert.That(_tutorial.Count,Is.Zero);
-            Assert.That(_rally.ScriptedDefence,Is.EqualTo(Script.NeverDig));
-            Wait(.1f);
-            Assert.That(_rally.Mode,Is.EqualTo(Mode.BlockOnly),"BLOCK from the next rep.");
         }
 
         [Test]
@@ -180,7 +165,7 @@ namespace GloveBallDemo.Tests
             Assert.That(_tutorial.Running,Is.EqualTo(VolleyTutorial.Course.Receive));
             grade.Invoke(_rally,new object[]{"EXCELLENT"});_tutorial.Tick(.05f);
             Assert.That(_tutorial.GotExcellent,Is.True);
-            Assert.That(_tutorial.PanelBody,Is.EqualTo(VolleyTutorialText.Get("rc_end").Body));
+            Assert.That(_tutorial.PanelBody,Is.EqualTo(VolleyTutorialText.Get("rc_end_3").Body));
             // The match starts once the rep that met the goals has ended.
             SetPhase(Phase.MatchPlay);_tutorial.Tick(.05f);
             Assert.That(_tutorial.Running,Is.EqualTo(VolleyTutorial.Course.Receive));

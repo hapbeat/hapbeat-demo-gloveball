@@ -59,8 +59,6 @@ namespace GloveBallDemo.Runtime
         float _dropSeconds=1f, _turnGlide=-1f;
         Vector3 _glideStart, _glideEnd;
         bool Flowing=>FlowRally && Mode==RallyMode.Alternate;
-        /// <summary>A dig carries the play on: the flowing rally, or the tutorial showing it.</summary>
-        bool DigFlows=>Flowing || ScriptedDefence==DefenceScript.DigStrongSpikes;
         [Tooltip("Set flight from the setter's hands to the spike contact point.")]
         [Min(.4f)] public float AllyFlightSeconds=1.4f;
         [Min(0f)] public float AllySetLateralSpread=.35f;
@@ -210,8 +208,6 @@ namespace GloveBallDemo.Runtime
         /// went into their court - a point, or dug by them.
         /// </summary>
         public event System.Action<bool,bool> TurnRepResolved;
-        /// <summary>Their defender dug the ball and the play goes on (flowing rally): the turn the player now has.</summary>
-        public event System.Action<RallyTurn> RallyContinued;
         /// <summary>How the player's jump met the ball in the last spike / block rep (the turn modes).</summary>
         public enum JumpTiming { Unknown, Good, Early, Late, NoJump }
         public JumpTiming LastJumpTiming { get; private set; }
@@ -249,8 +245,8 @@ namespace GloveBallDemo.Runtime
         [Tooltip("Block: the jump is called this long (s) before the automatic jump would start (the player needs a moment).")]
         [Min(0f)] public float BlockCallLeadSeconds=.35f;
         float _spikeCallAt;
-        /// <summary>The tutorial's hold on their defence: as in play, never a dig, or every strong spike dug (the play goes on).</summary>
-        public enum DefenceScript { Natural, NeverDig, DigStrongSpikes }
+        /// <summary>The tutorial's hold on their defence: as in play, or never a dig.</summary>
+        public enum DefenceScript { Natural, NeverDig }
         [System.NonSerialized] public DefenceScript ScriptedDefence;
         [Tooltip("A spike of at least this quality (mostly how high it was met) counts as strong.")]
         [Range(0f,1f)] public float StrongSpikeQuality=.5f;
@@ -738,8 +734,7 @@ namespace GloveBallDemo.Runtime
         {
             if(contactLateral==null)_allyLateral=Random.Range(-AllySetLateralSpread,AllySetLateralSpread);
             if(Blockers==null || Blockers.Length==0)return;
-            int wanted=ScriptedDefence==DefenceScript.DigStrongSpikes ? 0
-                : Mathf.Clamp(Random.Range(Mathf.Min(MinBlockers,MaxBlockers),Mathf.Max(MinBlockers,MaxBlockers)+1),0,Blockers.Length);
+            int wanted=Mathf.Clamp(Random.Range(Mathf.Min(MinBlockers,MaxBlockers),Mathf.Max(MinBlockers,MaxBlockers)+1),0,Blockers.Length);
             float contact=contactLateral ?? Vector3.Dot(GroundedEye-NetCentre,Right)+_allyLateral;
             float limit=Drill.ReceiveNet!=null ? Mathf.Max(.5f,Drill.ReceiveNet.bounds.extents.x-.5f) : CourtHalfWidth;
             var placed=new List<float>();
@@ -898,7 +893,6 @@ namespace GloveBallDemo.Runtime
                 Phase=RallyPhase.AllyReceive;
                 Cue="SAVED, BUT ONLY BACK OVER — YOUR SETTER SETS YOU";
             }
-            RallyContinued?.Invoke(turn);
         }
         /// <summary>The turn changes inside the rally: no blank, the stance glides there behind the comfort vignette.</summary>
         void StartFlowTurn(RallyTurn turn)
