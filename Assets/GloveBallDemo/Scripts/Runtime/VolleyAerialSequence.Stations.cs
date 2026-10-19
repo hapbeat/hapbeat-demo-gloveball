@@ -153,7 +153,7 @@ namespace GloveBallDemo.Runtime
             Cue=Mode==RallyMode.Set ? "TOSS: NEAR OR FAR HITTER? WATCH THEIR BLOCKERS, AIM FOR A GHOST BALL"
                 : "RECEIVE: PASS HIGH TO THE SETTER (GREEN)";
             var setter=ActorAt(Team.Us,0);
-            if(Mode==RallyMode.Pass && setter!=null)PlaceTarget(3,new Vector3(setter.Home.x,FloorY+.01f,setter.Home.z),.55f,new Color(.3f,1f,.45f,.3f),.02f);
+            if(Mode==RallyMode.Pass && setter!=null && !MarkOtherPassers)PlaceTarget(3,new Vector3(setter.Home.x,FloorY+.01f,setter.Home.z),.55f,new Color(.3f,1f,.45f,.3f),.02f);
             else HideTarget(3);
             Phase=RallyPhase.MatchPlay;_serveTimer=ServeDelaySeconds;_serveWait=0f;
         }
@@ -359,10 +359,25 @@ namespace GloveBallDemo.Runtime
             target.GetPropertyBlock(_targetBlock);_targetBlock.SetColor("_BaseColor",colour);target.SetPropertyBlock(_targetBlock);
         }
         void HideTarget(int index){if(_targets[index]!=null)_targets[index].gameObject.SetActive(false);}
-        /// <summary>RECEIVE: the setter's green disc stays under it as it moves.</summary>
+        /// <summary>RECEIVE tutorial: the targets are the two other front-row players (GOOD, yellow labels), not the setter.</summary>
+        [System.NonSerialized] public bool MarkOtherPassers;
+        [Tooltip("RECEIVE: our setter's jersey (green, like its disc and label), so it stands out from the others.")]
+        public Color SetterJersey=new Color(.16f,.72f,.3f);
+        VolleyOpponentPrototype _tintedSetter;
+        /// <summary>RECEIVE: our setter in its own colour; whoever wore it before back in the team's.</summary>
+        void TintSetter(VolleyOpponentPrototype setter)
+        {
+            if(_tintedSetter==setter)return;
+            if(_tintedSetter!=null){_tintedSetter.JerseyColour=AllyJersey;_tintedSetter.ApplyKit();}
+            _tintedSetter=setter;
+            if(setter!=null){setter.JerseyColour=SetterJersey;setter.ApplyKit();}
+        }
+        /// <summary>RECEIVE: the setter's green disc stays under it as it moves (hidden while the others are the targets).</summary>
         void FollowSetterDisc()
         {
             var setter=ActorAt(Team.Us,0);
+            TintSetter(setter?.A);
+            if(MarkOtherPassers){HideTarget(3);return;}
             if(_targets[3]==null || !_targets[3].gameObject.activeSelf || setter==null)return;
             var feet=setter.A.transform.position;feet.y=FloorY+.01f;
             _targets[3].transform.position=feet;
@@ -371,10 +386,20 @@ namespace GloveBallDemo.Runtime
         public bool TryGetSetterMarker(out Vector3 point)
         {
             point=default;
-            if(!RallyActive || Mode!=RallyMode.Pass)return false;
+            if(!RallyActive || Mode!=RallyMode.Pass || MarkOtherPassers)return false;
             var setter=ActorAt(Team.Us,0);
             if(setter==null || !setter.A.gameObject.activeInHierarchy)return false;
             point=setter.A.transform.position;point.y=FloorY+SetWindow.y*setter.A.transform.lossyScale.y+.55f;
+            return true;
+        }
+        /// <summary>RECEIVE tutorial's GOOD step: above the head of the other front-row player <paramref name="index"/> (0, 1).</summary>
+        public bool TryGetPasserMarker(int index,out Vector3 point)
+        {
+            point=default;
+            if(!RallyActive || Mode!=RallyMode.Pass || !MarkOtherPassers)return false;
+            var actor=ActorAt(Team.Us,1+index);
+            if(actor==null || actor==_embodied || !actor.A.gameObject.activeInHierarchy)return false;
+            point=actor.A.transform.position;point.y=FloorY+SetWindow.y*actor.A.transform.lossyScale.y+.55f;
             return true;
         }
         /// <summary>Ghost balls where a perfect set meets the near (cyan) and far (yellow) hitter.</summary>

@@ -77,7 +77,7 @@
         "ja": "点数",
         "en": "Points"
       },
-      "default": "3",
+      "default": "4",
       "when": {
         "scene": [
           "block",
@@ -90,6 +90,12 @@
           "value": "3",
           "label": {
             "ja": "3点先取"
+          }
+        },
+        {
+          "value": "4",
+          "label": {
+            "ja": "4点先取"
           }
         },
         {

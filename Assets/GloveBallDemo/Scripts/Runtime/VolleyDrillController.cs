@@ -476,8 +476,9 @@ namespace GloveBallDemo.Runtime
                             // demo's touch is felt fully every time.
                             float gain = zoned && HapticsAtMaximum ? MaximumImpactGain : ImpactGain(impulse);
                             if (touch == VolleyAerialSequence.PlayerTouch.Receive) gain = Mathf.Max(gain, ReceiveMinimumGain);
-                            // A receive is felt in both arms unless the hands are well apart (one is often lost under the other).
-                            bool bothArms = joined || touch == VolleyAerialSequence.PlayerTouch.Receive
+                            // A receive is felt in both arms unless the hands are well apart (one is often lost under the other). A spike
+                            // and a block too: their clip is already at full scale in one arm, and that alone still felt weak.
+                            bool bothArms = joined || zoned || touch == VolleyAerialSequence.PlayerTouch.Receive
                                 && Vector3.Distance(Left.transform.position, Right.transform.position) <= ReceiveBothArmsDistance;
                             ReportHandImpactScaled(_ball,hand,bothArms,gain);
                             Debug.Log($"[VolleyHaptic] {touch} impulse={impulse:F1}m/s gain={gain:F2} both={bothArms} joined={joined} tip={tip}");

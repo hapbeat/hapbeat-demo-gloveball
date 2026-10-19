@@ -32,6 +32,7 @@ namespace GloveBallDemo.Runtime
         VolleyTutorial _tutorial; AudioClip _matchStart;
         AudioSource _music;
         Transform _setterLabel;
+        readonly Transform[] _passerLabels=new Transform[2];
         float _gradeAge=-1f;
         int _gradeSerial;
         Texture2D _vignetteTexture;
@@ -169,26 +170,19 @@ namespace GloveBallDemo.Runtime
         /// <summary>The background music: looped quietly during the match (not the tutorial); the shared pause holds it with all audio.</summary>
         void BuildMusic()
         {
-            if(Rally.MusicTracks==null || Rally.MusicTracks.Length==0)return;
+            if(Rally.Music==null)return;
             _music=gameObject.AddComponent<AudioSource>();
-            _music.loop=true;_music.spatialBlend=0f;_music.volume=Rally.MusicVolume;_music.playOnAwake=false;
+            _music.clip=Rally.Music;_music.loop=true;_music.spatialBlend=0f;_music.volume=Rally.MusicVolume;_music.playOnAwake=false;
         }
-        static int s_track=-1; // across scene loads: each match its own loop, in turn
         int _musicFrames;
-        /// <summary>Plays while no tutorial runs and no match is over; each start after silence gets the next loop.</summary>
+        /// <summary>Plays while no tutorial runs and no match is over.</summary>
         void TickMusic()
         {
             if(_music==null || !Application.isPlaying)return;
             _music.volume=Rally.MusicVolume;
             if(_musicFrames<3){_musicFrames++;return;} // the launch tutorial begins within its first two frames
             bool wanted=(_tutorial==null || _tutorial.Running==VolleyTutorial.Course.None) && Rally.Phase!=VolleyAerialSequence.RallyPhase.MatchOver;
-            if(wanted && !_music.isPlaying && !AudioListener.pause)
-            {
-                var tracks=Rally.MusicTracks;
-                s_track=(s_track+1)%tracks.Length;
-                _music.clip=tracks[s_track];
-                if(_music.clip!=null){_music.Play();Debug.Log("[VolleyMusic] "+_music.clip.name);}
-            }
+            if(wanted && !_music.isPlaying && !AudioListener.pause)_music.Play();
             else if(!wanted && _music.isPlaying)_music.Stop();
         }
         /// <summary>A white triangle pointing to +x (the setter label's arrow, turned down).</summary>
@@ -207,38 +201,49 @@ namespace GloveBallDemo.Runtime
             _triangleTexture.SetPixels32(pixels);_triangleTexture.Apply(false,true);
             return Sprite.Create(_triangleTexture,new Rect(0,0,Size,Size),new Vector2(.5f,.5f));
         }
-        /// <summary>RECEIVE: "SETTER" and a down arrow over our setter's head, turned to the player.</summary>
+        /// <summary>RECEIVE: "SETTER" over our setter's head; in the tutorial's GOOD step "GOOD" over the two others instead.</summary>
         void BuildSetterLabel()
         {
-            var go=new GameObject("Rally setter label",typeof(RectTransform),typeof(Canvas));
+            _setterLabel=BuildLabel("Rally setter label","SETTER",new Color(.35f,1f,.45f));
+            for(int i=0;i<_passerLabels.Length;i++)_passerLabels[i]=BuildLabel("Rally passer label "+i,"GOOD",new Color(1f,.88f,.3f));
+        }
+        /// <summary>A word and a down arrow over a player's head, turned to the player (hidden until placed).</summary>
+        Transform BuildLabel(string name,string word,Color colour)
+        {
+            var go=new GameObject(name,typeof(RectTransform),typeof(Canvas));
             go.transform.SetParent(transform,false);
             var canvas=go.GetComponent<Canvas>();canvas.renderMode=RenderMode.WorldSpace;
             var rect=(RectTransform)go.transform;rect.sizeDelta=new Vector2(400,200);rect.localScale=Vector3.one*.0035f;
             var text=new GameObject("Text",typeof(RectTransform),typeof(Text)).GetComponent<Text>();
             text.transform.SetParent(rect,false);text.rectTransform.sizeDelta=new Vector2(400,90);text.rectTransform.anchoredPosition=new Vector2(0f,45f);
             text.font=_font;text.fontSize=72;text.fontStyle=FontStyle.Bold;text.alignment=TextAnchor.MiddleCenter;text.raycastTarget=false;
-            text.text="SETTER";text.color=new Color(.35f,1f,.45f);
+            text.text=word;text.color=colour;
             var arrow=new GameObject("Arrow",typeof(RectTransform),typeof(Image)).GetComponent<Image>();
             arrow.transform.SetParent(rect,false);arrow.rectTransform.sizeDelta=new Vector2(70,70);arrow.rectTransform.anchoredPosition=new Vector2(0f,-35f);
             arrow.rectTransform.localRotation=Quaternion.Euler(0f,0f,-90f);
             arrow.sprite=Triangle();
-            arrow.color=new Color(.35f,1f,.45f);arrow.raycastTarget=false;
-            _setterLabel=go.transform;go.SetActive(false);
+            arrow.color=colour;arrow.raycastTarget=false;
+            go.SetActive(false);
+            return go.transform;
         }
         void UpdateSetterLabel()
         {
-            if(_setterLabel==null)return;
+            PlaceLabel(_setterLabel,Rally.TryGetSetterMarker(out var point),point);
+            for(int i=0;i<_passerLabels.Length;i++)PlaceLabel(_passerLabels[i],Rally.TryGetPasserMarker(i,out point),point);
+        }
+        void PlaceLabel(Transform label,bool show,Vector3 point)
+        {
+            if(label==null)return;
             var head=Rally.Drill.Head;
-            var point=Vector3.zero;
-            bool show=head!=null && !GameInputGate.IsBlocked && Rally.TryGetSetterMarker(out point);
+            show&=head!=null && !GameInputGate.IsBlocked;
             if(show)
             {
                 // A little bob, and always facing the player (upright).
                 point.y+=.05f*Mathf.Sin(Time.time*Mathf.PI*1.6f);
                 var toward=Vector3.ProjectOnPlane(point-head.position,Vector3.up);
-                _setterLabel.SetPositionAndRotation(point,toward.sqrMagnitude>1e-4f ? Quaternion.LookRotation(toward,Vector3.up) : Quaternion.identity);
+                label.SetPositionAndRotation(point,toward.sqrMagnitude>1e-4f ? Quaternion.LookRotation(toward,Vector3.up) : Quaternion.identity);
             }
-            if(_setterLabel.gameObject.activeSelf!=show)_setterLabel.gameObject.SetActive(show);
+            if(label.gameObject.activeSelf!=show)label.gameObject.SetActive(show);
         }
         void BuildBanner()
         {

@@ -158,6 +158,74 @@ namespace GloveBallDemo.Tests
             return closest;
         }
 
+        /// <summary>Only <paramref name="keep"/> of their players stays on court (the rest stand down).</summary>
+        void OnlyOnCourt(VolleyOpponentPrototype keep)
+        {
+            foreach(var d in _rally.Defenders)if(d!=null)d.gameObject.SetActive(d==keep);
+            foreach(var b in _rally.Blockers)if(b!=null)b.gameObject.SetActive(b==keep);
+            if(_rally.Opponent!=null)_rally.Opponent.gameObject.SetActive(_rally.Opponent==keep);
+        }
+
+        [Test]
+        public void AHardSharpSpikeAwayFromEveryoneIsPutAway()
+        {
+            _rally.DigEasyChance=_rally.DigHardChance=1f;_rally.DiveChance=1f;
+            var defender=OneDefender(new Vector2(-2.8f,6.5f));
+            OnlyOnCourt(defender);
+            // Down 3 m from it 0.45 s after the hit: before anyone reacts.
+            var start=Net-Forward*.5f+Vector3.up*3.3f;
+            var target=defender.transform.position+Right*3f+Forward*-.5f+Vector3.up*.3f;
+            Defend(defender,start,Through(start,target,.45f),out _,out _);
+            Assert.That(_rally.Outcome,Is.EqualTo("POINT!"));
+        }
+
+        [Test]
+        public void AHardSpikeAtTheirBodyIsMetByTheArms()
+        {
+            _rally.DigEasyChance=_rally.DigHardChance=1f;
+            var defender=OneDefender(new Vector2(0f,6f));
+            OnlyOnCourt(defender);
+            // Hard (about 17 m/s) and straight at its platform: a step of the ball is longer than the contact radius.
+            var target=defender.transform.position-Forward*.45f+Vector3.up*.8f;
+            var start=Net-Forward*.5f+Vector3.up*3.3f;
+            var velocity=Through(start,target,.38f);
+            Assert.That(velocity.magnitude,Is.GreaterThan(15f));
+            Defend(defender,start,velocity,out float atDig,out _);
+            Assert.That(_rally.Outcome,Is.EqualTo("DUG"));
+            Assert.That(atDig,Is.LessThanOrEqualTo(_rally.HandContactRadius*2f));
+        }
+
+        [Test]
+        public void ASoftBallIsRunDownNotWatched()
+        {
+            _rally.DigEasyChance=_rally.DigHardChance=1f;
+            var defender=OneDefender(new Vector2(-2.8f,6.5f));
+            OnlyOnCourt(defender);
+            // Floated: in the air 1.2 s, down 2.2 m from it.
+            var target=defender.transform.position+Right*2.2f+Vector3.up*.8f;
+            var start=Net-Forward*.3f+Vector3.up*2.8f;
+            Defend(defender,start,Through(start,target,1.2f),out float atDig,out _);
+            Assert.That(_rally.Outcome,Is.EqualTo("DUG"));
+            Assert.That(atDig,Is.LessThanOrEqualTo(_rally.HandContactRadius*2f));
+        }
+
+        [Test]
+        public void TheirFrontRowPlaysASoftBallThatComesDownNearIt()
+        {
+            _rally.DigEasyChance=_rally.DigHardChance=1f;
+            OneDefender(new Vector2(-2.8f,6.5f));
+            var blocker=_rally.Blockers[2];
+            OnlyOnCourt(blocker);
+            blocker.transform.SetPositionAndRotation(Net+Right*1.5f+Forward*.6f-Vector3.up*(Net.y-Floor),Quaternion.LookRotation(-Forward,Vector3.up));
+            // A weak block: the ball floats back over the net and comes down 1.3 m behind the blocker after a second.
+            var target=blocker.transform.position+Forward*1.3f+Vector3.up*.8f;
+            var start=Net-Forward*.3f+Vector3.up*2.6f;
+            Defend(blocker,start,Through(start,target,1f),out float atDig,out _);
+            Assert.That(_rally.Outcome,Is.EqualTo("DUG"),"Their front row plays it.");
+            Assert.That(atDig,Is.LessThanOrEqualTo(_rally.HandContactRadius*2f));
+            Assert.That(blocker.Role,Is.EqualTo(VolleyOpponentPrototype.MotionRole.Dig),"It digs (its block role back after the point).");
+        }
+
         [Test]
         public void ADiveThatGetsTheBallEndsWithItsHandsOnIt()
         {
@@ -289,10 +357,9 @@ namespace GloveBallDemo.Tests
         [Test]
         public void QuietBackgroundMusicLoopsUnderThePlay()
         {
-            Assert.That(_rally.MusicTracks,Has.Length.EqualTo(4),"CC0 loops (Audio/Music/sources.json), one per match in turn.");
-            Assert.That(_rally.MusicTracks,Has.None.Null);
-            Assert.That(_rally.MusicTracks[0].length,Is.EqualTo(7.5f).Within(.01f),"Cut to the loop's own length: no gap when it repeats.");
-            Assert.That(_rally.MusicVolume,Is.EqualTo(.15f).Within(.001f),"Just audible under the voice and the ball's sounds.");
+            Assert.That(_rally.Music,Is.Not.Null,"A CC0 drum loop (Audio/Music/sources.json).");
+            Assert.That(_rally.Music.length,Is.EqualTo(7.5f).Within(.01f),"Cut to the loop's own length: no gap when it repeats.");
+            Assert.That(_rally.MusicVolume,Is.EqualTo(.1f).Within(.001f),"Just audible under the voice and the ball's sounds.");
         }
 
         [Test]

@@ -235,7 +235,7 @@ namespace GloveBallDemo.Runtime
             float real=_slowActive && Time.timeScale>0f ? dt/Time.timeScale : dt;
             TickEmbody(real);
             TickActors(dt);
-            if(Mode==RallyMode.Pass)FollowSetterDisc();
+            if(Mode==RallyMode.Pass)FollowSetterDisc();else TintSetter(null);
             switch(Phase)
             {
                 case RallyPhase.Idle:

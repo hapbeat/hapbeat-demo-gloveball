@@ -1,9 +1,13 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace GloveBallDemo.Runtime
 {
     /// <summary>
-    /// Their back-row defence in the SPIKE / BLOCK turns. A ball is played only where a defender's hands are: standing, its
+    /// Their defence in the SPIKE / BLOCK turns: the back row, and the front row (the blockers; in a block turn the attacker
+    /// and the setter too) once its jump, attack or set is over, standing only. Nobody moves for the ball before
+    /// DefenderReactionSeconds: a hard, sharp shot is put away unless it comes at a player's body; a ball in the air longer
+    /// is run down. A ball is played only where a defender's hands are: standing, its
     /// platform (both forearms) meets the ball at the height the ball comes down to; diving, it turns to the ball, lunges
     /// and tips forward about its feet with both arms stretched ahead, so its hands end on the ball. The chance (ball speed,
     /// a dive less) decides beforehand whether it gets the ball: a dive that will not get it ends visibly short of it, and a
@@ -29,7 +33,9 @@ namespace GloveBallDemo.Runtime
         public Vector2 DiveRecoverSeconds=new Vector2(.6f,.5f);
 
         enum DigKind { None, Platform, Dive }
-        const float PlanStep=.02f, MinDiveFall=.12f;
+        // PlanLockSeconds: the plan holds over the last moments before the contact. A hard ball moves farther in one physics
+        // step than HandContactRadius, so a plan re-aimed at the next sample every step kept the hands a step ahead of it.
+        const float PlanStep=.02f, MinDiveFall=.12f, PlanLockSeconds=.1f;
         const int PlanSamples=200;
         readonly Vector3[] _planPosition=new Vector3[PlanSamples], _planVelocity=new Vector3[PlanSamples];
         DigKind _digKind;
@@ -40,6 +46,12 @@ namespace GloveBallDemo.Runtime
         Vector3 _diveFrom, _diveDir;
         float[] _downClock=new float[0], _downTilt=new float[0];
         Vector3[] _downDir=new Vector3[0];
+        // The front row in the plan: index DefenderCount + i. The one playing the ball digs (its role restored after).
+        readonly List<VolleyOpponentPrototype> _front=new List<VolleyOpponentPrototype>();
+        VolleyOpponentPrototype _frontDigger;
+        VolleyOpponentPrototype.MotionRole _frontRole;
+        int DefenderCount=>Defenders!=null ? Defenders.Length : 0;
+        VolleyOpponentPrototype DiggerActor(int index)=>index<DefenderCount ? Defenders[index] : _front[index-DefenderCount];
 
         /// <summary>Their committed defender plays it standing (platform) or diving.</summary>
         public bool DigIsDive=>_digKind==DigKind.Dive;
@@ -50,6 +62,43 @@ namespace GloveBallDemo.Runtime
         {
             _digger=-1;_digRolledFor=-1;_digSuccess=false;_digKind=DigKind.None;
             _digResolved=false;_defenceTouched=false;_diveStarted=false;
+            ReleaseFrontDigger();
+        }
+        /// <summary>The front row now (blockers, and in a block turn the attacker).</summary>
+        void GatherFront()
+        {
+            _front.Clear();
+            if(Blockers!=null)foreach(var blocker in Blockers)if(blocker!=null && blocker.gameObject.activeSelf)_front.Add(blocker);
+            if(Opponent!=null && Opponent.gameObject.activeSelf)_front.Add(Opponent);
+        }
+        /// <summary>How long (s) until a front-row player's block jump, attack or set is over and it can go for the ball.</summary>
+        float FrontBusy(VolleyOpponentPrototype actor)
+        {
+            if(actor==_frontDigger)return 0f;
+            if(actor==Opponent)return _opponentFollow>=0f ? Mathf.Max(0f,.9f-_opponentFollow) : 0f;
+            if(actor==_followSetter && _setterFollow>=0f)return Mathf.Max(0f,.8f-_setterFollow);
+            int i=System.Array.IndexOf(Blockers,actor);
+            if(actor.Role!=VolleyOpponentPrototype.MotionRole.Block || i<0 || i>=_blockerActive.Length || !_blockerActive[i] || _blockerClock<0f)return 0f;
+            return Mathf.Max(0f,_blockerJumpAt[i]+BlockerJumpSeconds-_blockerClock);
+        }
+        /// <summary>A front-row player takes the ball once it is free: it digs (not solid, not posed by its own play).</summary>
+        bool CommitFront(VolleyOpponentPrototype actor)
+        {
+            if(actor==_frontDigger)return true;
+            if(FrontBusy(actor)>0f)return false;
+            ReleaseFrontDigger();
+            _frontDigger=actor;_frontRole=actor.Role;
+            actor.Role=VolleyOpponentPrototype.MotionRole.Dig;SetSolid(actor,false);
+            if(actor==Opponent)_opponentFollow=-1f;
+            if(actor==_followSetter)_setterFollow=-1f;
+            return true;
+        }
+        void ReleaseFrontDigger()
+        {
+            if(_frontDigger==null)return;
+            var actor=_frontDigger;_frontDigger=null;
+            if(actor.Role!=VolleyOpponentPrototype.MotionRole.Dig)return; // a new turn has given it its role already
+            actor.Role=_frontRole;Act(actor,0f);
         }
         void EnsureDefenceArrays()
         {
@@ -73,9 +122,12 @@ namespace GloveBallDemo.Runtime
         void PlanDig(Vector3 position,Vector3 velocity,float damping)
         {
             if(_digResolved || _diveStarted)return;
+            if(_digger>=0 && _digContactAt-_sinceTouch<=PlanLockSeconds)return;
             _digger=-1;_digKind=DigKind.None;
-            if(Defenders==null || Defenders.Length==0)return;
             if(ScriptedDefence==DefenceScript.NeverDig)return; // the tutorial: no dig at all
+            GatherFront();
+            int total=DefenderCount+_front.Count;
+            if(total==0)return;
             float floor=FloorY;
             int count=0;
             var p=position;var v=velocity;
@@ -91,19 +143,21 @@ namespace GloveBallDemo.Runtime
             if(depth<=0f || depth>CourtDepth+LineTolerance || Mathf.Abs(side)>CourtHalfWidth+LineTolerance)return;
             float reactLeft=Mathf.Max(0f,DefenderReactionSeconds-_sinceTouch);
             float best=float.MaxValue,arriving=0f;
-            for(int i=0;i<Defenders.Length;i++)
+            for(int i=0;i<total;i++)
             {
-                var defender=Defenders[i];
+                var defender=DiggerActor(i);
                 if(defender==null || !defender.gameObject.activeSelf)continue;
-                if(TryPlatform(i,count,reactLeft,out float cost,out int k) || TryDive(i,count,reactLeft,out cost,out k))
+                bool back=i<DefenderCount; // the front row plays standing only
+                if(TryPlatform(i,count,reactLeft,out float cost,out int k) || back && TryDive(i,count,reactLeft,out cost,out k))
                 {
                     if(cost>=best)continue;
                     best=cost;_digger=i;arriving=_planVelocity[k].magnitude;
                 }
             }
-            if(_digger<0)return;
+            if(_digger<0){ReleaseFrontDigger();return;}
+            if(_frontDigger!=null && DiggerActor(_digger)!=_frontDigger)ReleaseFrontDigger();
             // Re-run for the chosen one to keep its plan (the loop above may have planned others after it).
-            if(!TryPlatform(_digger,count,reactLeft,out _,out _))TryDive(_digger,count,reactLeft,out _,out _);
+            if(!TryPlatform(_digger,count,reactLeft,out _,out _) && _digger<DefenderCount)TryDive(_digger,count,reactLeft,out _,out _);
             // One roll per defender and way of playing: a hard-driven ball is often not controlled even when reached, a soft one rarely.
             int roll=_digger*2+(_digKind==DigKind.Dive ? 1 : 0);
             if(roll!=_digRolledFor)
@@ -118,7 +172,8 @@ namespace GloveBallDemo.Runtime
         bool TryPlatform(int index,int count,float reactLeft,out float cost,out int sample)
         {
             cost=0f;sample=-1;
-            var defender=Defenders[index];
+            var defender=DiggerActor(index);
+            float busy=index<DefenderCount ? 0f : FrontBusy(defender);
             float scale=Mathf.Max(.1f,defender.transform.lossyScale.y);
             float top=VolleyOpponentPrototype.DigHands(0f).y*scale,bottom=VolleyOpponentPrototype.DigHands(1f).y*scale;
             var root=Flat(defender.transform.position);
@@ -132,10 +187,11 @@ namespace GloveBallDemo.Runtime
                 var face=Flat(-vq);face=face.sqrMagnitude>1e-4f ? face.normalized : -Forward;
                 var stand=Flat(q)-face*hands.z;
                 float distance=(stand-root).magnitude,t=k*PlanStep;
+                if(t<busy)continue; // still in its jump, attack or set
                 bool reflex=distance<=ArmReach;
                 // The short cover leaves a hard ball it would have to move for.
                 if(index==CoverIndex && vq.magnitude>CoverMaxSpeed && !reflex)continue;
-                if(!reflex && (distance-ArmReach)/DefenderSpeed>t-reactLeft)continue;
+                if(!reflex && (distance-ArmReach)/DefenderSpeed>t-Mathf.Max(reactLeft,busy))continue;
                 cost=distance;sample=k;
                 _digKind=DigKind.Platform;_digContact=q;_digContactAt=_sinceTouch+t;_digPhase=phase;_digFacing=face;
                 _digRoot=new Vector3(stand.x,defender.transform.position.y,stand.z);
@@ -192,11 +248,12 @@ namespace GloveBallDemo.Runtime
         {
             if(_digger<0 || _digResolved)return;
             EnsureDefenceArrays();
-            var defender=Defenders[_digger];
+            var defender=DiggerActor(_digger);
             if(defender==null)return;
             float now=_sinceTouch,left=_digContactAt-now;
             if(_digKind==DigKind.Platform)
             {
+                if(_digger>=DefenderCount && !CommitFront(defender))return; // still landing from its jump (or attack)
                 var root=defender.transform.position;
                 float distance=Flat(_digRoot-root).magnitude;
                 // Within arm's reach it just shifts (even before it could react); further, it runs once it has reacted.
@@ -267,7 +324,7 @@ namespace GloveBallDemo.Runtime
         bool TryDig(Vector3 position,Vector3 velocity)
         {
             if(_digger<0 || _digResolved)return false;
-            var defender=Defenders[_digger];
+            var defender=DiggerActor(_digger);
             bool dive=_digKind==DigKind.Dive;
             if(dive && (!_digSuccess || !_diveStarted || _sinceTouch<_diveStartAt+_diveFall*.7f))return false;
             var hands=defender.HandsCentre;
@@ -306,6 +363,7 @@ namespace GloveBallDemo.Runtime
             if(Defenders==null)return;
             EnsureDefenceArrays();
             bool live=Phase==RallyPhase.OpponentSpike || Phase==RallyPhase.PlayerSpike;
+            if(!live)ReleaseFrontDigger(); // back to its own play: blocking, setting, attacking
             var facing=Quaternion.LookRotation(-Forward,Vector3.up);
             for(int i=0;i<Defenders.Length;i++)
             {

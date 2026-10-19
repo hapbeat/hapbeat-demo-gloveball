@@ -85,7 +85,8 @@ namespace GloveBallDemo.Tests
             Award(Phase.OpponentSpike,true,"BLOCK POINT!");
             Assert.That(_tutorial.Count,Is.EqualTo(1));
             Award(Phase.OpponentSpike,true,"BLOCK POINT!");
-            Assert.That(_tutorial.PanelBody,Is.EqualTo(VolleyTutorialText.Get("sb_end_3").Body),"The match announced with its points.");
+            Assert.That(_tutorial.PanelBody,Is.EqualTo(VolleyTutorialText.Get("sb_end_"+points).Body),"The match announced with its points...");
+            Assert.That(_tutorial.Panel.gameObject.activeSelf,Is.False,"...by voice only: a panel would read as more tutorial.");
             Wait(.1f);
             Assert.That(_tutorial.Running,Is.EqualTo(VolleyTutorial.Course.None),"The match starts as soon as the goals are met.");
             Assert.That(_rally.Mode,Is.EqualTo(Mode.Alternate));
@@ -147,8 +148,26 @@ namespace GloveBallDemo.Tests
         }
 
         [Test]
+        public void ReceiveTutorialsGoodStepMarksTheOthersAndRestartsAPassToTheSetter()
+        {
+            _tutorial.Begin(VolleyTutorial.Course.Receive);
+            Assert.That(_rally.MarkOtherPassers,Is.False,"First the setter is the target.");
+            var grade=typeof(VolleyAerialSequence).GetMethod("ShowGrade",Private);
+            grade.Invoke(_rally,new object[]{"EXCELLENT"});_tutorial.Tick(.05f);
+            Assert.That(_rally.MarkOtherPassers,Is.True,"Then the two others (yellow), not the setter.");
+            SetPhase(Phase.MatchPlay);
+            grade.Invoke(_rally,new object[]{"EXCELLENT"});_tutorial.Tick(.05f);
+            Assert.That(_tutorial.GotGood,Is.False);
+            Assert.That(_tutorial.PanelHint,Is.EqualTo(VolleyTutorialText.Get("rc_try_good").Body));
+            Assert.That(_rally.Phase,Is.EqualTo(Phase.Idle),"To the setter again: that rep ends at once, the next serve comes.");
+            grade.Invoke(_rally,new object[]{"GOOD"});_tutorial.Tick(.05f);
+            Assert.That(_rally.MarkOtherPassers,Is.False,"Goals met: the setter is the target in the match.");
+        }
+
+        [Test]
         public void ReceiveTutorialWantsOneExcellentAndOneGoodAndExplainsEachGradeOnce()
         {
+            int points=_rally.MatchPoints;
             _tutorial.Begin(VolleyTutorial.Course.Receive);
             Assert.That(_tutorial.Step,Is.EqualTo("rc_pass"));Assert.That(_rally.Mode,Is.EqualTo(Mode.Pass));
             Assert.That(_drill.HoldRally,Is.False);
@@ -165,7 +184,7 @@ namespace GloveBallDemo.Tests
             Assert.That(_tutorial.Running,Is.EqualTo(VolleyTutorial.Course.Receive));
             grade.Invoke(_rally,new object[]{"EXCELLENT"});_tutorial.Tick(.05f);
             Assert.That(_tutorial.GotExcellent,Is.True);
-            Assert.That(_tutorial.PanelBody,Is.EqualTo(VolleyTutorialText.Get("rc_end_3").Body));
+            Assert.That(_tutorial.PanelBody,Is.EqualTo(VolleyTutorialText.Get("rc_end_"+points).Body));
             // The match starts once the rep that met the goals has ended.
             SetPhase(Phase.MatchPlay);_tutorial.Tick(.05f);
             Assert.That(_tutorial.Running,Is.EqualTo(VolleyTutorial.Course.Receive));

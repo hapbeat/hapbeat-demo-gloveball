@@ -65,11 +65,11 @@ namespace GloveBallDemo.Tests
             Assert.That(volley.FindOption("tutorial").WhenValues, Is.EquivalentTo(new[] { "block", "receive" }), "The match has no tutorial.");
             Assert.That(volley.FindOption("points").WhenValues, Is.EquivalentTo(new[] { "block", "receive", "match" }));
             Assert.That(volley.FindOption("tutorial").Default, Is.EqualTo("on"), "The tutorial first, as in Energy Duel.");
-            Assert.That(volley.FindOption("points").Default, Is.EqualTo("3"), "A demo: first to 3."); 
+            Assert.That(volley.FindOption("points").Default, Is.EqualTo("4"), "A demo: first to 4 (a few spikes and blocks).");
             Assert.That(volley.FindOption("points").WhenOptionId, Is.EqualTo("scene"));
             Assert.That(volley.FindOption("scene").Default, Is.EqualTo("block"), "Spike + Block turns are the default.");
             Assert.That(volley.FindOption("scene").Values.Count, Is.EqualTo(3));
-            Assert.That(volley.FindOption("points").Values.Count, Is.EqualTo(3));
+            Assert.That(volley.FindOption("points").Values.Count, Is.EqualTo(4));
             Assert.That(volley.Title.Ja, Is.EqualTo("バレーボール"));
             Assert.That(volley.Minutes, Is.EqualTo(3));
 

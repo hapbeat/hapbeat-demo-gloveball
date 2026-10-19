@@ -16,9 +16,7 @@ public static class VolleyRallySetup
     const string TeammatePrefix="Rally teammate ";
 
     const string NarrationFolder="Assets/GloveBallDemo/Audio/Narration/ja";
-    static readonly string[] MusicPaths={"Assets/GloveBallDemo/Audio/Music/energetic_bigbeat_drum_loop.wav",
-        "Assets/GloveBallDemo/Audio/Music/fifties_stomp_clap_loop_115bpm.wav","Assets/GloveBallDemo/Audio/Music/tortoise_vs_hare_160bpm.wav",
-        "Assets/GloveBallDemo/Audio/Music/8bit_hype_house_drum_loop.wav"};
+    const string MusicPath="Assets/GloveBallDemo/Audio/Music/energetic_bigbeat_drum_loop.wav";
     const string LeftPlaceholderPath="Assets/GloveBallDemo/Art/FallbackHands/LeftHandPlaceholder.prefab";
     const string RightPlaceholderPath="Assets/GloveBallDemo/Art/FallbackHands/RightHandPlaceholder.prefab";
     [MenuItem("Hapbeat/Volley/Apply spike + block turn rally")]
@@ -108,7 +106,7 @@ public static class VolleyRallySetup
         aerial.RallyResetSeconds=2f;         // landing ball and marker stay visible
         aerial.SpikeJumpHeight=1.5f;aerial.SpikeJumpSeconds=1.4f;   // more hang time to strike down
         aerial.BlockJumpHeight=.85f;aerial.BlockJumpSeconds=1f;
-        aerial.MatchPoints=3; // a demo: first to 3 (the session's points option may change it)
+        aerial.MatchPoints=4; // a demo: first to 4, so a match has a few spikes and blocks (the session's points option may change it)
         aerial.MinBlockers=aerial.MaxBlockers=3;
         aerial.HeightSpread=.15f;aerial.BlockReachAboveEye=.45f;aerial.BlockSpeed=10.5f; // readable from the body turn, always reachable
         aerial.BlockerJumpSeconds=1.3f;aerial.BlockerReactionSeconds=.05f;aerial.BlockerTimingJitter=.05f;
@@ -137,9 +135,9 @@ public static class VolleyRallySetup
         aerial.SpikeHeightWeight=.65f;aerial.SpikeHeightWindow=.8f;aerial.SpikeFullSwing=7f;
         drill.BlockForearms=true;
         // Background music: a quiet CC0 drum loop (Audio/Music/sources.json) under the play.
-        aerial.MusicTracks=MusicPaths.Select(path=>AssetDatabase.LoadAssetAtPath<AudioClip>(path)).ToArray();
-        if(aerial.MusicTracks.Any(clip=>clip==null))throw new InvalidOperationException("Background music missing (Audio/Music).");
-        aerial.MusicVolume=.15f;
+        aerial.Music=AssetDatabase.LoadAssetAtPath<AudioClip>(MusicPath);
+        if(aerial.Music==null)throw new InvalidOperationException("Background music missing: "+MusicPath);
+        aerial.MusicVolume=.1f;
         // The player jumps (AUTO JUMP off by default; the menu turns it on). RECEIVE and TOSS never jump either way.
         aerial.Jump.AutomaticJump=false;EditorUtility.SetDirty(aerial.Jump);aerial.JumpTimingTolerance=.18f;
         // Haptics: how hard the hand hit the ball (its change of velocity), up to the trigger's full x2; a receive in both arms.
@@ -165,9 +163,10 @@ public static class VolleyRallySetup
             if(arm==null)arm=armTransform.gameObject.AddComponent<Hapbeat.DemoSwitch.DemoTutorialHand>();
             arm.Left=side==0;arm.ShowForearm=true;arm.Scale=1f;
             // Meta's hand mesh measured at its wrist cuff (Energy Duel's setup, DemoTutorialHandCuff.Measure x 1.05): the forearm
-            // meets the tracked hand, which stays opaque up to the joint while it is shown (DemoHands.SetWristFade).
+            // meets the tracked hand, which stays opaque 2 cm past the joint while it is shown (DemoHands.SetWristFade): a fade
+            // right at the joint showed through as dots where the hand's cuff reaches out of the forearm's ellipse.
             arm.ForearmWristRadii=arm.ForearmCuffRadii=new Vector2(.02734f,.01987f);
-            arm.HandFadeStart=.002f;arm.HandFadeLength=.008f;arm.SkinUv=new Vector2(.0757f,.5025f);
+            arm.HandFadeStart=.02f;arm.HandFadeLength=.01f;arm.SkinUv=new Vector2(.0757f,.5025f);
             arm.PlaceholderSkeleton=AssetDatabase.LoadAssetAtPath<GameObject>(side==0 ? LeftPlaceholderPath : RightPlaceholderPath);
             if(arm.PlaceholderSkeleton==null)throw new InvalidOperationException("Placeholder hand prefab missing for the block forearm.");
             armTransform.gameObject.SetActive(false);
@@ -186,6 +185,9 @@ public static class VolleyRallySetup
         aerial.ArmReach=.45f;aerial.DiveSlide=.5f;aerial.DiveFallSeconds=.3f;aerial.DiveMaxTilt=65f;aerial.DiveMissShort=.55f;aerial.HandContactRadius=.3f;
         // Their defence: two deep, one covering short balls; hard-driven balls are often shanked, soft ones rarely.
         aerial.DefenderDepth=6.5f;aerial.CoverDepth=3.3f;
+        // Nobody moves for the ball for half a second: a sharp, hard shot is put away (unless at a player's body), a ball in
+        // the air longer is run down by whoever is nearest, the front row included.
+        aerial.DefenderReactionSeconds=.5f;
         aerial.DigSpeedRange=new Vector2(8f,20f);aerial.DigEasyChance=.95f;aerial.DigHardChance=.3f;
         // One blocker reads the hitter closely.
         aerial.ReadingBlockerRange=.3f;

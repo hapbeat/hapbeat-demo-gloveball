@@ -30,7 +30,7 @@ namespace GloveBallDemo.Runtime
         [Min(.1f)] public float RallyResetSeconds=2f;
         [Header("Match")]
         [Tooltip("First side to this many points wins; the match then restarts automatically.")]
-        [Min(1)] public int MatchPoints=3;
+        [Min(1)] public int MatchPoints=4;
         [Min(1f)] public float MatchEndSeconds=5f;
         [Tooltip("Demo Session: keep the final score instead of restarting after MatchEndSeconds.")]
         public bool HoldAtMatchEnd;
@@ -108,7 +108,7 @@ namespace GloveBallDemo.Runtime
         public VolleyOpponentPrototype[] Defenders=new VolleyOpponentPrototype[0];
         public float DefenderDepth=6f;
         public float DefenderSpacing=2.8f;
-        [Min(0f)] public float DefenderReactionSeconds=.3f;
+        [Min(0f)] public float DefenderReactionSeconds=.5f;
         [Min(.1f)] public float DefenderSpeed=4.5f;
         [Tooltip("Match engine and stations: height at which a defender plays the ball (the turn modes play it where the hands are).")]
         [Min(.2f)] public float DigHeight=.8f;
@@ -137,10 +137,10 @@ namespace GloveBallDemo.Runtime
         public Color OpponentJersey=new Color(.8f,.16f,.07f);
         public Color OpponentShorts=new Color(.05f,.07f,.1f);
         [Header("Background music (played by the presenter)")]
-        [Tooltip("Quiet rhythmic loops under the match (2D), a different one each match; none during the tutorial. Empty: none.")]
-        public AudioClip[] MusicTracks=new AudioClip[0];
-        [Tooltip("Just audible: voices and the ball's sounds are never buried (the clips are at -20 LUFS, like the voice).")]
-        [Range(0f,1f)] public float MusicVolume=.15f;
+        [Tooltip("A quiet rhythmic loop under the match (2D); none during the tutorial. Empty: none.")]
+        public AudioClip Music;
+        [Tooltip("Just audible: voices and the ball's sounds are never buried (the clip is at -20 LUFS, like the voice).")]
+        [Range(0f,1f)] public float MusicVolume=.1f;
         [Header("Opponent contact audio (no haptics)")]
         public AudioClip SpikeClip;
         [Range(0f,1f)] public float SpikeVolume=.85f;
@@ -1032,7 +1032,7 @@ namespace GloveBallDemo.Runtime
             for(int i=0;i<Blockers.Length;i++)
             {
                 var blocker=Blockers[i];
-                if(blocker==null)continue;
+                if(blocker==null || blocker==_frontDigger)continue; // playing the ball (their defence moves it)
                 blocker.transform.position=Vector3.MoveTowards(blocker.transform.position,_blockerTargets[i],BlockerShuffleSpeed*dt);
                 if(blocker.Role!=VolleyOpponentPrototype.MotionRole.Block)continue; // the block-turn setter is posed by the set
                 float phase=_blockerActive[i] && _blockerClock>=0f ? Mathf.Clamp01((_blockerClock-_blockerJumpAt[i])/BlockerJumpSeconds) : 0f;

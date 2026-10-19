@@ -58,7 +58,7 @@ namespace GloveBallDemo.Runtime
 
         bool _explainedBad, _explainedLost;
         int _gradeSerial, _jumps, _savedMatchPoints;
-        float _hintAge = 99f, _lingerUntil = -1f;
+        float _hintAge = 99f;
         bool _finishing, _subscribed;
         VolleyAerialSequence.RallyMode _expected;
         VolleyAerialSequence.RallyMode? _pendingMode;
@@ -104,7 +104,7 @@ namespace GloveBallDemo.Runtime
             Aerial.MatchPoints = 999; // practice points never end a match
             Subscribe(true);
             EnsureBuilt();
-            _placed = false; _finishing = false; _pendingMode = null; _lingerUntil = -1f; _queued = null;
+            _placed = false; _finishing = false; _pendingMode = null; _queued = null;
             GotExcellent = GotGood = _explainedBad = _explainedLost = false;
             ShowPanel(true);
             if (course == Course.Receive)
@@ -135,15 +135,17 @@ namespace GloveBallDemo.Runtime
             {
                 Aerial.ScriptedDefence = VolleyAerialSequence.DefenceScript.Natural;
                 Aerial.PracticeServes = false;
+                Aerial.MarkOtherPassers = false;
                 Aerial.MatchPoints = _savedMatchPoints;
                 if (play) Aerial.SetMode(course == Course.Receive ? VolleyAerialSequence.RallyMode.Pass : VolleyAerialSequence.RallyMode.Alternate);
             }
             if (Drill != null) Drill.HoldRally = false;
-            // After the goals the last words are still spoken over the match's start; otherwise all goes at once.
+            // After the goals the last words are still spoken over the match's start (no panel: that would read as more
+            // tutorial); otherwise all goes at once.
             if (play && _queued != null) Say(_queued);
             _queued = null;
-            if (play && _voice != null && _voice.isPlaying) _lingerUntil = _clock + Mathf.Max(0f, _voice.clip.length - _voice.time) + .5f;
-            else { if (_voice != null) _voice.Stop(); ShowPanel(false); }
+            if (!play && _voice != null) _voice.Stop();
+            ShowPanel(false);
             if (play) Finished?.Invoke(course);
         }
 
@@ -195,6 +197,7 @@ namespace GloveBallDemo.Runtime
         void Finish(string id)
         {
             _finishing = true;
+            ShowPanel(false); // the match's announcement is spoken only
             _title.text = VolleyTutorialText.Get(id).Title; _body.text = VolleyTutorialText.Get(id).Body;
             if (_voice != null && _voice.isPlaying) _queued = id; else Say(id);
         }
@@ -270,9 +273,10 @@ namespace GloveBallDemo.Runtime
             if (_finishing) return;
             if (grade == "EXCELLENT")
             {
-                bool first = !GotExcellent;
+                // Asked for a pass to another player (yellow) and it went to the setter: again, at once.
+                if (GotExcellent && !GotGood) { Hint("rc_try_good"); Drill.ResetCurrentAttempt(); return; }
                 GotExcellent = true; UpdateReceiveCounter();
-                if (first) Explain("rc_excellent"); else Remaining(false);
+                Explain("rc_excellent");
             }
             else if (grade == "GOOD")
             {
@@ -306,7 +310,12 @@ namespace GloveBallDemo.Runtime
             if (speak) _queued = id;
         }
 
-        void UpdateReceiveCounter() => SetCounter("EXCELLENT " + (GotExcellent ? "●" : "○") + "  GOOD " + (GotGood ? "●" : "○"));
+        void UpdateReceiveCounter()
+        {
+            SetCounter("EXCELLENT " + (GotExcellent ? "●" : "○") + "  GOOD " + (GotGood ? "●" : "○"));
+            // The GOOD step: the two other players are the targets (yellow), not the setter.
+            Aerial.MarkOtherPassers = GotExcellent && !GotGood;
+        }
 
         void Hint(string id)
         {
@@ -335,11 +344,7 @@ namespace GloveBallDemo.Runtime
         public void Tick(float dt)
         {
             _clock += dt; _hintAge += dt;
-            if (Running == Course.None)
-            {
-                if (_lingerUntil >= 0f && _clock >= _lingerUntil) { _lingerUntil = -1f; ShowPanel(false); }
-                return;
-            }
+            if (Running == Course.None) return;
             // The next line after an explanation.
             if (_queued != null && (_voice == null || !_voice.isPlaying || !Application.isPlaying)) { var next = _queued; _queued = null; Say(next); }
             // A mode picked meanwhile (the menu, the session) ends the tutorial there.
@@ -622,6 +627,7 @@ namespace GloveBallDemo.Runtime
             new Line("sb_block_hint", "", "打ってくる相手の正面で、ジャンプして両手を前へ出しましょう。"),
             new Line("sb_nice_block", "", "ナイスブロック！もう1本。"),
             new Line("sb_end_3", "試合開始", "OKです！これからゲーム形式の試合です。スパイクやブロックが甘いと、ポイントが決まらずにそのまま続きます。がんばって3点先取してください。"),
+            new Line("sb_end_4", "試合開始", "OKです！これからゲーム形式の試合です。スパイクやブロックが甘いと、ポイントが決まらずにそのまま続きます。がんばって4点先取してください。"),
             new Line("sb_end_5", "試合開始", "OKです！これからゲーム形式の試合です。スパイクやブロックが甘いと、ポイントが決まらずにそのまま続きます。がんばって5点先取してください。"),
             new Line("sb_end_7", "試合開始", "OKです！これからゲーム形式の試合です。スパイクやブロックが甘いと、ポイントが決まらずにそのまま続きます。がんばって7点先取してください。"),
             new Line("sb_end", "試合開始", "OKです！これからゲーム形式の試合です。スパイクやブロックが甘いと、ポイントが決まらずにそのまま続きます。がんばって勝ちましょう。"),
@@ -631,8 +637,9 @@ namespace GloveBallDemo.Runtime
             new Line("rc_bad", "", "BAD。低すぎたりずれたりすると、相手にそのまま返すだけになり、強いスパイクを打たれます。", "バッド。低すぎたりずれたりすると、相手にそのまま返すだけになり、強いスパイクを打たれます。"),
             new Line("rc_lost", "", "ボールが落ちました。ボールの正面で、両腕をそろえて受けましょう。"),
             new Line("rc_try_excellent", "", "緑のセッターへ、高く返しましょう。"),
-            new Line("rc_try_good", "", "次は、わざとセッター以外の選手に返してみましょう。"),
+            new Line("rc_try_good", "", "次は、わざとセッター以外の、黄色の目印の選手に返してみましょう。"),
             new Line("rc_end_3", "試合開始", "OKです！では、3点先取の試合を始めます。"),
+            new Line("rc_end_4", "試合開始", "OKです！では、4点先取の試合を始めます。"),
             new Line("rc_end_5", "試合開始", "OKです！では、5点先取の試合を始めます。"),
             new Line("rc_end_7", "試合開始", "OKです！では、7点先取の試合を始めます。"),
             new Line("rc_end", "試合開始", "OKです！では、試合を始めます。"),
