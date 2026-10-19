@@ -47,8 +47,9 @@ namespace GloveBallDemo.Runtime
         public int Count { get; private set; }
         public DemoMove Move { get; private set; }
         /// <summary>RECEIVE goals met.</summary>
-        public bool GotExcellent { get; private set; }
-        public bool GotGood { get; private set; }
+        /// <summary>RECEIVE goals: a pass the setter played (EXCELLENT or GOOD alike), and one another player played.</summary>
+        public bool GotSetter { get; private set; }
+        public bool GotOther { get; private set; }
         public event Action<Course> Finished;
 
         static bool s_launched;
@@ -105,7 +106,7 @@ namespace GloveBallDemo.Runtime
             Subscribe(true);
             EnsureBuilt();
             _placed = false; _finishing = false; _pendingMode = null; _queued = null;
-            GotExcellent = GotGood = _explainedBad = _explainedLost = false;
+            GotSetter = GotOther = _explainedBad = _explainedLost = false;
             ShowPanel(true);
             if (course == Course.Receive)
             {
@@ -271,17 +272,18 @@ namespace GloveBallDemo.Runtime
         void OnGrade(string grade)
         {
             if (_finishing) return;
-            if (grade == "EXCELLENT")
+            var taker = Aerial.LastPassTaker;
+            if (taker == VolleyAerialSequence.PassTaker.Setter)
             {
-                // Asked for a pass to another player (yellow) and it went to the setter: again, at once.
-                if (GotExcellent && !GotGood) { Hint("rc_try_good"); Drill.ResetCurrentAttempt(); return; }
-                GotExcellent = true; UpdateReceiveCounter();
-                Explain("rc_excellent");
+                // Asked for a pass to another player (yellow) and the setter played it: again, at once.
+                if (GotSetter && !GotOther) { Hint("rc_try_other"); Drill.ResetCurrentAttempt(); return; }
+                GotSetter = true; UpdateReceiveCounter();
+                Explain(grade == "EXCELLENT" ? "rc_excellent" : "rc_setter_moved");
             }
-            else if (grade == "GOOD")
+            else if (taker == VolleyAerialSequence.PassTaker.Other)
             {
-                bool first = !GotGood;
-                GotGood = true; UpdateReceiveCounter();
+                bool first = !GotOther;
+                GotOther = true; UpdateReceiveCounter();
                 if (first) Explain("rc_good"); else Remaining(false);
             }
             else
@@ -290,7 +292,7 @@ namespace GloveBallDemo.Runtime
                 _explainedBad = true;
                 Explain("rc_bad");
             }
-            if (GotExcellent && GotGood) Finish(EndLine("rc_end"));
+            if (GotSetter && GotOther) Finish(EndLine("rc_end"));
         }
 
         /// <summary>Speaks a grade's consequence (once), then what to aim for next.</summary>
@@ -304,17 +306,17 @@ namespace GloveBallDemo.Runtime
         /// <summary>The panel's goal text: to the setter, or to another player; queued after an explanation when <paramref name="speak"/>.</summary>
         void Remaining(bool speak)
         {
-            if (GotExcellent && GotGood) return;
-            string id = !GotExcellent ? "rc_try_excellent" : "rc_try_good";
+            if (GotSetter && GotOther) return;
+            string id = !GotSetter ? "rc_try_setter" : "rc_try_other";
             _body.text = VolleyTutorialText.Get(id).Body;
             if (speak) _queued = id;
         }
 
         void UpdateReceiveCounter()
         {
-            SetCounter("EXCELLENT " + (GotExcellent ? "●" : "○") + "  GOOD " + (GotGood ? "●" : "○"));
-            // The GOOD step: the two other players are the targets (yellow), not the setter.
-            Aerial.MarkOtherPassers = GotExcellent && !GotGood;
+            SetCounter("セッター " + (GotSetter ? "●" : "○") + "  ほかの選手 " + (GotOther ? "●" : "○"));
+            // The second goal: the two other players are the targets (yellow), not the setter.
+            Aerial.MarkOtherPassers = GotSetter && !GotOther;
         }
 
         void Hint(string id)
@@ -431,8 +433,9 @@ namespace GloveBallDemo.Runtime
             onTop.SetInt("unity_GUIZTestMode", (int)UnityEngine.Rendering.CompareFunction.Always);
             onTop.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Overlay;
             foreach (var graphic in go.GetComponentsInChildren<Graphic>(true)) graphic.material = onTop;
-            _voice = go.AddComponent<AudioSource>(); _voice.playOnAwake = false; _voice.spatialBlend = 0f;
-            _cue = go.AddComponent<AudioSource>(); _cue.playOnAwake = false; _cue.spatialBlend = 0f;
+            // On the tutorial itself, not the panel: the match's announcement is spoken with the panel hidden.
+            _voice = gameObject.AddComponent<AudioSource>(); _voice.playOnAwake = false; _voice.spatialBlend = 0f;
+            _cue = gameObject.AddComponent<AudioSource>(); _cue.playOnAwake = false; _cue.spatialBlend = 0f;
             // The demonstration hands, below the text, at 0.9 of real size.
             _demo = new GameObject("Volley tutorial demo").transform;
             _demo.SetParent(_panel, false);
@@ -636,8 +639,9 @@ namespace GloveBallDemo.Runtime
             new Line("rc_good", "", "GOOD。セッター以外の選手がトスしても攻撃は続きますが、スパイクは決まりにくく、相手に拾われてラリーが続きます。", "グッド。セッター以外の選手がトスしても攻撃は続きますが、スパイクは決まりにくく、相手に拾われてラリーが続きます。"),
             new Line("rc_bad", "", "BAD。低すぎたりずれたりすると、相手にそのまま返すだけになり、強いスパイクを打たれます。", "バッド。低すぎたりずれたりすると、相手にそのまま返すだけになり、強いスパイクを打たれます。"),
             new Line("rc_lost", "", "ボールが落ちました。ボールの正面で、両腕をそろえて受けましょう。"),
-            new Line("rc_try_excellent", "", "緑のセッターへ、高く返しましょう。"),
-            new Line("rc_try_good", "", "次は、わざとセッター以外の、黄色の目印の選手に返してみましょう。"),
+            new Line("rc_setter_moved", "", "GOOD。セッターが大きく動くと、攻撃の選択肢が減ります。セッターの正面へ返すほど、強いスパイクで決まります。", "グッド。セッターが大きく動くと、攻撃の選択肢が減ります。セッターの正面へ返すほど、強いスパイクで決まります。"),
+            new Line("rc_try_setter", "", "緑のセッターへ、高く返しましょう。"),
+            new Line("rc_try_other", "", "次は、わざとセッター以外の、黄色の目印の選手に返してみましょう。"),
             new Line("rc_end_3", "試合開始", "OKです！では、3点先取の試合を始めます。"),
             new Line("rc_end_4", "試合開始", "OKです！では、4点先取の試合を始めます。"),
             new Line("rc_end_5", "試合開始", "OKです！では、5点先取の試合を始めます。"),

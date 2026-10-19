@@ -131,7 +131,10 @@ namespace GloveBallDemo.Runtime
 
         static string QualityWord(float q)=>q>=.75f ? "PERFECT" : q>=.4f ? "GOOD" : "LOOSE";
         static string GradeWord(float q)=>q>=.75f ? "EXCELLENT" : q>=.4f ? "GOOD" : "BAD";
-        void ShowGrade(string grade){LastGrade=grade;GradeSerial++;}
+        void ShowGrade(string grade){LastGrade=grade;LastPassTaker=PassTaker.None;GradeSerial++;}
+        public enum PassTaker { None, Setter, Other }
+        /// <summary>RECEIVE: who sets the graded pass - the setter (EXCELLENT, or GOOD when it had to move), another player (GOOD), or nobody (BAD).</summary>
+        public PassTaker LastPassTaker { get; private set; }
         Vector3 SetterSpot=>SetHead(TeamPoint(Team.Us,SetterLateral,.8f));
 
         void StartStationRep()
@@ -557,6 +560,7 @@ namespace GloveBallDemo.Runtime
             else if(_passClass==2){q=.6f;why=player==ActorAt(Team.Us,0) ? "GOOD PASS — THE SETTER HAD TO MOVE" : "GOOD PASS — ANOTHER PLAYER SETS";}
             else{q=.2f;why=_passTooLow ? "BAD PASS — TOO LOW TO SET: FREE BALL OVER" : "BAD PASS — OFF THE TARGET: FREE BALL OVER";}
             _stationQuality=q;ShowGrade(GradeWord(q));
+            LastPassTaker=_passClass<2 ? PassTaker.None : player==ActorAt(Team.Us,0) ? PassTaker.Setter : PassTaker.Other;
             Cue=why;
         }
 

@@ -8,6 +8,7 @@ using UnityEngine;
 using Mode = GloveBallDemo.Runtime.VolleyAerialSequence.RallyMode;
 using Phase = GloveBallDemo.Runtime.VolleyAerialSequence.RallyPhase;
 using Script = GloveBallDemo.Runtime.VolleyAerialSequence.DefenceScript;
+using Taker = GloveBallDemo.Runtime.VolleyAerialSequence.PassTaker;
 
 namespace GloveBallDemo.Tests
 {
@@ -147,43 +148,51 @@ namespace GloveBallDemo.Tests
             Assert.That(called,Is.True);
         }
 
+        /// <summary>A RECEIVE pass graded <paramref name="grade"/> and set by <paramref name="taker"/>.</summary>
+        void Pass(string grade,VolleyAerialSequence.PassTaker taker)
+        {
+            typeof(VolleyAerialSequence).GetMethod("ShowGrade",Private).Invoke(_rally,new object[]{grade});
+            typeof(VolleyAerialSequence).GetProperty("LastPassTaker").SetValue(_rally,taker);
+            _tutorial.Tick(.05f);
+        }
+
         [Test]
-        public void ReceiveTutorialsGoodStepMarksTheOthersAndRestartsAPassToTheSetter()
+        public void ReceiveTutorialsSecondGoalMarksTheOthersAndRestartsAPassToTheSetter()
         {
             _tutorial.Begin(VolleyTutorial.Course.Receive);
             Assert.That(_rally.MarkOtherPassers,Is.False,"First the setter is the target.");
-            var grade=typeof(VolleyAerialSequence).GetMethod("ShowGrade",Private);
-            grade.Invoke(_rally,new object[]{"EXCELLENT"});_tutorial.Tick(.05f);
+            Pass("GOOD",Taker.Setter);
+            Assert.That(_tutorial.GotSetter,Is.True,"The setter played it: GOOD (it had to move) counts as well as EXCELLENT.");
+            Assert.That(_tutorial.PanelHint,Is.EqualTo(VolleyTutorialText.Get("rc_setter_moved").Body),"...and why it is only GOOD.");
             Assert.That(_rally.MarkOtherPassers,Is.True,"Then the two others (yellow), not the setter.");
             SetPhase(Phase.MatchPlay);
-            grade.Invoke(_rally,new object[]{"EXCELLENT"});_tutorial.Tick(.05f);
-            Assert.That(_tutorial.GotGood,Is.False);
-            Assert.That(_tutorial.PanelHint,Is.EqualTo(VolleyTutorialText.Get("rc_try_good").Body));
+            Pass("EXCELLENT",Taker.Setter);
+            Assert.That(_tutorial.GotOther,Is.False);
+            Assert.That(_tutorial.PanelHint,Is.EqualTo(VolleyTutorialText.Get("rc_try_other").Body));
             Assert.That(_rally.Phase,Is.EqualTo(Phase.Idle),"To the setter again: that rep ends at once, the next serve comes.");
-            grade.Invoke(_rally,new object[]{"GOOD"});_tutorial.Tick(.05f);
+            Pass("GOOD",Taker.Other);
             Assert.That(_rally.MarkOtherPassers,Is.False,"Goals met: the setter is the target in the match.");
         }
 
         [Test]
-        public void ReceiveTutorialWantsOneExcellentAndOneGoodAndExplainsEachGradeOnce()
+        public void ReceiveTutorialWantsOnePassToTheSetterAndOneToAnotherPlayerAndExplainsEachOnce()
         {
             int points=_rally.MatchPoints;
             _tutorial.Begin(VolleyTutorial.Course.Receive);
             Assert.That(_tutorial.Step,Is.EqualTo("rc_pass"));Assert.That(_rally.Mode,Is.EqualTo(Mode.Pass));
             Assert.That(_drill.HoldRally,Is.False);
-            var grade=typeof(VolleyAerialSequence).GetMethod("ShowGrade",Private);
-            grade.Invoke(_rally,new object[]{"BAD"});_tutorial.Tick(.05f);
+            Pass("BAD",Taker.None);
             Assert.That(_tutorial.PanelHint,Is.EqualTo(VolleyTutorialText.Get("rc_bad").Body),"BAD explained the first time.");
-            grade.Invoke(_rally,new object[]{"GOOD"});_tutorial.Tick(.05f);
-            Assert.That(_tutorial.GotGood,Is.True);Assert.That(_tutorial.GotExcellent,Is.False);
+            Pass("GOOD",Taker.Other);
+            Assert.That(_tutorial.GotOther,Is.True);Assert.That(_tutorial.GotSetter,Is.False);
             Assert.That(_tutorial.PanelHint,Is.EqualTo(VolleyTutorialText.Get("rc_good").Body));
-            Assert.That(_tutorial.PanelBody,Is.EqualTo(VolleyTutorialText.Get("rc_try_excellent").Body),"Then aim for the setter.");
-            grade.Invoke(_rally,new object[]{"BAD"});_tutorial.Tick(.05f);
-            grade.Invoke(_rally,new object[]{"GOOD"});_tutorial.Tick(.05f);
-            Assert.That(_tutorial.PanelHint,Is.EqualTo(VolleyTutorialText.Get("rc_bad").Body),"A second GOOD explains nothing again.");
+            Assert.That(_tutorial.PanelBody,Is.EqualTo(VolleyTutorialText.Get("rc_try_setter").Body),"Then aim for the setter.");
+            Pass("BAD",Taker.None);
+            Pass("GOOD",Taker.Other);
+            Assert.That(_tutorial.PanelHint,Is.EqualTo(VolleyTutorialText.Get("rc_bad").Body),"A second pass to another player explains nothing again.");
             Assert.That(_tutorial.Running,Is.EqualTo(VolleyTutorial.Course.Receive));
-            grade.Invoke(_rally,new object[]{"EXCELLENT"});_tutorial.Tick(.05f);
-            Assert.That(_tutorial.GotExcellent,Is.True);
+            Pass("EXCELLENT",Taker.Setter);
+            Assert.That(_tutorial.GotSetter,Is.True);
             Assert.That(_tutorial.PanelBody,Is.EqualTo(VolleyTutorialText.Get("rc_end_"+points).Body));
             // The match starts once the rep that met the goals has ended.
             SetPhase(Phase.MatchPlay);_tutorial.Tick(.05f);
@@ -191,6 +200,14 @@ namespace GloveBallDemo.Tests
             SetPhase(Phase.Recovery);_tutorial.Tick(.05f);
             Assert.That(_tutorial.Running,Is.EqualTo(VolleyTutorial.Course.None));
             Assert.That(_rally.Mode,Is.EqualTo(Mode.Pass));
+        }
+
+        [Test]
+        public void TheVoiceIsNotOnThePanel()
+        {
+            _tutorial.Begin(VolleyTutorial.Course.Receive);
+            Assert.That(_tutorial.Panel.GetComponentsInChildren<AudioSource>(true),Is.Empty,"Hiding the panel at the match start must not silence its announcement.");
+            Assert.That(_tutorial.GetComponents<AudioSource>(),Has.Length.EqualTo(2));
         }
 
         [Test]

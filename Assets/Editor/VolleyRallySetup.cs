@@ -193,9 +193,12 @@ public static class VolleyRallySetup
         aerial.ReadingBlockerRange=.3f;
         PlaceBlockSpot(aerial,net,forward);
         aerial.TargetMaterial=TargetMaterial();
-        // The rally is tuned on the volleyball first; the other balls come back once its feel is right.
+        // For now one of the four balls at random (their haptic clips are tried in play; the volleyball alone comes back after).
         var pool=new SerializedObject(drill.Pool);var kinds=pool.FindProperty("_launchBallKinds");
-        kinds.arraySize=1;kinds.GetArrayElementAtIndex(0).enumValueIndex=(int)BallKind.Volleyball;pool.ApplyModifiedPropertiesWithoutUndo();
+        var four=new[]{BallKind.Bowling,BallKind.Volleyball,BallKind.Foam,BallKind.Perforated};
+        kinds.arraySize=four.Length;
+        for(int i=0;i<four.Length;i++)kinds.GetArrayElementAtIndex(i).enumValueIndex=(int)four[i];
+        pool.ApplyModifiedPropertiesWithoutUndo();
         aerial.BlockerNetDistance=.35f;
         // Fast overhead swings exceed 8 m/s in tracking space; the old limit flagged them as tracking jumps.
         drill.Left.MaximumTrackedSpeed=drill.Right.MaximumTrackedSpeed=30f;

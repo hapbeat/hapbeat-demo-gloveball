@@ -43,13 +43,17 @@
   "norm": "loudnorm I=-20 TP=-1.5",
   "synth": "d748698fa3c07a89856e4dc19ca2a965b6ece7ee0364308ca30c685803fc5beb"
  },
- "rc_try_excellent": {
+ "rc_setter_moved": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "d03eae5218518b14279abeb6180542abd9944c478e66b5f96fff00818871c78c"
+  "synth": "1c9596880b9e0b57fd5400cdd5a3e2abc9ecd0acc4c0dd2155926a0bd008d578"
  },
- "rc_try_good": {
+ "rc_try_other": {
   "norm": "loudnorm I=-20 TP=-1.5",
   "synth": "a49f1a0e9dbe8dcddb867b1b2f75429c37145480f1336eca5d815e38b6b8af26"
+ },
+ "rc_try_setter": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "d03eae5218518b14279abeb6180542abd9944c478e66b5f96fff00818871c78c"
  },
  "sb_block": {
   "norm": "loudnorm I=-20 TP=-1.5",
