@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -106,6 +107,38 @@ namespace GloveBallDemo.Tests
             Assert.That(GameInputGate.IsBlocked, Is.False);
             Assert.That(aerial.PlayerScore + aerial.OpponentScore, Is.Zero);
             Assert.That(aerial.Phase, Is.EqualTo(VolleyAerialSequence.RallyPhase.Idle));
+        }
+
+        [TestCase("on")]
+        [TestCase("off")]
+        public void AfterSpikeAndBlockTheCompletionPanelOffersReceive(string tutorial)
+        {
+            EditorSceneManager.OpenScene(Folder + "VolleyBlock-codex.unity");
+            var drill = UnityEngine.Object.FindFirstObjectByType<VolleyDrillController>();
+            var aerial = drill.Aerial;
+            typeof(BallPool).GetMethod("Awake", Private).Invoke(drill.Pool, null);
+            Assert.That(DemoSession.TryBegin(Ticket("volley", "{\"scene\":\"block\",\"tutorial\":\"" + tutorial + "\",\"points\":\"4\"}"), "volley",
+                Load("Assets/StreamingAssets/hapbeat-demo-session.json"), out var error), Is.True, error);
+            var host = drill.gameObject.AddComponent<VolleySessionHost>();
+            DemoSession.RegisterHost(host);
+            var tutor = drill.GetComponent<VolleyTutorial>();
+            try
+            {
+                Assert.That(host.CompletionActions.Select(a => a.Label), Is.EqualTo(new[] { "レシーブへ" }));
+                Raise(aerial, "MatchEnded", true);
+                Assert.That(DemoSession.IsCompletionShown, Is.True);
+                host.CompletionActions[0].Run();
+                Assert.That(aerial.Mode, Is.EqualTo(VolleyAerialSequence.RallyMode.Pass), "RECEIVE in the same step.");
+                Assert.That(tutor.Running, Is.EqualTo(tutorial == "on" ? VolleyTutorial.Course.Receive : VolleyTutorial.Course.None),
+                    "With its tutorial unless the session's tutorial is off.");
+                Assert.That(host.CompletionActions, Is.Empty, "After RECEIVE nothing more to offer.");
+            }
+            finally
+            {
+                tutor.Stop(false);
+                VolleyTutorial.ResetLaunchForTests();
+                aerial.CancelFeed();
+            }
         }
 
         [Test]

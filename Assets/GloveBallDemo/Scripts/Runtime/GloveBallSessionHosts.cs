@@ -38,16 +38,17 @@ namespace GloveBallDemo.Runtime
     /// starts with (<see cref="VolleyTutorial.StartOnLaunch"/>); a retry never runs it.
     /// 視線をリセット (button and CONTROL `recenter`) is the menu's REPOSITION TO START.
     /// The shared pause (Volley APK) pauses through <see cref="SetGameplayPaused"/> and restarts through
-    /// <see cref="Restart"/>; <see cref="VolleyHandMenu"/> opens beside its panel.
+    /// <see cref="Restart"/>; <see cref="VolleyHandMenu"/> opens beside its panel. After SPIKE + BLOCK the completion panel
+    /// also offers レシーブへ (RECEIVE in the same step, with its tutorial unless the session's tutorial is off).
     /// </summary>
-    public sealed class VolleySessionHost : MonoBehaviour, IDemoSessionHost, IDemoSessionRecenter, IDemoSessionTutorial
+    public sealed class VolleySessionHost : MonoBehaviour, IDemoSessionHost, IDemoSessionRecenter, IDemoSessionTutorial, IDemoSessionCompletionActions
     {
         public const string BlockScene = "VolleyBlock-codex";
 
         // The session's scene choice is applied once; later operator scene CONTROLs are not reverted.
         private static bool _sceneOptionApplied;
         private VolleyDrillController _drill;
-        private bool _completionWired;
+        private bool _completionWired, _tutorialOn = true;
 
         public static void ResetSceneChoiceForTests() => _sceneOptionApplied = false;
 
@@ -68,7 +69,8 @@ namespace GloveBallDemo.Runtime
         {
             if (_drill == null) _drill = GetComponent<VolleyDrillController>();
             options.TryGetValue("scene", out var scene);
-            if (options.TryGetValue("tutorial", out var tutorial) && tutorial == "off") VolleyTutorial.SkipLaunchTutorial();
+            _tutorialOn = !(options.TryGetValue("tutorial", out var tutorial) && tutorial == "off");
+            if (!_tutorialOn) VolleyTutorial.SkipLaunchTutorial();
             var mode = SceneMode(scene);
             if (!_sceneOptionApplied)
             {
@@ -105,6 +107,26 @@ namespace GloveBallDemo.Runtime
         }
 
         private void OnMatchEnded(bool playerWon) => DemoSession.ShowCompletion();
+
+        /// <summary>The completion panel's own buttons: レシーブへ after SPIKE + BLOCK (none after RECEIVE or the match).</summary>
+        public IReadOnlyList<DemoSessionCompletionAction> CompletionActions =>
+            _drill != null && _drill.Drill == VolleyDrill.Block && _drill.Aerial != null
+            && VolleyTutorial.CourseFor(_drill.Aerial.Mode) == VolleyTutorial.Course.SpikeBlock
+                ? new[] { new DemoSessionCompletionAction("レシーブへ", PlayReceive) }
+                : System.Array.Empty<DemoSessionCompletionAction>();
+
+        /// <summary>RECEIVE, with its tutorial first unless the session's tutorial option is off.</summary>
+        private void PlayReceive()
+        {
+            var menu = FindAnyObjectByType<VolleyHandMenu>();
+            if (_tutorialOn)
+            {
+                if (menu != null) menu.StartTutorial(VolleyTutorial.Course.Receive);
+                else GetComponent<VolleyTutorial>()?.Begin(VolleyTutorial.Course.Receive);
+            }
+            else if (menu != null) menu.Play(VolleyAerialSequence.RallyMode.Pass);
+            else _drill.Aerial.SetMode(VolleyAerialSequence.RallyMode.Pass);
+        }
 
         /// <summary>CONTROL tutorial_start: the RECEIVE tutorial in RECEIVE, else the SPIKE + BLOCK one.</summary>
         public void StartTutorial()
