@@ -85,7 +85,7 @@
  },
  "sb_jump": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "af8d4fd532e6ebe00c66f2321ca06b7ea7eaa9f1fb1f3cd0ea770cc95eab1e39"
+  "synth": "e71afed4c20c3c5a944797dd0b453d1bbb3bbe5f8df836e068feaea9aa684f39"
  },
  "sb_jump_early": {
   "norm": "loudnorm I=-20 TP=-1.5",
@@ -97,7 +97,7 @@
  },
  "sb_jump_none": {
   "norm": "loudnorm I=-20 TP=-1.5",
-  "synth": "65eec4fb4c2bcf40daee81cf3e881ee01146ac46dab9f7099a7c2b03842e20f4"
+  "synth": "6f7948a4288e1faf532edcb46f665151ea18db87ed0dc7b22e6b2dd86c3a0411"
  },
  "sb_nice": {
   "norm": "loudnorm I=-20 TP=-1.5",
@@ -126,5 +126,13 @@
  "sb_spike_low_auto": {
   "norm": "loudnorm I=-20 TP=-1.5",
   "synth": "53095f9c93c8af4e54e6495e6ee077c8cc21fbd16bf85c5440e0e5ef6e46c22c"
+ },
+ "turn_block": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "9c4b6d4e83ce772b1d050fb9d4e4221c456cd2c59e82d52833e33355e5ad92c4"
+ },
+ "turn_spike": {
+  "norm": "loudnorm I=-20 TP=-1.5",
+  "synth": "418e45be82621d1778a6b0601dde97c497ea1ab0d0760c96552d2e2f4b3f2481"
  }
 }

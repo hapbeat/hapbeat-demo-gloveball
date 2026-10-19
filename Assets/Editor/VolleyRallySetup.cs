@@ -183,6 +183,8 @@ public static class VolleyRallySetup
         // For now every hand touch at the full gain: is the clip itself strong enough (or must it change)? Without it a
         // receive is never weaker than a good one (where on the arms it was met never matters to the feel).
         drill.HapticsAtMaximum=true;drill.ReceiveMinimumGain=1.2f;
+        // With the headset's Hapbeat at full volume a receive (both arms) felt stronger than a spike or block: 70 %.
+        drill.ReceiveHapticScale=.7f;
         // A jump's takeoff (light) and landing (stronger), at the neck: the landing clip.
         drill.JumpHapticGain=.3f;drill.LandHapticGain=.6f;
         SetUpLandingHaptic(drill);

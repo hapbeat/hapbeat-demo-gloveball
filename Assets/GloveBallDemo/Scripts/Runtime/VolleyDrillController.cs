@@ -99,6 +99,8 @@ namespace GloveBallDemo.Runtime
         public bool HapticsAtMaximum;
         [Tooltip("A receive is felt at least this strong (gain), wherever on the arms it is met: the feel of a good receive every time.")]
         [Min(0f)] public float ReceiveMinimumGain = 1.2f;
+        [Tooltip("A receive at this share of its gain: felt in both arms, it is otherwise the stronger touch.")]
+        [Range(0f, 1f)] public float ReceiveHapticScale = .7f;
         [Tooltip("A jump's takeoff (light) and landing (stronger), felt at the neck (the Kit's landing clip, no sound): the streamed gain (a ball hit is 2).")]
         [Range(0f, 2f)] public float JumpHapticGain = .3f;
         [Range(0f, 2f)] public float LandHapticGain = .6f;
@@ -488,7 +490,7 @@ namespace GloveBallDemo.Runtime
                             // Where on the hand it was met changes the ball (a fingertip spike is a tip), never the feel: a Hapbeat
                             // demo's touch is felt fully every time.
                             float gain = HapticsAtMaximum ? MaximumImpactGain : ImpactGain(impulse);
-                            if (touch == VolleyAerialSequence.PlayerTouch.Receive) gain = Mathf.Max(gain, ReceiveMinimumGain);
+                            if (touch == VolleyAerialSequence.PlayerTouch.Receive) gain = Mathf.Max(gain, ReceiveMinimumGain) * ReceiveHapticScale;
                             // A receive is felt in both arms unless the hands are well apart (one is often lost under the other); a spike
                             // and a block only in the hand that met the ball.
                             bool bothArms = joined || touch == VolleyAerialSequence.PlayerTouch.Receive

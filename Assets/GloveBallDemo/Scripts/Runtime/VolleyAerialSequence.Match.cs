@@ -421,7 +421,7 @@ namespace GloveBallDemo.Runtime
             _roleTouch=touch;CurrentTurn=spike ? RallyTurn.Spike : RallyTurn.Block;TurnStarted=true;
             _approachBase=Jump.Floor.StanceOffset;
             EnableReceiveVolume(touch==PlayerTouch.Receive);
-            if(announce)TurnAnnounced?.Invoke(CurrentTurn);
+            if(announce){AnnouncedTouch=touch;TurnAnnounced?.Invoke(CurrentTurn);}
         }
         void SetSlowMotion(bool on)
         {

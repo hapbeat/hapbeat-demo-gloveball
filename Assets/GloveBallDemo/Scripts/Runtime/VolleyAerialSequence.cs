@@ -195,6 +195,8 @@ namespace GloveBallDemo.Runtime
         /// <summary>0 = clear view, 1 = fully blanked by the turn change.</summary>
         public float FadeAlpha { get; private set; }
         public event System.Action<RallyTurn> TurnAnnounced;
+        /// <summary>The player's touch the last <see cref="TurnAnnounced"/> stood for (in the match also a receive, set or serve).</summary>
+        public PlayerTouch AnnouncedTouch { get; private set; }
         public int PlayerScore { get; private set; }
         public int OpponentScore { get; private set; }
         public bool PlayerWonMatch { get; private set; }
@@ -439,6 +441,10 @@ namespace GloveBallDemo.Runtime
         {
             if(_homeCaptured)return;
             _homeCaptured=true;
+            // Their own roles in the turns; the match and RECEIVE give the same actors others (an attack, a block, a dig).
+            if(Ally!=null)_allyRole=Ally.Role;
+            if(Opponent!=null)_opponentRole=Opponent.Role;
+            _defenderRoles=Defenders!=null ? System.Array.ConvertAll(Defenders,d=>d!=null ? d.Role : VolleyOpponentPrototype.MotionRole.Dig) : new VolleyOpponentPrototype.MotionRole[0];
             if(Opponent!=null){_opponentHome=Opponent.transform.position;_opponentHomeRotation=Opponent.transform.rotation;}
             int count=Blockers!=null ? Blockers.Length : 0;
             _blockerJumpAt=new float[count];_blockerActive=new bool[count];_blockerTargets=new Vector3[count];
@@ -571,6 +577,7 @@ namespace GloveBallDemo.Runtime
                 {
                     CurrentTurn=_pendingTurn;TurnStarted=true;_attemptsInTurn=0;
                     Cue=CurrentTurn==RallyTurn.Spike ? "SPIKE TURN — YOUR TEAM ATTACKS" : "BLOCK TURN — STOP THE OPPONENT";
+                    AnnouncedTouch=CurrentTurn==RallyTurn.Spike ? PlayerTouch.Spike : PlayerTouch.Block;
                     TurnAnnounced?.Invoke(CurrentTurn);
                 }
             }
@@ -578,8 +585,14 @@ namespace GloveBallDemo.Runtime
         }
 
         /// <summary>Runs only while the view is blanked: moves the player stance and repositions both teams without visible sliding.</summary>
+        VolleyOpponentPrototype.MotionRole _allyRole=VolleyOpponentPrototype.MotionRole.Set,_opponentRole=VolleyOpponentPrototype.MotionRole.Spike;
+        VolleyOpponentPrototype.MotionRole[] _defenderRoles=new VolleyOpponentPrototype.MotionRole[0];
         void ApplyTurnLayout(RallyTurn turn)
         {
+            // Their own roles again (after the match or RECEIVE our setter could still be a blocker and jump at its set).
+            if(Ally!=null)Ally.Role=_allyRole;
+            if(Opponent!=null)Opponent.Role=_opponentRole;
+            if(Defenders!=null)for(int i=0;i<Defenders.Length && i<_defenderRoles.Length;i++)if(Defenders[i]!=null)Defenders[i].Role=_defenderRoles[i];
             // Absolute at every turn change (the view is blanked): the head goes to the block spot or the spike stance,
             // whatever an alignment or the player's own steps did since.
             if(Jump!=null && Jump.Floor!=null)Jump.Floor.PlaceStance(turn==RallyTurn.Spike ? SpikeStance : Vector3.zero);
@@ -929,6 +942,7 @@ namespace GloveBallDemo.Runtime
                 SetSolid(blocker,false);Act(blocker,0f);
             }
             _blockersFresh=false;
+            AnnouncedTouch=turn==RallyTurn.Spike ? PlayerTouch.Spike : PlayerTouch.Block;
             TurnAnnounced?.Invoke(turn);
         }
         void TickTurnGlide(float dt)

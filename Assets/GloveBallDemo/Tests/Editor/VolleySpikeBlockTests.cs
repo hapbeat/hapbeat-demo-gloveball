@@ -194,6 +194,25 @@ namespace GloveBallDemo.Tests
             Assert.That(landed,Is.EqualTo(1),"A reset is not a landing.");
         }
 
+        [Test]
+        public void OurSetterSetsAgainAfterTheMatchGaveItAnotherRole()
+        {
+            typeof(VolleyAerialSequence).GetMethod("CaptureHome",Private).Invoke(_rally,null);
+            var role=_rally.Ally.Role;
+            _rally.Ally.Role=VolleyOpponentPrototype.MotionRole.Block; // as the match / RECEIVE may leave it
+            typeof(VolleyAerialSequence).GetMethod("ApplyTurnLayout",Private).Invoke(_rally,new object[]{VolleyAerialSequence.RallyTurn.Spike});
+            Assert.That(_rally.Ally.Role,Is.EqualTo(role),"Its own role (no block jump at its set).");
+            Assert.That(role,Is.EqualTo(VolleyOpponentPrototype.MotionRole.Set));
+        }
+
+        [Test]
+        public void EverySpikeOrBlockTurnIsSaid()
+        {
+            var tutorial=_drill.GetComponent<VolleyTutorial>();
+            Assert.That(tutorial.ClipFor("turn_spike"),Is.Not.Null);
+            Assert.That(tutorial.ClipFor("turn_block"),Is.Not.Null);
+        }
+
         /// <summary>Only <paramref name="keep"/> of their players stays on court (the rest stand down).</summary>
         void OnlyOnCourt(VolleyOpponentPrototype keep)
         {
@@ -433,6 +452,7 @@ namespace GloveBallDemo.Tests
             Assert.That(typeof(VolleyDrillController).GetField("FingertipBlockPassThrough"),Is.Null,"No fingertip block that lets the ball through.");
             Assert.That(typeof(VolleyDrillController).GetField("EdgeBlockPassThrough"),Is.Null);
             Assert.That(_drill.HapticsAtMaximum,Is.True,"For now every hand touch at the full gain (the clip's own strength).");
+            Assert.That(_drill.ReceiveHapticScale,Is.EqualTo(.7f).Within(.001f),"A receive (both arms) at 70 %.");
             Assert.That(typeof(VolleyDrillController).GetField("FingertipHapticScale"),Is.Null,"Where on the hand never weakens the feel.");
             Assert.That(_drill.ReceiveMinimumGain,Is.GreaterThanOrEqualTo(1f),"A receive is felt like a good one.");
         }

@@ -1,3 +1,4 @@
+using Hapbeat.DemoSwitch;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -30,7 +31,7 @@ namespace GloveBallDemo.Runtime
         Texture2D _triangleTexture;
         Text _tip; float _tipAge=-1f;
         VolleyTutorial _tutorial; AudioClip _matchStart;
-        AudioSource _music;
+        AudioSource _music, _voice;
         Transform _setterLabel;
         readonly Transform[] _passerLabels=new Transform[2];
         float _gradeAge=-1f;
@@ -148,7 +149,7 @@ namespace GloveBallDemo.Runtime
                 {
                     case VolleyAerialSequence.JumpTiming.Early:return "ジャンプが早い：もう少し引きつけて";
                     case VolleyAerialSequence.JumpTiming.Late:return "ジャンプが遅い：もう少し早く跳ぼう";
-                    case VolleyAerialSequence.JumpTiming.NoJump:return "両手を振り上げてジャンプしよう";
+                    case VolleyAerialSequence.JumpTiming.NoJump:return "両手を胸の高さから真上へ伸ばしてジャンプしよう";
                 }
             return block ? "打つ相手の正面に、両手を前へ出そう" : "いちばん高いところで、上から下へたたこう";
         }
@@ -170,6 +171,7 @@ namespace GloveBallDemo.Runtime
         /// <summary>The background music: looped quietly during the match (not the tutorial); the shared pause holds it with all audio.</summary>
         void BuildMusic()
         {
+            _voice=gameObject.AddComponent<AudioSource>();_voice.playOnAwake=false;_voice.spatialBlend=0f;
             if(Rally.Music==null)return;
             _music=gameObject.AddComponent<AudioSource>();
             _music.clip=Rally.Music;_music.loop=true;_music.spatialBlend=0f;_music.volume=Rally.MusicVolume;_music.playOnAwake=false;
@@ -282,7 +284,12 @@ namespace GloveBallDemo.Runtime
         void OnTurn(VolleyAerialSequence.RallyTurn turn)
         {
             _pulse=0f;_outcomeAge=-1f;Refresh();
-            Play(turn==VolleyAerialSequence.RallyTurn.Spike ? _spikeChime : _blockChime);
+            // A spike or block turn is said ("スパイク！" / "ブロック！"), every time, except over the tutorial's own voice.
+            var touch=Rally.AnnouncedTouch;
+            string id=touch==VolleyAerialSequence.PlayerTouch.Spike ? "turn_spike" : touch==VolleyAerialSequence.PlayerTouch.Block ? "turn_block" : null;
+            var clip=id!=null && _tutorial!=null && _tutorial.Running==VolleyTutorial.Course.None ? _tutorial.ClipFor(id) : null;
+            if(clip!=null && Application.isPlaying && _voice!=null){DemoNarration.Apply(_voice);_voice.PlayOneShot(clip);}
+            else Play(turn==VolleyAerialSequence.RallyTurn.Spike ? _spikeChime : _blockChime);
         }
         void OnPoint(bool player,Vector3 position)
         {

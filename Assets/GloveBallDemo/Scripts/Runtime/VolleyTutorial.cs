@@ -404,6 +404,9 @@ namespace GloveBallDemo.Runtime
             if (Application.isPlaying) _voice.Play(); // EditMode verification never plays audio
         }
 
+        /// <summary>The voice clip of line <paramref name="id"/> (also the match's turn calls), or null.</summary>
+        public AudioClip ClipFor(string id) => Clip(id);
+
         AudioClip Clip(string id)
         {
             if (Clips == null) return null;
@@ -616,7 +619,7 @@ namespace GloveBallDemo.Runtime
 
         public static readonly Line[] Lines =
         {
-            new Line("sb_jump", "ジャンプ", "まずジャンプの練習です。両手を下から上へ、一気に振り上げるとジャンプします。2回跳んでみましょう。"),
+            new Line("sb_jump", "ジャンプ", "まずジャンプの練習です。両手を胸の前に構えて、胸の高さから真上へ、一気に伸ばすとジャンプします。下から大きく振り上げると、手を見失うことがあります。2回跳んでみましょう。"),
             new Line("sb_spike", "スパイク", "スパイクの練習です。セッターがトスを上げます。「ジャンプ」の声で跳んで、いちばん高いところで、ボールを上から下へ、相手のコートにたたき込みましょう。強いスパイクを2本決めます。"),
             new Line("sb_spike_auto", "スパイク", "スパイクの練習です。セッターがトスを上げます。ジャンプは自動です。ボールがいちばん高いところに来たら、上から下へ、相手のコートにたたき込みましょう。強いスパイクを2本決めます。"),
             new Line("sb_spike_hint", "", "ジャンプして、ボールを上から下へ、相手のコートにたたき込みましょう。"),
@@ -624,7 +627,7 @@ namespace GloveBallDemo.Runtime
             new Line("sb_spike_low_auto", "", "もう少し高いところで打ちましょう。ボールがいちばん高いところに来たら、上から下へたたきます。"),
             new Line("sb_jump_early", "", "ジャンプが早すぎました。もう少し引きつけてから跳びましょう。"),
             new Line("sb_jump_late", "", "ジャンプが遅れました。もう少し早く跳びましょう。"),
-            new Line("sb_jump_none", "", "ジャンプしていません。「ジャンプ」の声で、両手を振り上げて跳びましょう。"),
+            new Line("sb_jump_none", "", "ジャンプしていません。「ジャンプ」の声で、両手を胸の高さから真上へ伸ばして跳びましょう。"),
             new Line("sb_nice", "", "ナイススパイク！もう1本。"),
             new Line("sb_block", "ブロック", "今度は相手のスパイクです。ジャンプして両手を高く上げ、ネットの上へ手を出して、ブロックしましょう。"),
             new Line("sb_block_hint", "", "打ってくる相手の正面で、ジャンプして両手を前へ出しましょう。"),
@@ -648,6 +651,8 @@ namespace GloveBallDemo.Runtime
             new Line("rc_end_7", "試合開始", "OKです！では、7点先取の試合を始めます。"),
             new Line("rc_end", "試合開始", "OKです！では、試合を始めます。"),
             new Line("jump_cue", "", "ジャンプ！"),
+            new Line("turn_spike", "", "スパイク！"),
+            new Line("turn_block", "", "ブロック！"),
         };
 
         public static Line Get(string id)
