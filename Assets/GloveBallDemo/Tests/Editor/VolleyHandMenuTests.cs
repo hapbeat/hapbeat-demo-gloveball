@@ -19,11 +19,12 @@ namespace GloveBallDemo.Tests
                 for(int i=0;i<3;i++)
                 {
                     head.localPosition=new Vector3(1+i,1.6f,-2-i);head.localRotation=Quaternion.Euler(0,30+i*20,0);
-                    menu.SetOpen(true);float height=floor.EyeHeight;menu.Activate(5);
+                    menu.SetOpen(true);menu.Activate(5);
                     Assert.That(menu.IsOpen,Is.False);
                     Assert.That(Vector3.ProjectOnPlane(head.position-target,Vector3.up).magnitude,Is.LessThan(.001f));
                     Assert.That(Vector3.Angle(head.forward,floor.RepositionTarget.forward),Is.LessThan(.1f));
-                    Assert.That(floor.EyeHeight,Is.EqualTo(height).Within(.001f));
+                    Assert.That(floor.StandingEyeHeight,Is.EqualTo(1.65f).Within(.001f));
+                    Assert.That(floor.EyeHeight,Is.EqualTo(floor.StandingEyeHeight).Within(.001f),"The eyes 1.65 m above the court, whoever plays.");
                 }
             }
             finally{menu.SetOpen(false);Object.DestroyImmediate(menu);}

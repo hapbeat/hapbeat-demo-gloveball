@@ -269,6 +269,8 @@ public static class VolleyRallySetup
     static void PlaceBlockSpot(VolleyAerialSequence aerial,Vector3 net,Vector3 forward)
     {
         var floor=aerial.Jump.Floor;
+        // 視線をリセット (and the first wear) sets the eyes 1.65 m above the court, whoever plays (2026-10-21, the demos' shared height).
+        floor.StandingEyeHeight=1.65f;EditorUtility.SetDirty(floor);
         var spot=floor.RepositionTarget;
         var position=net-forward*aerial.BlockStandDistance;position.y=spot.position.y;
         spot.position=new Vector3(spot.position.x,position.y,position.z);

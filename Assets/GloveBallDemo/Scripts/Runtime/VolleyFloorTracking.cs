@@ -20,7 +20,7 @@ namespace GloveBallDemo.Runtime
         [Tooltip("App-only vertical correction for a miscalibrated runtime floor. Set through the standing-height menu.")]
         public float HeightCorrection;
         public float VirtualLift { get; private set; }
-        [Min(1f)] public float StandingEyeHeight=1.60f;
+        [Min(1f)] public float StandingEyeHeight=1.65f;
         public float EyeHeight=>Origin.Camera.transform.position.y-Origin.transform.position.y;
         readonly List<XRInputSubsystem> _inputs=new List<XRInputSubsystem>();
         XRInputSubsystem _requested;

@@ -297,20 +297,26 @@ namespace GloveBallDemo.Runtime
         /// <summary>The stance and eye height were set again (panels placed for the player follow).</summary>
         public static event System.Action Repositioned;
         static bool s_launchRepositioned;
-        [Tooltip("At the app's first start, 視線をリセット once the head has been tracked this long (s): the floor height then fits without a button.")]
+        [Tooltip("At the app's first start, 視線をリセット once the headset is worn and the hands have been tracked this long (s): the eye height is then set without a button.")]
         [Min(0f)] public float LaunchRepositionSeconds=1f;
-        /// <summary>The app's first start: 視線をリセット from where the player stands, once tracking has settled.</summary>
+        /// <summary>The app's first start: 視線をリセット from where the player stands, once the headset is on and tracking has settled.</summary>
         System.Collections.IEnumerator RepositionAtLaunch()
         {
             float settled=0f;
             while(settled<LaunchRepositionSeconds)
             {
-                settled=Drill!=null && Drill.TrackingReady ? settled+Time.unscaledDeltaTime : 0f;
+                settled=Drill!=null && Drill.TrackingReady && HeadsetWorn() ? settled+Time.unscaledDeltaTime : 0f;
                 yield return null;
             }
             if(IsOpen)yield break; // the player is already in the menu
             s_launchRepositioned=true;
             RepositionToStart();
+        }
+        /// <summary>The headset's proximity sensor says it is on a head (a runtime without the feature counts as worn).</summary>
+        static bool HeadsetWorn()
+        {
+            var head=InputDevices.GetDeviceAtXRNode(XRNode.Head);
+            return !head.isValid || !head.TryGetFeatureValue(CommonUsages.userPresence,out bool present) || present;
         }
         void OnDisable(){DemoPause.PausedChanged-=OnSharedPauseChanged;if(IsOpen)SetOpen(false);}
         public bool CanExecuteControl(string action,string sceneId) =>
