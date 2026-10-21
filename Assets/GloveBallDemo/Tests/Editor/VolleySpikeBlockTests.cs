@@ -493,7 +493,7 @@ namespace GloveBallDemo.Tests
             {
                 floor.Origin.Camera.transform.localPosition=Vector3.up*1.25f;
                 menu.SetOpen(true);menu.RepositionToStart();
-                Assert.That(floor.EyeHeight,Is.EqualTo(floor.StandingEyeHeight).Within(.01f),"視線をリセット puts the eyes at the standing height too.");
+                Assert.That(floor.EyeHeight,Is.EqualTo(Hapbeat.DemoSwitch.DemoEyeHeight.Target).Within(.01f),"視線をリセット puts the eyes at the shared height too.");
             }
             finally{menu.SetOpen(false);Time.timeScale=original;}
         }

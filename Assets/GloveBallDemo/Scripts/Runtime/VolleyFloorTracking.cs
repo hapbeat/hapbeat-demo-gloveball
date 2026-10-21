@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Hapbeat.DemoSwitch;
 using UnityEngine;
 using UnityEngine.XR;
 using Unity.XR.CoreUtils;
@@ -20,7 +21,6 @@ namespace GloveBallDemo.Runtime
         [Tooltip("App-only vertical correction for a miscalibrated runtime floor. Set through the standing-height menu.")]
         public float HeightCorrection;
         public float VirtualLift { get; private set; }
-        [Min(1f)] public float StandingEyeHeight=1.65f;
         public float EyeHeight=>Origin.Camera.transform.position.y-Origin.transform.position.y;
         readonly List<XRInputSubsystem> _inputs=new List<XRInputSubsystem>();
         XRInputSubsystem _requested;
@@ -78,12 +78,20 @@ namespace GloveBallDemo.Runtime
             if(StanceAnchor==null || RepositionTarget==null)return;
             StanceAnchor.SetPositionAndRotation(RepositionTarget.position+StanceOffset,RepositionTarget.rotation);
         }
-        public void CalibrateStandingHeight()
+        /// <summary>The menu's STAND UPRIGHT and 視線をリセット: the eyes at the demos' shared height (<see cref="DemoEyeHeight.Target"/>).</summary>
+        public void CalibrateStandingHeight()=>ApplyEyeHeight(DemoEyeHeight.Target);
+        /// <summary>
+        /// The head <paramref name="target"/> m above the court, whoever plays (the package calls it at 視線をリセット, a system
+        /// recenter and the first worn frame). Applied equally to camera and both tracked hands, not to the court; outside a
+        /// jump (the virtual lift back to 0 first), so called again it changes nothing.
+        /// </summary>
+        public void ApplyEyeHeight(float target)
         {
-            // Apply equally to camera and both tracked hands, not to the court or target floor frame.
-            HeightCorrection+=StandingEyeHeight-EyeHeight;
+            SetVirtualLift(0f);
+            float change=DemoEyeHeight.Correction(EyeHeight,target);
+            HeightCorrection+=change;
             var offset=Origin.CameraFloorOffsetObject.transform;
-            var p=offset.localPosition;p.y+=StandingEyeHeight-EyeHeight;offset.localPosition=p;
+            var p=offset.localPosition;p.y+=change;offset.localPosition=p;
         }
         public void ClearCalibration()
         {

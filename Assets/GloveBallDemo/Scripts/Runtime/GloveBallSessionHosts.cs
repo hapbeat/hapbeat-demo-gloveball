@@ -41,7 +41,7 @@ namespace GloveBallDemo.Runtime
     /// <see cref="Restart"/>; <see cref="VolleyHandMenu"/> opens beside its panel. After SPIKE + BLOCK the completion panel
     /// also offers レシーブへ (RECEIVE in the same step, with its tutorial unless the session's tutorial is off).
     /// </summary>
-    public sealed class VolleySessionHost : MonoBehaviour, IDemoSessionHost, IDemoSessionRecenter, IDemoSessionTutorial, IDemoSessionCompletionActions
+    public sealed class VolleySessionHost : MonoBehaviour, IDemoSessionHost, IDemoSessionRecenter, IDemoSessionTutorial, IDemoSessionCompletionActions, IDemoSessionHeight
     {
         public const string BlockScene = "VolleyBlock-codex";
 
@@ -146,6 +146,13 @@ namespace GloveBallDemo.Runtime
         }
 
         public void SetHapticsEnabled(bool enabled) => HapticEventRelay.SetHapticsEnabled(enabled);
+
+        /// <summary>The package's eye height (視線をリセット, a system recenter, the first worn frame): Volley's own floor tracking.</summary>
+        public void ApplyEyeHeight(float target)
+        {
+            var floor = FindAnyObjectByType<VolleyFloorTracking>();
+            if (floor != null) floor.ApplyEyeHeight(target);
+        }
 
         public void RecenterToStart()
         {

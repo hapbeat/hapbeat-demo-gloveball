@@ -23,8 +23,8 @@ namespace GloveBallDemo.Tests
                     Assert.That(menu.IsOpen,Is.False);
                     Assert.That(Vector3.ProjectOnPlane(head.position-target,Vector3.up).magnitude,Is.LessThan(.001f));
                     Assert.That(Vector3.Angle(head.forward,floor.RepositionTarget.forward),Is.LessThan(.1f));
-                    Assert.That(floor.StandingEyeHeight,Is.EqualTo(1.65f).Within(.001f));
-                    Assert.That(floor.EyeHeight,Is.EqualTo(floor.StandingEyeHeight).Within(.001f),"The eyes 1.65 m above the court, whoever plays.");
+                    Assert.That(Hapbeat.DemoSwitch.DemoEyeHeight.Target,Is.EqualTo(1.65f).Within(.001f));
+                    Assert.That(floor.EyeHeight,Is.EqualTo(Hapbeat.DemoSwitch.DemoEyeHeight.Target).Within(.001f),"The eyes 1.65 m above the court, whoever plays.");
                 }
             }
             finally{menu.SetOpen(false);Object.DestroyImmediate(menu);}
@@ -40,7 +40,7 @@ namespace GloveBallDemo.Tests
             floor.Recenter();
             Assert.That(Vector3.ProjectOnPlane(head.position-origin.position,Vector3.up).magnitude,Is.LessThan(.001f));
             Assert.That(Vector3.Angle(head.forward,origin.forward),Is.LessThan(.1f));
-            Assert.That(floor.EyeHeight,Is.EqualTo(1.6f).Within(.001f));
+            Assert.That(floor.EyeHeight,Is.EqualTo(1.65f).Within(.001f));
             Assert.That(floor.HeightCorrection,Is.EqualTo(correction));Assert.That(origin.position,Is.EqualTo(courtPosition));
         }
         [Test]
@@ -93,10 +93,11 @@ namespace GloveBallDemo.Tests
             EditorSceneManager.OpenScene("Assets/GloveBallDemo/Scenes/VolleyReceive-codex.unity");
             var floor=Object.FindFirstObjectByType<VolleyFloorTracking>();var head=floor.Origin.Camera.transform;
             var offset=floor.Origin.CameraFloorOffsetObject.transform;offset.localPosition=Vector3.zero;
-            head.localPosition=new Vector3(0,2.2f,0);floor.StandingEyeHeight=1.6f;floor.HeightCorrection=0f;
-            floor.CalibrateStandingHeight();Assert.That(floor.EyeHeight,Is.EqualTo(1.6f).Within(.001f));
-            Assert.That(floor.HeightCorrection,Is.EqualTo(-.6f).Within(.001f));
-            head.localPosition-=Vector3.up*.4f;Assert.That(floor.EyeHeight,Is.EqualTo(1.2f).Within(.001f));
+            head.localPosition=new Vector3(0,2.2f,0);floor.HeightCorrection=0f;
+            floor.CalibrateStandingHeight();Assert.That(floor.EyeHeight,Is.EqualTo(1.65f).Within(.001f));
+            Assert.That(floor.HeightCorrection,Is.EqualTo(-.55f).Within(.001f));
+            floor.ApplyEyeHeight(1.65f);Assert.That(floor.HeightCorrection,Is.EqualTo(-.55f).Within(.001f),"Called again: no accumulation.");
+            head.localPosition-=Vector3.up*.4f;Assert.That(floor.EyeHeight,Is.EqualTo(1.25f).Within(.001f));
             floor.ClearCalibration();Assert.That(floor.HeightCorrection,Is.Zero);Assert.That(offset.localPosition.y,Is.Zero.Within(.001f));
         }
         [Test]

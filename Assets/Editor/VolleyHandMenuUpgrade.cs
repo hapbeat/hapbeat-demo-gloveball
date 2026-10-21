@@ -15,7 +15,7 @@ public static class VolleyHandMenuUpgrade
         var drill=UnityEngine.Object.FindFirstObjectByType<VolleyDrillController>();
         var floor=UnityEngine.Object.FindFirstObjectByType<VolleyFloorTracking>();
         var menu=drill.GetComponent<VolleyHandMenu>();if(menu==null)menu=drill.gameObject.AddComponent<VolleyHandMenu>();
-        menu.Drill=drill;menu.Floor=floor;floor.StandingEyeHeight=1.6f;floor.HeightCorrection=0f;
+        menu.Drill=drill;menu.Floor=floor;floor.HeightCorrection=0f;
         EditorSceneManager.MarkSceneDirty(scene);if(!EditorSceneManager.SaveScene(scene))throw new InvalidOperationException("Save failed");
         typeof(UnityEditor.AI.NavMeshVisualizationSettings).GetProperty("showNavMesh",System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static).SetValue(null,false);
     }

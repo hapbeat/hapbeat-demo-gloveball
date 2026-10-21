@@ -284,7 +284,7 @@ namespace GloveBallDemo.Runtime
         void Refresh()
         {
             if(_heightText==null)return;_heightText.text=$"Eye {Floor.EyeHeight:F2} m  /  correction {Floor.HeightCorrection:+0.00;-0.00;0.00} m\n"+(GloveBallWideMotionFeature.Active?.Status??"WMM: unavailable (Quest APK required)");
-            var names=new List<string>{"RESUME",$"HANDS ONLY: {(Drill.Left.InputMode==VolleyInputMode.HandsOnly?"ON":"OFF")}",$"STAND UPRIGHT: SET EYE {Floor.StandingEyeHeight:F2} m","USE RUNTIME FLOOR","RESTART","REPOSITION TO START",
+            var names=new List<string>{"RESUME",$"HANDS ONLY: {(Drill.Left.InputMode==VolleyInputMode.HandsOnly?"ON":"OFF")}",$"STAND UPRIGHT: SET EYE {DemoEyeHeight.Target:F2} m","USE RUNTIME FLOOR","RESTART","REPOSITION TO START",
                 Drill.Aerial==null ? "AUTO JUMP: (SPIKE / BLOCK)" : Drill.Aerial.BeginnerBlock ? "AUTO JUMP: ON" : "AUTO JUMP: OFF (RAISE HANDS TO JUMP)"};
             for(int i=0;i<MenuModeNames.Length;i++)names.Add((IsCurrent(FirstModeRow+i) ? "NOW: " : "")+MenuModeNames[i]);
             // In the order of the modes above: RECEIVE first, then SPIKE + BLOCK.

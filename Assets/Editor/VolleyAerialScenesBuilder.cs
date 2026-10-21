@@ -63,7 +63,7 @@ public static class VolleyAerialScenesBuilder
             aerial.TossLauncher=drill.FeedLaunchers[0];
             for(int i=0;i<drill.FeedLaunchers.Length;i++)drill.FeedLaunchers[i].gameObject.SetActive(i==0);
             aerial.TossLauncher.transform.position=new Vector3(p.x-2.2f,aerial.TossLauncher.transform.position.y,p.z-.2f);
-            aerial.TossLauncher.GetComponent<VolleyFeederAim>().AimForShot(p+new Vector3(0,floor.StandingEyeHeight+jump.JumpHeight+aerial.SpikeReachAboveEye,drill.ContactForwardDistance),aerial.TossFlightSeconds);
+            aerial.TossLauncher.GetComponent<VolleyFeederAim>().AimForShot(p+new Vector3(0,Hapbeat.DemoSwitch.DemoEyeHeight.DefaultTargetEyeHeight+jump.JumpHeight+aerial.SpikeReachAboveEye,drill.ContactForwardDistance),aerial.TossFlightSeconds);
             var so=new SerializedObject(drill.Targets);
             Float(so,"_minX",-2.5f);Float(so,"_maxX",2.5f);Float(so,"_minZ",2.5f);Float(so,"_maxZ",6f);
             Float(so,"_minHeight",.45f);Float(so,"_maxHeight",.75f);
