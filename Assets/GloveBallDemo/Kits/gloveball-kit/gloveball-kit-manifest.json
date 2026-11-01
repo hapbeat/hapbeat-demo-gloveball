@@ -2,7 +2,7 @@
   "schema_version": "2.0.0",
   "version": "1.0.0",
   "name": "gloveball-kit",
-  "description": "Glove Ball solo demo. Clips borrowed from the SDK showcase kit; levels are set by the EventMap gains, so every intensity here is 1.0.",
+  "description": "Glove Ball solo demo. Clips borrowed from the SDK showcase kit; levels are set by the EventMap gains, so every clip_gain here is 1.0.",
   "author": "",
   "events": {},
   "stream_events": {
@@ -10,7 +10,7 @@
       "clip": "grab.wav",
       "description": "Left Grab",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -18,7 +18,7 @@
       "clip": "grab.wav",
       "description": "Right Grab",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -26,7 +26,7 @@
       "clip": "release.wav",
       "description": "Left Release",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -34,7 +34,7 @@
       "clip": "release.wav",
       "description": "Right Release",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -42,7 +42,7 @@
       "clip": "arm_collide.wav",
       "description": "Left Arm Collide",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -50,7 +50,7 @@
       "clip": "arm_collide.wav",
       "description": "Right Arm Collide",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -58,7 +58,7 @@
       "clip": "body_collide.wav",
       "description": "Body Collide",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -66,7 +66,7 @@
       "clip": "charge_loop.wav",
       "description": "Left Charge Loop",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": true
       }
     },
@@ -74,7 +74,7 @@
       "clip": "charge_loop.wav",
       "description": "Right Charge Loop",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": true
       }
     },
@@ -82,7 +82,7 @@
       "clip": "target_hit.wav",
       "description": "Target Hit",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -90,7 +90,7 @@
       "clip": "launcher_hit.wav",
       "description": "Launcher Hit",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -98,7 +98,7 @@
       "clip": "launcher_stunned.wav",
       "description": "Launcher Stunned",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -106,7 +106,7 @@
       "clip": "incoming_warn.wav",
       "description": "Incoming Warning",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -114,7 +114,7 @@
       "clip": "wave_start.wav",
       "description": "Wave Start",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -122,7 +122,7 @@
       "clip": "wave_clear.wav",
       "description": "Wave Clear",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -130,7 +130,7 @@
       "clip": "game_over.wav",
       "description": "Game Over",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -138,7 +138,7 @@
       "clip": "bowling_impact.wav",
       "description": "bowling / l_arm_collide (damage)",
       "parameters": {
-        "intensity": 0.5,
+        "clip_gain": 0.5,
         "loop": false
       }
     },
@@ -146,7 +146,7 @@
       "clip": "bowling_impact.wav",
       "description": "bowling / r_arm_collide (damage)",
       "parameters": {
-        "intensity": 0.5,
+        "clip_gain": 0.5,
         "loop": false
       }
     },
@@ -154,7 +154,7 @@
       "clip": "bowling_impact.wav",
       "description": "bowling / body_collide (damage)",
       "parameters": {
-        "intensity": 0.5,
+        "clip_gain": 0.5,
         "loop": false
       }
     },
@@ -162,7 +162,7 @@
       "clip": "volleyball_impact.wav",
       "description": "volleyball / l_arm_collide (grab_heavy)",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -170,7 +170,7 @@
       "clip": "volleyball_impact.wav",
       "description": "volleyball / r_arm_collide (grab_heavy)",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -178,7 +178,7 @@
       "clip": "volleyball_impact.wav",
       "description": "volleyball / body_collide (grab_heavy)",
       "parameters": {
-        "intensity": 0.8,
+        "clip_gain": 0.8,
         "loop": false
       }
     },
@@ -186,7 +186,7 @@
       "clip": "foam_impact.wav",
       "description": "foam / l_arm_collide (footstep_1)",
       "parameters": {
-        "intensity": 0.25,
+        "clip_gain": 0.25,
         "loop": false
       }
     },
@@ -194,7 +194,7 @@
       "clip": "foam_impact.wav",
       "description": "foam / r_arm_collide (footstep_1)",
       "parameters": {
-        "intensity": 0.25,
+        "clip_gain": 0.25,
         "loop": false
       }
     },
@@ -202,7 +202,7 @@
       "clip": "foam_impact.wav",
       "description": "foam / body_collide (footstep_1)",
       "parameters": {
-        "intensity": 0.25,
+        "clip_gain": 0.25,
         "loop": false
       }
     },
@@ -210,7 +210,7 @@
       "clip": "basketball_impact.wav",
       "description": "basketball / l_arm_collide",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -218,7 +218,7 @@
       "clip": "basketball_impact.wav",
       "description": "basketball / r_arm_collide",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -226,7 +226,7 @@
       "clip": "basketball_impact.wav",
       "description": "basketball / body_collide",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -234,7 +234,7 @@
       "clip": "perforated_impact.wav",
       "description": "perforated / l_arm_collide (z4_slider_tick)",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -242,7 +242,7 @@
       "clip": "perforated_impact.wav",
       "description": "perforated / r_arm_collide (z4_slider_tick)",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -250,7 +250,7 @@
       "clip": "perforated_impact.wav",
       "description": "perforated / body_collide (z4_slider_tick)",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     },
@@ -258,7 +258,7 @@
       "clip": "landing.wav",
       "description": "Volley: a jump's takeoff (light) and landing (stronger), at the neck",
       "parameters": {
-        "intensity": 1,
+        "clip_gain": 1,
         "loop": false
       }
     }

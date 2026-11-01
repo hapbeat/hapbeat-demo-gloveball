@@ -26,7 +26,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Left hand grip confirmation.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: a6ba69fa455f4097b85447b7de1d238f
     mode: 1
     displayName: Left Release
@@ -40,7 +40,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Left hand release.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: dcb567c7e89d4888944cd21b07ca4648
     mode: 1
     displayName: Left Arm Collide
@@ -54,7 +54,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Incoming ball reflected by left arm.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 8e55ee0b8f6c4015b4d3b85f6cdcc932
     mode: 1
     displayName: Left Charge Loop
@@ -68,7 +68,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Left trigger charge loop.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 4dd09edaf221458b9a9c4bb3fb5db274
     mode: 1
     displayName: Right Grab
@@ -82,7 +82,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Right hand grip confirmation.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 4ea380911af94ef89e852eeff1d4b628
     mode: 1
     displayName: Right Release
@@ -96,7 +96,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Right hand release.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: b41791e7805c40fb8aeeb3ffe7c16e21
     mode: 1
     displayName: Right Arm Collide
@@ -110,7 +110,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Incoming ball reflected by right arm.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 68d56c931f7c4dd8bcc1a47a0acaf11a
     mode: 1
     displayName: Right Charge Loop
@@ -124,7 +124,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Right trigger charge loop.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 1652ecf4cda44eb29f71de5e97cddc92
     mode: 1
     displayName: Body Collide
@@ -138,7 +138,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: 'The hardest hit in the demo: taking a ball to the body resets the combo.'
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 04cf50c775754680afa3022084dc0db7
     mode: 1
     displayName: Target Hit
@@ -152,7 +152,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Bright hit that reads as a score.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 661a158a99c54988bab8dcb228aa56fb
     mode: 1
     displayName: Wave Start
@@ -166,7 +166,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Wave transition jingle.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: fc63da4e9441428ba4ef4f14a860797f
     mode: 1
     displayName: Wave Clear
@@ -180,7 +180,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Wave transition jingle.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: dee32b8641c5472bbd7d52f5e50e5f20
     mode: 1
     displayName: Game Over
@@ -194,7 +194,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: End of run.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 30036e03c51a4cd7aaead86f904882ba
     mode: 1
     displayName: Launcher Hit
@@ -209,7 +209,7 @@ MonoBehaviour:
     notes: 'Heavier than a panel hit: launchers are worth more and take three to
       stun.'
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 47b75122967744a2bb29f486c1104a92
     mode: 1
     displayName: Launcher Stunned
@@ -223,7 +223,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: The reward moment when a launcher goes quiet for five seconds.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 1a58c0546a5f48669a3f5c0688045c81
     mode: 1
     displayName: Incoming Warning
@@ -237,7 +237,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Fires 0.6 s before a shot. Weak on purpose - a cue, not an event.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 857e60c308344d978ba290ded1f3ff53
     mode: 1
     displayName: Landing
@@ -252,5 +252,5 @@ MonoBehaviour:
     notes: 'Volley: a jump''s takeoff (light) and landing (stronger), at the neck
       (Hapbeat Studio library fps-sample/landing).'
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   revertPlayModeChanges: 0

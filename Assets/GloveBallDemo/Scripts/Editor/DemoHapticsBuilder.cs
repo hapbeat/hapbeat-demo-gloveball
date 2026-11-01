@@ -136,8 +136,8 @@ namespace GloveBallDemo.Editor
         /// Kit manifest, schema 2.0.0. Every event goes in the <c>stream_events</c> bucket
         /// because the demo streams every clip.
         ///
-        /// Intensity is 1.0 across the board on purpose. The SDK multiplies gain by the
-        /// manifest intensity before sending, so authoring a level in both places would mean
+        /// clip_gain is 1.0 across the board on purpose. The SDK multiplies gain by the
+        /// manifest clip_gain before sending, so authoring a level in both places would mean
         /// two half-truths; the balance lives in the EventMap's gains alone.
         /// </summary>
         private static void WriteManifest()
@@ -148,7 +148,7 @@ namespace GloveBallDemo.Editor
             json.AppendLine("  \"version\": \"1.0.0\",");
             json.AppendLine($"  \"name\": \"{DemoHapticCatalog.KitName}\",");
             json.AppendLine("  \"description\": \"Glove Ball solo demo. Clips borrowed from the SDK showcase kit; " +
-                            "levels are set by the EventMap gains, so every intensity here is 1.0.\",");
+                            "levels are set by the EventMap gains, so every clip_gain here is 1.0.\",");
             json.AppendLine("  \"author\": \"\",");
             json.AppendLine("  \"events\": {},");
             json.AppendLine("  \"stream_events\": {");
@@ -161,7 +161,7 @@ namespace GloveBallDemo.Editor
                 json.AppendLine($"      \"clip\": \"{definition.ClipName}.wav\",");
                 json.AppendLine($"      \"description\": \"{definition.DisplayName}\",");
                 json.AppendLine("      \"parameters\": {");
-                json.AppendLine("        \"intensity\": 1.0,");
+                json.AppendLine("        \"clip_gain\": 1.0,");
                 json.AppendLine($"        \"loop\": {(definition.Loop ? "true" : "false")}");
                 json.AppendLine("      }");
                 json.AppendLine($"    }}{comma}");
@@ -211,7 +211,7 @@ namespace GloveBallDemo.Editor
             map.entries.Clear();
             map.entries.AddRange(rebuiltEntries);
 
-            BakeManifestIntensities(map);
+            BakeManifestClipGains(map);
 
             EditorUtility.SetDirty(map);
             AssetDatabase.SaveAssets();
@@ -243,28 +243,28 @@ namespace GloveBallDemo.Editor
         }
 
         /// <summary>
-        /// Bakes each entry's manifest intensity onto the entry. The player build ships no
+        /// Bakes each entry's manifest clip_gain into the entry's clip_gain cache (not into its gain). The player build ships no
         /// manifest, so an unbaked entry falls back to raw gain and warns at runtime.
         /// </summary>
-        private static void BakeManifestIntensities(HapbeatEventMap map)
+        private static void BakeManifestClipGains(HapbeatEventMap map)
         {
-            HapbeatManifestIntensity.Invalidate();
+            HapbeatManifestClipGain.Invalidate();
 
             var resolved = 0;
             foreach (var entry in map.entries)
             {
-                if (HapbeatManifestIntensity.TryResolve(entry, out var intensity, out _))
+                if (HapbeatManifestClipGain.TryResolve(entry, out var clipGain, out _))
                 {
-                    entry.SetCachedManifestIntensity(intensity);
+                    entry.SetCachedManifestClipGain(clipGain);
                     resolved++;
                 }
                 else
                 {
-                    Debug.LogWarning($"[DemoHaptics] no manifest intensity for {entry.eventId}");
+                    Debug.LogWarning($"[DemoHaptics] no manifest clip_gain for {entry.eventId}");
                 }
             }
 
-            Debug.Log($"[DemoHaptics] baked manifest intensity for {resolved}/{map.entries.Count} entries");
+            Debug.Log($"[DemoHaptics] baked manifest clip_gain for {resolved}/{map.entries.Count} entries");
         }
 
         // ----------------------------------------------------------------- utils

@@ -34,7 +34,7 @@ public static class VolleyRallySetup
         entry.mode=HapticMode.StreamClip;entry.displayName="Landing";entry.category="gloveball-kit";entry.eventName="landing";
         entry.streamClip=clip;entry.loop=false;entry.gain=1f;entry.target="*/pos_neck";entry.delayOffsetSeconds=0f;
         entry.notes="Volley: a jump's takeoff (light) and landing (stronger), at the neck (Hapbeat Studio library fps-sample/landing).";
-        entry.SetCachedManifestIntensity(1f);
+        entry.SetCachedManifestClipGain(1f);
         EditorUtility.SetDirty(map);
         var relay=UnityEngine.Object.FindFirstObjectByType<HapticEventRelay>();
         if(relay==null)throw new InvalidOperationException("Landing haptic: no HapticEventRelay in the scene.");

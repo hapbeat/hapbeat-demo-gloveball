@@ -233,7 +233,7 @@ namespace GloveBallDemo.Editor
                                 target = template.target, gain = template.gain, loop = false,
                                 notes = "Kit clip shared by this ball's L/R/body events. Replace WAV in place, preserving its meta GUID."
                             };
-                            entry.SetCachedManifestIntensity(1f);
+                            entry.SetCachedManifestClipGain(1f);
                             map.entries.Add(entry);
                         }
                         var trigger = go.AddComponent<HapbeatUnityEventTrigger>();

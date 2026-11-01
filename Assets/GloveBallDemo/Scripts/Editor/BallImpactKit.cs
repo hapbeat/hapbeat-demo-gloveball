@@ -56,7 +56,7 @@ namespace GloveBallDemo.Editor
                     events[id] = new JObject {
                         ["clip"] = Path.GetFileName(ClipPath(kind)),
                         ["description"] = $"{kind} / {surface}",
-                        ["parameters"] = new JObject { ["intensity"] = 1.0, ["loop"] = false }
+                        ["parameters"] = new JObject { ["clip_gain"] = 1.0, ["loop"] = false }
                     };
                 }
             }

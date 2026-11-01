@@ -26,7 +26,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Kit haptic clip damage; shared by this ball's L/R/body events.
     manifestOverride: {fileID: 4900000, guid: a92b2f02110bee342b689ab27b26a16a, type: 3}
-    _cachedManifestIntensity: 0.5
+    _cachedManifestClipGain: 0.5
   - _id: 7219c650743a43059b48fb40ae610578
     mode: 1
     displayName: Bowling / r_arm_collide
@@ -40,7 +40,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Kit haptic clip damage; shared by this ball's L/R/body events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 0.5
+    _cachedManifestClipGain: 0.5
   - _id: e3423cd7d2b14be7be186d806030d8b1
     mode: 1
     displayName: Bowling / body_collide
@@ -54,7 +54,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Kit haptic clip damage; shared by this ball's L/R/body events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 0.5
+    _cachedManifestClipGain: 0.5
   - _id: 705f8038e6674c3d8437147352a06089
     mode: 1
     displayName: Volleyball / l_arm_collide
@@ -68,7 +68,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Kit haptic clip grab_heavy; shared by this ball's L/R/body events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 0303204a50704402a938dba26c69211a
     mode: 1
     displayName: Volleyball / r_arm_collide
@@ -82,7 +82,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Kit haptic clip grab_heavy; shared by this ball's L/R/body events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: a96029e805d649a0bfa815b4b5a0fc2e
     mode: 1
     displayName: Volleyball / body_collide
@@ -96,7 +96,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Kit haptic clip grab_heavy; shared by this ball's L/R/body events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 0.8
+    _cachedManifestClipGain: 0.8
   - _id: 424a6e5cffff43e88b7b9c238749f828
     mode: 1
     displayName: Foam / l_arm_collide
@@ -110,7 +110,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Kit haptic clip footstep_1; shared by this ball's L/R/body events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 0.25
+    _cachedManifestClipGain: 0.25
   - _id: 497261563f11445eaa15085175617bbb
     mode: 1
     displayName: Foam / r_arm_collide
@@ -124,7 +124,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Kit haptic clip footstep_1; shared by this ball's L/R/body events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 0.25
+    _cachedManifestClipGain: 0.25
   - _id: 8b9056722d824748b5000c4884c54a49
     mode: 1
     displayName: Foam / body_collide
@@ -138,7 +138,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Kit haptic clip footstep_1; shared by this ball's L/R/body events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 0.25
+    _cachedManifestClipGain: 0.25
   - _id: 764a4e647e9e4c9cbaa0afbbe4067049
     mode: 1
     displayName: Basketball / l_arm_collide
@@ -153,7 +153,7 @@ MonoBehaviour:
     notes: Placeholder. Replace streamClip to tune this ball; L/R/body remain distinct
       events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 0fce21e8679b43d19590f38c26be9b21
     mode: 1
     displayName: Basketball / r_arm_collide
@@ -168,7 +168,7 @@ MonoBehaviour:
     notes: Placeholder. Replace streamClip to tune this ball; L/R/body remain distinct
       events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 416969e96ec14980825f549b337dcc64
     mode: 1
     displayName: Basketball / body_collide
@@ -183,7 +183,7 @@ MonoBehaviour:
     notes: Placeholder. Replace streamClip to tune this ball; L/R/body remain distinct
       events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 5bd3e6af17ef4ee0ba695c7482370827
     mode: 1
     displayName: Perforated / l_arm_collide
@@ -197,7 +197,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Kit haptic clip z4_slider_tick; shared by this ball's L/R/body events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 11bfecceb1aa4834a37a886d30017ccf
     mode: 1
     displayName: Perforated / r_arm_collide
@@ -211,7 +211,7 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Kit haptic clip z4_slider_tick; shared by this ball's L/R/body events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   - _id: 31dd55b00be04debb823070e89a1c84d
     mode: 1
     displayName: Perforated / body_collide
@@ -225,5 +225,5 @@ MonoBehaviour:
     delayOffsetSeconds: 0
     notes: Kit haptic clip z4_slider_tick; shared by this ball's L/R/body events.
     manifestOverride: {fileID: 0}
-    _cachedManifestIntensity: 1
+    _cachedManifestClipGain: 1
   revertPlayModeChanges: 0

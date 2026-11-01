@@ -28,13 +28,13 @@ Foam appearance: `Assets/GloveBallDemo/Art/Balls/Foam_0.mat`, with procedural po
 
 ## Audio sources
 
-Update 2026-09-15: Foam audible effect now uses `soft_Anime_Motion24-1(Dry) [0.098–0.342s].wav` (0.236s). Measured onset at 10% peak fell from 109.64ms to 2.99ms; `FoamImpactHasPromptAudibleOnset` checks the imported clip stays below 30ms. Bowling haptics now use the newer `damage.wav`, copied unchanged with intensity 0.5 retained. These supersede the source filenames below. Current collision haptic gain is fixed at 1 before manifest/EventMap gains; impact velocity is not currently mapped to intensity.
+Update 2026-09-15: Foam audible effect now uses `soft_Anime_Motion24-1(Dry) [0.098–0.342s].wav` (0.236s). Measured onset at 10% peak fell from 109.64ms to 2.99ms; `FoamImpactHasPromptAudibleOnset` checks the imported clip stays below 30ms. Bowling haptics now use the newer `damage.wav`, copied unchanged with clip_gain 0.5 retained. These supersede the source filenames below. Current collision haptic gain is fixed at 1 before manifest/EventMap gains; impact velocity is not currently mapped to haptic strength.
 
 ### Haptic WAV replacement (separate from audible effects)
 
 The five haptic WAVs live in `Assets/GloveBallDemo/Kits/gloveball-kit/stream-clips/`:
 `bowling_impact.wav`, `volleyball_impact.wav`, `foam_impact.wav`, `basketball_impact.wav`, `perforated_impact.wav`.
-`gloveball-kit-manifest.json` registers 15 `stream_events` (each kind × left arm/right arm/body). Manifest intensity multiplies the existing EventMap gain.
+`gloveball-kit-manifest.json` registers 15 `stream_events` (each kind × left arm/right arm/body). The manifest `clip_gain` multiplies the existing EventMap gain.
 User-provided haptics (2026-09-15): bowling = `damage [0.000–0.087s].wav` at 0.5; volleyball = `grab_heavy.wav` at 0.8; foam = `footstep_1.wav` at 0.25; perforated = `z4_slider_tick.wav` at 1.0. The supplied WAV data is copied unchanged, with strength applied only in the manifest (and its EventMap runtime cache). Basketball retains its placeholder at 1.0. These user-provided haptics are separate from the CC0 audible effects listed below.
 
 To change one ball's haptics, overwrite its WAV **without deleting/replacing the `.meta` file**. Its three EventMap references then remain valid. If adding a differently named asset, update its manifest clip entries and the three EventMap references. Keep L/R/body targets separate.
