@@ -62,3 +62,7 @@ The imported TextMesh Pro Essential Resources were verified against `Package Res
 ## Unity XR Hands sample hand meshes (not redistributed)
 
 The XR Hands HandVisualizer sample meshes are licensed under the Unity Package Distribution License, which allows distribution only inside built application binaries. They are not included in this repository. A clone of this repository uses the Hapbeat-authored placeholder hands in `Assets/GloveBallDemo/Art/FallbackHands/` (generated from capsules by `Assets/Editor/VolleyPlaceholderHandBuilder.cs`). Builds made with a private copy of the meshes linked into `Assets/HapbeatPrivate/` include them as binary content only.
+
+## Haptic clips (Hapbeat)
+
+`Assets/GloveBallDemo/Kits/gloveball-kit/stream-clips/release.wav` is synthesized by Hapbeat from a recipe, with no recorded or third-party audio (CC0).
